@@ -1,3 +1,13 @@
+chd2iso-fuse (0.1.0-2) bookworm; urgency=medium
+
+  * Debian packaging polish:
+    - Add proper control metadata (Standards-Version, Vcs fields).
+    - Provide minimal manpage and install it via dh_installman.
+    - Keep systemd .mount/.automount units and mount helpers packaged.
+    - Build via dh-cargo; tests disabled for now.
+
+ -- Lloyd Smart <lloyd@lloydsmart.com>  Fri, 15 Aug 2025 09:45:00 +0100
+
 chd2iso-fuse (0.1.0-1) unstable; urgency=medium
 
   * Initial release.
