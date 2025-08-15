@@ -1,0 +1,22 @@
+[package]
+name = "chd2iso-fuse"
+version = "0.1.0"
+edition = "2021"
+description = "Expose CHD images as ISO files via FUSE (PS2-friendly)"
+license = "MIT"
+repository = "https://github.com/lloydsmart/chd2iso-fuse"
+homepage = "https://github.com/lloydsmart/chd2iso-fuse"
+readme = "README.md"
+categories = ["filesystem", "emulators"]
+keywords = ["fuse", "chd", "iso", "ps2"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+fuser = "0.14"    # pinned to what we tested
+lru = "0.12"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+time = "0.3"
+libc = "0.2"
+chd = "0.3.3"
