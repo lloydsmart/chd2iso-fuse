@@ -1,11 +1,11 @@
 Package: chd2iso-fuse-dbgsym
 Source: chd2iso-fuse
-Version: 0.1.0-1
+Version: 0.1.0-2
 Auto-Built-Package: debug-symbols
 Architecture: amd64
 Maintainer: Lloyd Smart <lloyd@lloydsmart.com>
 Installed-Size: 1142
-Depends: chd2iso-fuse (= 0.1.0-1)
+Depends: chd2iso-fuse (= 0.1.0-2)
 Section: debug
 Priority: optional
 Description: debug symbols for chd2iso-fuse

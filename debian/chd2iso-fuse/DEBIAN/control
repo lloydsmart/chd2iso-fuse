@@ -1,12 +1,20 @@
 Package: chd2iso-fuse
-Version: 0.1.0-1
+Version: 0.1.0-2
 Architecture: amd64
 Maintainer: Lloyd Smart <lloyd@lloydsmart.com>
-Installed-Size: 3379
+Installed-Size: 3381
 Depends: libc6 (>= 2.34), libfuse3-3 (>= 3.2.3), libgcc-s1 (>= 4.2)
 Section: utils
 Priority: optional
 Homepage: https://github.com/yourname/chd2iso-fuse
 Description: FUSE filesystem to expose CHD images as ISO/BIN (PS2-friendly)
- chd2iso-fuse mounts a directory of .chd and presents read-only .iso (2048)
- or .bin (Mode2/Form2 2324) files on-the-fly. Useful for PS2 OPL over SMB/UDPBD.
+ chd2iso-fuse mounts a directory of .chd files and presents read-only .iso
+ (2048-byte sectors) or .bin (Mode2/Form2 2324-byte sectors, when enabled)
+ on-the-fly. This is useful for PS2 OPL (over SMB/UDPBD) and conserving disk
+ space on a NAS by storing compressed CHDs while presenting ISO views.
+ .
+ Features:
+  * DVD/2048 passthrough and CD/2352 → 2048/2324 payload extraction
+  * Optional exposure of Mode2/Form2 tracks
+  * LRU frame cache with size/entry caps
+  * Read-only FUSE filesystem, PS2-friendly
