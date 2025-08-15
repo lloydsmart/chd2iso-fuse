@@ -1,12 +1,39 @@
 #!/usr/bin/make -f
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+CARGO := /usr/bin/cargo
+
 %:
-	dh $@ --with cargo
+	dh $@
+
+override_dh_auto_configure:
+	# nothing (use Cargo’s defaults)
 
 override_dh_auto_build:
-	dh_auto_build -- --release
+	"$(CARGO)" build --release
 
 override_dh_auto_test:
-	# no tests yet
 	true
+
+override_dh_auto_install:
+	install -D -m 0755 target/release/chd2iso-fuse \
+		debian/chd2iso-fuse/usr/bin/chd2iso-fuse
+	# Install manpage if present
+	if [ -f debian/chd2iso-fuse.1 ]; then \
+	  install -D -m 0644 debian/chd2iso-fuse.1 \
+	    debian/chd2iso-fuse/usr/share/man/man1/chd2iso-fuse.1; \
+	fi
+	# Optional helpers/systemd examples (adjust paths if you have them)
+	if [ -f packaging/mount.chd2iso-fuse ]; then \
+	  install -D -m 0755 packaging/mount.chd2iso-fuse \
+	    debian/chd2iso-fuse/sbin/mount.chd2iso-fuse; \
+	fi
+	if [ -f packaging/umount.chd2iso-fuse ]; then \
+	  install -D -m 0755 packaging/umount.chd2iso-fuse \
+	    debian/chd2iso-fuse/sbin/umount.chd2iso-fuse; \
+	fi
+	if [ -d packaging/systemd ]; then \
+	  install -d debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd; \
+	  install -m 0644 packaging/systemd/* \
+	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd/; \
+	fi
 

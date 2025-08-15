@@ -4,9 +4,9 @@ Priority: optional
 Maintainer: Lloyd Smart <lloyd@lloydsmart.com>
 Build-Depends:
  debhelper-compat (= 13),
- dh-cargo,
- cargo,
- rustc,
+ cargo:native,
+ rustc:native,
+ libfuse3-dev,
  pkg-config
 Standards-Version: 4.7.0
 Rules-Requires-Root: no

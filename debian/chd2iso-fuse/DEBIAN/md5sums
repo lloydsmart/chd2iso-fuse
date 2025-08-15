@@ -2,7 +2,7 @@
 f30abe79bc09aa53e27f35c44ca662da  lib/systemd/system/mnt-retronas-roms-sony-playstation2-iso.mount
 86f2095d78caa9257bd09ffad8588ec4  sbin/mount.chd2iso-fuse
 bf79a0c3656ce9b801be2222a937b2f1  sbin/umount.chd2iso-fuse
-12ef5796d169d1e5e0ddf7e18fac83f0  usr/bin/chd2iso-fuse
+d1a343d392bf609df9a6342d4e1d6668  usr/bin/chd2iso-fuse
 d0b8ae835dc91b88d3e599984c9e7122  usr/share/doc/chd2iso-fuse/changelog.Debian.gz
 a7393eb4eb95772eb130cceb573f1f93  usr/share/doc/chd2iso-fuse/copyright
 c4a812183319dafc9d0181ff03c5d916  usr/share/man/man1/chd2iso-fuse.1.gz
