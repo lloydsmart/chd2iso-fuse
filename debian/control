@@ -1,0 +1,16 @@
+Source: chd2iso-fuse
+Section: utils
+Priority: optional
+Maintainer: Lloyd Smart <lloyd@lloydsmart.com>
+Build-Depends: debhelper-compat (= 13), dh-cargo, cargo, rustc, pkg-config
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/yourname/chd2iso-fuse
+
+Package: chd2iso-fuse
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: FUSE filesystem to expose CHD images as ISO/BIN (PS2-friendly)
+ chd2iso-fuse mounts a directory of .chd and presents read-only .iso (2048)
+ or .bin (Mode2/Form2 2324) files on-the-fly. Useful for PS2 OPL over SMB/UDPBD.
+

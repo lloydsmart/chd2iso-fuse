@@ -1,0 +1,11 @@
+.TH chd2iso-fuse 1 "CHD→ISO FUSE"
+.SH NAME
+chd2iso-fuse \- present CHD images as ISO/BIN via FUSE
+.SH SYNOPSIS
+.B chd2iso-fuse
+[\-\-source DIR] [\-\-mount DIR] [\-\-allow-other] [\-\-cd-allow-form2] [\-\-cache-hunks N] [\-\-cache-bytes BYTES]
+.SH DESCRIPTION
+Streams CHD contents as 2048-byte ISO (or 2324-byte BIN for Mode2/Form2 if enabled).
+Intended for PS2 OPL over SMB/UDPBD and general space saving on NAS.
+.SH OPTIONS
+See \fBchd2iso-fuse --help\fR.

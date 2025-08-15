@@ -1,0 +1,14 @@
+[Unit]
+Description=Mount CHD→ISO PS2
+RequiresMountsFor=/mnt/retronas/roms/sony/playstation2/chd
+After=remote-fs.target
+
+[Mount]
+What=/mnt/retronas/roms/sony/playstation2/chd
+Where=/mnt/retronas/roms/sony/playstation2/iso
+Type=chd2iso-fuse
+Options=allow_other,cache_hunks=512,cache_bytes=536870912
+TimeoutSec=30
+
+[Install]
+WantedBy=multi-user.target

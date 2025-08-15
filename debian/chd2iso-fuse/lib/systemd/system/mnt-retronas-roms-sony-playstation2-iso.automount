@@ -1,0 +1,8 @@
+[Unit]
+Description=Automount CHD→ISO PS2
+
+[Automount]
+Where=/mnt/retronas/roms/sony/playstation2/iso
+
+[Install]
+WantedBy=multi-user.target
