@@ -1,0 +1,3 @@
+# Helpers don’t ship manpages (documented in README); acceptable for now.
+chd2iso-fuse: no-manual-page usr/sbin/mount.chd2iso-fuse
+chd2iso-fuse: no-manual-page usr/sbin/umount.chd2iso-fuse

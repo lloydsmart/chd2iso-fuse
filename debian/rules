@@ -1,6 +1,5 @@
 #!/usr/bin/make -f
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-CARGO := /usr/bin/cargo
 
 %:
 	dh $@
@@ -9,40 +8,40 @@ override_dh_auto_configure:
 	# nothing (use Cargo’s defaults)
 
 override_dh_auto_build:
-	"$(CARGO)" build --release
-
-override_dh_auto_test:
-	true
+	"/usr/bin/cargo" build --release
 
 override_dh_auto_install:
+	# Main binary
 	install -D -m 0755 target/release/chd2iso-fuse \
 		debian/chd2iso-fuse/usr/bin/chd2iso-fuse
-	# Install manpage if present
+
+	# Manpage (if present)
 	if [ -f debian/chd2iso-fuse.1 ]; then \
 	  install -D -m 0644 debian/chd2iso-fuse.1 \
 	    debian/chd2iso-fuse/usr/share/man/man1/chd2iso-fuse.1; \
 	fi
-	# Optional helpers/systemd examples (adjust paths if you have them)
+
+	# Helpers -> /usr/sbin (not /sbin)
 	if [ -f packaging/mount.chd2iso-fuse ]; then \
 	  install -D -m 0755 packaging/mount.chd2iso-fuse \
-	    debian/chd2iso-fuse/sbin/mount.chd2iso-fuse; \
+	    debian/chd2iso-fuse/usr/sbin/mount.chd2iso-fuse; \
 	fi
 	if [ -f packaging/umount.chd2iso-fuse ]; then \
 	  install -D -m 0755 packaging/umount.chd2iso-fuse \
-	    debian/chd2iso-fuse/sbin/umount.chd2iso-fuse; \
+	    debian/chd2iso-fuse/usr/sbin/umount.chd2iso-fuse; \
 	fi
-	if [ -d packaging/systemd ]; then \
-	  install -d debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd; \
-	  install -m 0644 packaging/systemd/* \
-	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd/; \
-	fi
-	# Install systemd template unit
+
+	# Systemd template unit ONLY -> /usr/lib/systemd/system
 	install -D -m 0644 packaging/systemd/chd2iso-fuse@.service \
-		debian/chd2iso-fuse/lib/systemd/system/chd2iso-fuse@.service
+		debian/chd2iso-fuse/usr/lib/systemd/system/chd2iso-fuse@.service
 
-	# Ensure config dir exists on target
-	install -d debian/chd2iso-fuse/etc/chd2iso-fuse
-
-	# Ship example instance config
-	install -D -m 0644 packaging/systemd/ps2.conf.example \
-		debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/ps2.conf
+	# Example units/configs go to /usr/share/doc/.../examples
+	install -d debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd
+	if [ -d packaging/systemd ]; then \
+	  install -m 0644 packaging/systemd/*.mount \
+	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd/ 2>/dev/null || true; \
+	  install -m 0644 packaging/systemd/*.automount \
+	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd/ 2>/dev/null || true; \
+	  install -m 0644 packaging/systemd/ps2.conf.example \
+	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/; \
+	fi

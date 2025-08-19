@@ -63,15 +63,17 @@ jobs:
         run: |
           debuild -us -uc -b
           mkdir -p dist
-          shopt -s nullglob
-          for f in ../chd2iso-fuse_*; do
-            cp -v "$f" dist/
-          done
-          SHORT_SHA="${GITHUB_SHA::7}"
-          for f in dist/*.deb; do
-            base="$(basename "$f")"
-            mv -v "$f" "dist/${base%.deb}-snapshot-${SHORT_SHA}.deb"
-          done
+          # Copy all produced artifacts (portable; no 'shopt')
+          find .. -maxdepth 1 -type f \( -name 'chd2iso-fuse_*' -o -name 'chd2iso-fuse-*.build' -o -name 'chd2iso-fuse-*.changes' -o -name 'chd2iso-fuse-*.dsc' \) -exec cp -v {} dist/ \;
+          # For snapshot job, rename .deb with short SHA
+          if [ "${GITHUB_REF##refs/tags/}" = "${GITHUB_REF}" ]; then
+            SHORT_SHA="${GITHUB_SHA::7}"
+            for f in dist/*.deb; do
+              [ -e "$f" ] || continue
+              base="$(basename "$f")"
+              mv -v "$f" "dist/${base%.deb}-snapshot-${SHORT_SHA}.deb"
+            done
+          fi
           ls -l dist
 
       - name: Upload artifact
