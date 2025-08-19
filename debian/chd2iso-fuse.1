@@ -1,11 +1,105 @@
-.TH chd2iso-fuse 1 "CHD→ISO FUSE"
+.TH CHD2ISO-FUSE 1 "August 2025" "chd2iso-fuse 0.1.1" "User Commands"
 .SH NAME
-chd2iso-fuse \- present CHD images as ISO/BIN via FUSE
+chd2iso-fuse \- present CHD images as ISO files via FUSE
+
 .SH SYNOPSIS
 .B chd2iso-fuse
-[\-\-source DIR] [\-\-mount DIR] [\-\-allow-other] [\-\-cd-allow-form2] [\-\-cache-hunks N] [\-\-cache-bytes BYTES]
+[\fIOPTIONS\fR]
+
+.B mount \-t chd2iso-fuse
+[\fI-o options\fR]
+.I source_dir
+.I mountpoint
+
 .SH DESCRIPTION
-Streams CHD contents as 2048-byte ISO (or 2324-byte BIN for Mode2/Form2 if enabled).
-Intended for PS2 OPL over SMB/UDPBD and general space saving on NAS.
+.B chd2iso-fuse
+is a FUSE filesystem driver that allows CHD (Compressed Hunks of Data)
+images to be mounted as if they were ordinary ISO or BIN images.  
+This is useful for emulation and archival workflows, letting software
+consume disc images directly without converting them back from CHD.
+
 .SH OPTIONS
-See \fBchd2iso-fuse --help\fR.
+.TP
+\fB-s, --source\fR \fIDIR\fR
+Directory containing \fI*.chd\fR files.
+
+.TP
+\fB-m, --mount\fR \fIDIR\fR
+Mountpoint directory where files will be exposed.
+
+.TP
+\fB--allow-other\fR
+Allow access by other users than the one who mounted.
+
+.TP
+\fB--cd-allow-form2\fR
+Enable support for CD-ROM XA Form2 tracks.
+
+.TP
+\fB--cache-hunks\fR \fIN\fR
+Number of CHD hunks to cache in memory (default: 8).
+
+.TP
+\fB--cache-bytes\fR \fIBYTES\fR
+Amount of memory to use for caching, e.g. \fI512M\fR, \fI2G\fR.
+Overrides \fI--cache-hunks\fR if set.
+
+.TP
+\fB-v, --verbose\fR
+Increase verbosity. Repeat for more detail.
+
+.TP
+\fB-h, --help\fR
+Show usage help and exit.
+
+.SH MOUNT HELPER
+When invoked via \fBmount\fR, options are translated into long flags:
+
+.nf
+    mount -t chd2iso-fuse /path/to/chds /mnt/iso \
+      -o cd_allow_form2,cache_hunks=16,allow_other
+.fi
+
+This is equivalent to:
+
+.nf
+    chd2iso-fuse --source /path/to/chds --mount /mnt/iso \
+                 --cd-allow-form2 --cache-hunks 16 --allow-other
+.fi
+
+.SH EXAMPLES
+.TP
+Quick test:
+.nf
+    chd2iso-fuse -s ~/roms/ps2 -m /mnt/ps2
+    ls /mnt/ps2
+.fi
+
+.TP
+Systemd service:
+.nf
+    systemctl enable --now chd2iso-fuse@ps2
+.fi
+
+.TP
+Fstab entry:
+.nf
+    /srv/chds   /mnt/chds   chd2iso-fuse   defaults,allow_other   0 0
+.fi
+
+.SH FILES
+.I /etc/chd2iso-fuse
+Configuration directory for systemd instances.
+
+.SH ENVIRONMENT
+.TP
+.B RUST_LOG
+Enable structured logging when set, e.g. \fIinfo\fR or \fIdebug\fR.
+
+.SH EXIT STATUS
+Returns 0 on success, nonzero on failure.
+
+.SH SEE ALSO
+.BR fuse (8),
+.BR mount (8),
+.BR fusermount3 (1)

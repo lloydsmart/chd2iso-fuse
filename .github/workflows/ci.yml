@@ -109,3 +109,6 @@ jobs:
             artifacts/*.changes
             artifacts/*.buildinfo
           generate_release_notes: true
+
+      - name: Docs parity (manpage vs --help)
+        run: scripts/check-doc-flags.sh

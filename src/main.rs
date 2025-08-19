@@ -437,6 +437,28 @@ enum TrackKind {
     Mode2Raw,
 }
 
+#[cfg(feature = "doccheck")]
+fn dump_all_flags_and_exit() -> ! {
+    use clap::CommandFactory;
+    use std::process;
+
+    // Build a clap Command from Args
+    let mut cmd = <Args as CommandFactory>::command();
+    // Collect all long flag names, including hidden ones
+    let mut flags: Vec<String> = Vec::new();
+    for arg in cmd.get_arguments() {
+        if let Some(long) = arg.get_long() {
+            flags.push(format!("--{}", long));
+        }
+    }
+    flags.sort();
+    flags.dedup();
+    for f in flags {
+        println!("{f}");
+    }
+    process::exit(0);
+}
+
 fn parse_track_line(s: &str) -> Option<TrackInfo> {
     // Example:
     // "TRACK:1 TYPE:MODE1 SUBTYPE:NONE FRAMES:26888 PREGAP:0 PGTYPE:MODE1 PGSUB:RW_RAW POSTGAP:0\0"
@@ -799,6 +821,11 @@ fn file_attr_for(e: &IndexEntry) -> Result<FileAttr> {
 }
 
 fn main() -> Result<()> {
+    #[cfg(feature = "doccheck")]
+    if std::env::args().any(|a| a == "--dump-flags") {
+        dump_all_flags_and_exit();
+    }
+
     let args = Args::parse();
 
     let filter = if args.verbose {
