@@ -14,6 +14,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- Cache Cargo (dependencies + build artifacts) ---
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      # --- Toolchain & packaging deps inside the Debian container ---
       - name: Install toolchain & build deps
         run: |
           apt-get update
@@ -23,29 +43,51 @@ jobs:
             rustc cargo rustfmt rust-clippy clang \
             devscripts debhelper dh-cargo lintian
 
+      # --- Lints ---
       - name: Cargo fmt (check)
         run: cargo fmt -- --check
 
       - name: Cargo clippy (deny warnings)
         run: cargo clippy -- -D warnings
 
+      # --- Build the binary (benefits from cache) ---
       - name: Build release
         run: cargo build --release
 
-      - name: Build .deb
+      # --- Build the .deb ---
+      - name: Build .deb with debuild
         run: |
           debuild -us -uc -b
-          ls -l ../chd2iso-fuse_*_amd64.deb
 
+      # --- Lint the produced changes file ---
       - name: Lintian
         run: |
-          lintian ../chd2iso-fuse_*_amd64.changes || true
+          set -e
+          # Lintian against the generated .changes (if present)
+          CHANGES_FILE=$(ls -1 ../chd2iso-fuse_*_amd64.changes | tail -n1)
+          if [ -n "$CHANGES_FILE" ]; then
+            lintian "$CHANGES_FILE" || true
+          else
+            echo "No .changes file found; skipping lintian."
+          fi
 
-      - name: Upload artifact (.deb + changes)
+      # --- Gather artifacts into a safe path (no ..) and upload ---
+      - name: Collect Debian artifacts
+        run: |
+          set -e
+          mkdir -p artifacts
+          for f in ../chd2iso-fuse_*_amd64.deb \
+                   ../chd2iso-fuse-dbgsym_*_amd64.deb \
+                   ../chd2iso-fuse_*_amd64.buildinfo \
+                   ../chd2iso-fuse_*_amd64.changes; do
+            [ -e "$f" ] && cp "$f" artifacts/
+          done
+          ls -l artifacts
+
+      - name: Upload Debian artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chd2iso-fuse-deb
-          path: |
-            ../chd2iso-fuse_*_amd64.deb
-            ../chd2iso-fuse_*_amd64.changes
-            ../chd2iso-fuse_*_amd64.buildinfo
+          name: chd2iso-fuse-debs
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
