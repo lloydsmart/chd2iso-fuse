@@ -1,58 +1,96 @@
-name: Release (build .deb and attach to GitHub Release)
+name: Release (build .deb and attach)
 
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - 'v*'         # push a tag like v0.1.2 to trigger
+  workflow_dispatch:  # manual trigger
 
 permissions:
-  contents: write   # needed so the workflow can create/update releases
+  contents: write   # needed to create/update a release
 
 jobs:
   build-deb:
+    name: Build Debian package
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Install system deps for Debian packaging (debuild + dh-cargo)
+      - name: Install build deps
         run: |
           sudo apt-get update
+          # Debian packaging + FUSE dev headers
           sudo apt-get install -y \
-            devscripts debhelper dh-cargo build-essential pkg-config \
+            debhelper devscripts dh-cargo fakeroot \
+            build-essential pkg-config \
             fuse3 libfuse3-dev
+          # (optional) show versions
+          dpkg -l | egrep 'debhelper|devscripts|dh-cargo|fuse3|libfuse3-dev' || true
 
-      - name: Show toolchain versions
-        run: |
-          rustc --version || true
-          cargo --version || true
-          dpkg -s dh-cargo | grep -E '^(Package|Version):' || true
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Debian package
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build (sanity)
+        run: cargo build --release
+
+      - name: Build .deb (unsigned)
         run: |
-          # Build source tree (debuild looks one dir up for artifacts)
+          # debuild writes artifacts in the parent dir (..)
           debuild -us -uc -b
+          mkdir -p dist
+          shopt -s nullglob
+          for f in ../chd2iso-fuse_*; do
+            cp -v "$f" dist/
+          done
+          ls -l dist
 
-      - name: Collect artifacts
-        run: |
-          ls -l ../
-          mkdir -p artifacts
-          cp ../chd2iso-fuse_* artifacts/
-
-      - name: Upload artifacts (CI)
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chd2iso-fuse-debs
-          path: artifacts/*
+          name: deb-artifacts
+          path: dist/*
 
-      - name: Create / Update GitHub Release and attach debs
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Create GitHub Release and attach artifacts
+    runs-on: ubuntu-latest
+    needs: build-deb
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-artifacts
+          path: dist
+
+      - name: Create/Update Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          tag_name: ${{ github.ref_name }}         # vX.Y.Z
+          name: ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ github.ref_name }}.
+
+            - Built on ubuntu-latest
+            - Unsigned Debian packages (`-us -uc`)
+            - See CHANGELOG/README for details
           draft: false
           prerelease: false
+          files: |
+            dist/*.deb
+            dist/*.changes
+            dist/*.dsc
+            dist/*.build
+            dist/*.tar.*

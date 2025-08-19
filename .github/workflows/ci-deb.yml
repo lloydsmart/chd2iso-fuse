@@ -1,0 +1,81 @@
+name: CI (build .deb snapshot)
+
+on:
+  push:
+    branches: [ main ]
+    # don't run on tag pushes (release workflow handles those)
+    tags-ignore: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+# .github/workflows/ci-deb.yml (job section only)
+jobs:
+  build-deb:
+    name: Build Debian package (snapshot) — trixie
+    runs-on: ubuntu-latest
+    container: debian:trixie
+
+    steps:
+      - name: Install base tools
+        run: |
+          apt-get update
+          apt-get install -y git ca-certificates curl
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build deps (Debian trixie)
+        run: |
+          apt-get update
+          apt-get install -y \
+            debhelper devscripts dh-cargo fakeroot \
+            build-essential pkg-config \
+            fuse3 libfuse3-dev \
+            rustc cargo
+
+      - name: Show toolchain
+        run: |
+          rustc --version
+          cargo --version
+          dpkg -l | egrep 'fuse3|libfuse3|debhelper|dh-cargo|devscripts' || true
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /github/home/.cargo/registry
+            /github/home/.cargo/git
+            target
+          key: ${{ runner.os }}-debian-trixie-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-debian-trixie-cargo-
+
+      - name: Build (sanity)
+        run: cargo build --release
+
+      - name: Build .deb (unsigned)
+        run: |
+          debuild -us -uc -b
+          mkdir -p dist
+          shopt -s nullglob
+          for f in ../chd2iso-fuse_*; do
+            cp -v "$f" dist/
+          done
+          SHORT_SHA="${GITHUB_SHA::7}"
+          for f in dist/*.deb; do
+            base="$(basename "$f")"
+            mv -v "$f" "dist/${base%.deb}-snapshot-${SHORT_SHA}.deb"
+          done
+          ls -l dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-snapshot-debian-trixie-${{ github.run_number }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
