@@ -48,6 +48,18 @@ jobs:
       - name: Cargo clippy (deny warnings)
         run: cargo clippy -- -D warnings
 
+      - name: Configure maintainer identity
+        run: |
+          git config user.name "chd2iso-fuse bot"
+          git config user.email "actions@users.noreply.github.com"
+        
+      - name: Update debian/changelog from tag
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          VER="${TAG_REF#v}"
+          scripts/update-changelog.sh --release "$VER"
+        
       - name: Build .deb (debuild)
         run: debuild -us -uc -b
 
