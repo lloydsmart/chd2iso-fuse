@@ -7,6 +7,11 @@ on:
       - 'v*'     # e.g. v0.1.2
   pull_request:
 
+# Give the workflow permission to create releases
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build-debs:
     name: Build .deb (always)
@@ -30,7 +35,7 @@ jobs:
             rustc cargo rustfmt rust-clippy clang \
             devscripts debhelper dh-cargo lintian
 
-      # Optional: cache cargo registry & target to speed up builds
+      # Cache cargo registry & target to speed up builds
       - name: Cache cargo registry & target
         uses: actions/cache@v4
         with:
@@ -71,17 +76,17 @@ jobs:
 
       - name: Collect artifacts
         run: |
+          set -e
           mkdir -p artifacts
-          mv ../chd2iso-fuse_*_amd64.deb artifacts/
+          mv ../chd2iso-fuse_*_amd64.deb artifacts/ || true
           mv ../chd2iso-fuse-dbgsym_*_amd64.deb artifacts/ || true
-          mv ../chd2iso-fuse_*_amd64.buildinfo artifacts/
-          mv ../chd2iso-fuse_*_amd64.changes artifacts/
-          ls -l artifacts
+          mv ../chd2iso-fuse_*_amd64.buildinfo artifacts/ || true
+          mv ../chd2iso-fuse_*_amd64.changes artifacts/ || true
+          ls -l artifacts || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          # keep a stable name so the release job can always download it
           name: chd2iso-fuse-debs
           path: artifacts/*
           if-no-files-found: error
