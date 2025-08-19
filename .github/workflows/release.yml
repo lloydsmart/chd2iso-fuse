@@ -1,0 +1,58 @@
+name: Release (build .deb and attach to GitHub Release)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed so the workflow can create/update releases
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system deps for Debian packaging (debuild + dh-cargo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            devscripts debhelper dh-cargo build-essential pkg-config \
+            fuse3 libfuse3-dev
+
+      - name: Show toolchain versions
+        run: |
+          rustc --version || true
+          cargo --version || true
+          dpkg -s dh-cargo | grep -E '^(Package|Version):' || true
+
+      - name: Build Debian package
+        run: |
+          # Build source tree (debuild looks one dir up for artifacts)
+          debuild -us -uc -b
+
+      - name: Collect artifacts
+        run: |
+          ls -l ../
+          mkdir -p artifacts
+          cp ../chd2iso-fuse_* artifacts/
+
+      - name: Upload artifacts (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd2iso-fuse-debs
+          path: artifacts/*
+
+      - name: Create / Update GitHub Release and attach debs
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          draft: false
+          prerelease: false
