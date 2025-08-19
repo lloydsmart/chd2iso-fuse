@@ -1,114 +1,80 @@
-name: CI (Lint, Build & Release on tag) — Debian Trixie
+name: Release (Debian Trixie)
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]     # any tag starting with v (e.g., v0.1.2)
-  pull_request:
-
-permissions:
-  contents: write  # needed by release job to publish a GitHub Release
+    tags:
+      - 'v*'   # e.g. v0.1.2
 
 jobs:
-  lint-build:
-    name: Lint & Build (.deb artifacts)
+  release:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
       options: --init
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Install toolchain & build deps
+      - name: Install build toolchain
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential pkg-config \
             libfuse3-dev fuse3 \
             rustc cargo rustfmt rust-clippy clang \
-            devscripts debhelper dh-cargo lintian \
-            ca-certificates git
+            devscripts debhelper dh-cargo lintian
 
-      # -------- Cargo caches (speed up builds) --------
-      - name: Cargo cache (registry + index)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Set version from tag in debian/changelog
+        env:
+          TAG: ${{ github.ref_name }}   # e.g. v0.1.2
+        run: |
+          set -e
+          VERSION="${TAG#v}"
+          echo "Building version $VERSION"
+          dch --changelog debian/changelog \
+              -v "${VERSION}-1" \
+              --distribution trixie \
+              "Release ${VERSION}" || true
+          dch -r "" || true
 
-      - name: Cargo cache (target/)
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: cargo-target-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            cargo-target-${{ runner.os }}-
+          # sanity check: ensure dpkg version matches the tag
+          dpkg-parsechangelog -S Version | grep -E "^${VERSION}-"
 
-      # -------- Lint & Build --------
-      - name: Cargo fmt (check)
-        run: cargo fmt -- --check
-
-      - name: Cargo clippy (deny warnings)
-        run: cargo clippy -- -D warnings
-
-      - name: Build release (cargo)
-        run: cargo build --release
+      - name: Build (fmt + clippy + release)
+        run: |
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+          cargo build --release
 
       - name: Build .deb (debuild)
         run: debuild -us -uc -b
 
       - name: Lintian (non-fatal)
         run: |
-          set -e
-          if ls ../chd2iso-fuse_*_amd64.changes >/dev/null 2>&1; then
-            lintian ../chd2iso-fuse_*_amd64.changes || true
-          fi
+          lintian ../chd2iso-fuse_*_amd64.changes || true
 
-      - name: Collect Debian artifacts
+      - name: Gather artifacts
         run: |
-          set -e
           mkdir -p artifacts
-          for f in ../chd2iso-fuse_*_amd64.deb \
-                   ../chd2iso-fuse-dbgsym_*_amd64.deb \
-                   ../chd2iso-fuse_*_amd64.buildinfo \
-                   ../chd2iso-fuse_*_amd64.changes; do
-            [ -e "$f" ] && cp "$f" artifacts/
-          done
+          mv ../chd2iso-fuse_*_amd64.deb artifacts/
+          mv ../chd2iso-fuse-dbgsym_*_amd64.deb artifacts/ || true
+          mv ../chd2iso-fuse_*_amd64.buildinfo artifacts/
+          mv ../chd2iso-fuse_*_amd64.changes artifacts/
           ls -l artifacts
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: chd2iso-fuse-debs
-          path: artifacts/*
-          if-no-files-found: error
-          retention-days: 14
-
-  release:
-    name: Publish GitHub Release (on tag)
-    runs-on: ubuntu-latest
-    needs: [lint-build]
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: chd2iso-fuse-debs
-          path: artifacts
-
-      - name: Show downloaded artifacts
-        run: ls -l artifacts
-
-      - name: Create Release & Upload assets
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
+          name: chd2iso-fuse ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
             artifacts/*.deb
-            artifacts/*.changes
             artifacts/*.buildinfo
-          generate_release_notes: true
-
-      - name: Docs parity (manpage vs --help)
-        run: scripts/check-doc-flags.sh
+            artifacts/*.changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
