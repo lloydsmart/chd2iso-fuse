@@ -1,5 +1,8 @@
 # chd2iso-fuse
 
+![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg?branch=main) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
+
+
 **Mount a folder of CHD images and expose them as read-only `.iso`/`.bin` files via FUSE.**  
 Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space savings but still present ISO-style files to clients. Presents **.chd** images as **.iso** (2048-byte Mode1/Mode2-Form1) or **.bin** (2324-byte Mode2-Form2, optional) on the fly.
 
@@ -222,3 +225,17 @@ PRs welcome! Please include a brief description, test notes, and update docs for
 ## License
 
 This project is licensed under the [MIT License](LICENSE.md).
+
+## Continuous Integration
+
+This project is built and linted automatically using GitHub Actions.  
+CI runs inside a **Debian Trixie container** to ensure the generated `.deb` packages
+match the target distribution (e.g., RetroNAS).
+
+- On every push and pull request, CI runs:
+  - `cargo fmt -- --check`
+  - `cargo clippy -D warnings`
+  - `cargo build --release`
+  - builds a `.deb` artifact for testing
+- When you push a git tag like `v0.1.2`, CI builds a release `.deb` and attaches it
+  to the corresponding GitHub Release.

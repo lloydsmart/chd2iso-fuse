@@ -1,0 +1,29 @@
+diff --git a/README.md b/README.md
+index 1111111..3333333 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,9 @@
+ # chd2iso-fuse
+ 
++![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg?branch=main)
++[![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
++
++
+ Present CHD images as ISO files via FUSE
+ 
+ ## Features
+@@ -92,3 +96,14 @@
+ - Run `cargo fmt` to auto-format code.
+ - Run `cargo clippy` for lints.
+ - Run `make` to build, `make install` to install, and `make deb` to build a Debian package.
++
++## Continuous Integration
++
++This project is built and linted automatically using GitHub Actions.  
++CI runs inside a **Debian Trixie container** to ensure the generated
++`.deb` packages match the target distribution (such as RetroNAS).
++
++- Every push and pull request: run `cargo fmt --check`, `cargo clippy -D warnings`,
++  and build a `.deb` artifact for testing.
++- Tagging a release (`v*`) automatically builds a `.deb` and attaches it
++  to the corresponding GitHub Release.

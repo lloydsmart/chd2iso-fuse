@@ -1,12 +1,12 @@
-name: Release (Debian Trixie)
+name: Lint & Build (Debian Trixie)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
+  pull_request:
 
 jobs:
-  release:
+  lint-build:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
@@ -23,17 +23,29 @@ jobs:
             rustc cargo rustfmt rust-clippy clang \
             devscripts debhelper dh-cargo lintian
 
+      - name: Cargo fmt (check)
+        run: cargo fmt -- --check
+
+      - name: Cargo clippy (deny warnings)
+        run: cargo clippy -- -D warnings
+
+      - name: Build release
+        run: cargo build --release
+
       - name: Build .deb
         run: |
           debuild -us -uc -b
           ls -l ../chd2iso-fuse_*_amd64.deb
 
-      - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
+      - name: Lintian
+        run: |
+          lintian ../chd2iso-fuse_*_amd64.changes || true
+
+      - name: Upload artifact (.deb + changes)
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: chd2iso-fuse-deb
+          path: |
             ../chd2iso-fuse_*_amd64.deb
             ../chd2iso-fuse_*_amd64.changes
             ../chd2iso-fuse_*_amd64.buildinfo
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
