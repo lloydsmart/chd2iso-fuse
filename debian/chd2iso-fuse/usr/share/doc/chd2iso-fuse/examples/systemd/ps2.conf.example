@@ -1,0 +1,10 @@
+# Example instance config for PS2 layout
+SOURCE=/mnt/retronas/roms/sony/playstation2/chd
+TARGET=/mnt/retronas/roms/sony/playstation2/iso
+
+# Optional toggles
+ALLOW_OTHER=yes
+CD_ALLOW_FORM2=no
+CACHE_HUNKS=512
+CACHE_BYTES=536870912
+VERBOSE=yes

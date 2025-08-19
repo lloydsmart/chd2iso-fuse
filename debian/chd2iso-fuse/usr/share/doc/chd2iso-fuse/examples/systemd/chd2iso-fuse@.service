@@ -1,0 +1,48 @@
+[Unit]
+Description=chd2iso-fuse instance (%i)
+After=network-online.target local-fs.target
+Wants=network-online.target
+Documentation=man:chd2iso-fuse(1)
+
+# Each instance reads its config from /etc/chd2iso-fuse/%i.conf
+# Required in the env file:
+#   SOURCE=/path/to/chd
+#   TARGET=/path/to/iso
+# Optional:
+#   ALLOW_OTHER=yes|no
+#   CD_ALLOW_FORM2=yes|no
+#   CACHE_HUNKS=#
+#   CACHE_BYTES=#
+#   VERBOSE=yes|no
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/chd2iso-fuse/%i.conf
+
+# Fail fast if vars missing
+ExecStartPre=/bin/sh -c '[ -n "$$SOURCE" ] && [ -n "$$TARGET" ]'
+# Create mountpoint if needed
+ExecStartPre=/usr/bin/mkdir -p "$$TARGET"
+
+ExecStart=/bin/sh -c '\
+  set -eu; \
+  cmd="chd2iso-fuse --source \"$$SOURCE\" --mount \"$$TARGET\""; \
+  [ "${ALLOW_OTHER:-no}" = yes ] && cmd="$$cmd --allow-other"; \
+  [ "${CD_ALLOW_FORM2:-no}" = yes ] && cmd="$$cmd --cd-allow-form2"; \
+  [ -n "${CACHE_HUNKS:-}" ] && cmd="$$cmd --cache-hunks $$CACHE_HUNKS"; \
+  [ -n "${CACHE_BYTES:-}" ] && cmd="$$cmd --cache-bytes $$CACHE_BYTES"; \
+  [ "${VERBOSE:-no}" = yes ] && cmd="$$cmd --verbose"; \
+  echo "Starting: $$cmd"; \
+  exec $$cmd \
+'
+
+ExecStop=/bin/sh -c '/usr/bin/fusermount3 -u "$$TARGET" || /bin/true'
+
+Restart=on-failure
+RestartSec=2s
+User=root
+Group=root
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

@@ -215,7 +215,7 @@ impl FsState {
                 let kind = BackingKind::Cd2352 {
                     first_data_lba: first_lba,
                     payload_kind: payload,
-                    track_frames: track_frames.map(|v| v as u64),
+                    track_frames,
                 };
                 return Ok(Some((name, kind, iso_size)));
             }
@@ -256,6 +256,7 @@ impl FsState {
         fh
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn read_iso_from_cd(
         &mut self,
         file_id: u64,
@@ -365,8 +366,8 @@ fn parse_cd_toc_from_metadata<R: Read + Seek>(
 ) -> Result<Option<(u64, CdPayloadKind, Option<u64>)>> {
     let mut tracks: Vec<TrackInfo> = Vec::new();
 
-    let mut it = chd.metadata_refs();
-    while let Some(mref) = it.next() {
+    let it = chd.metadata_refs();
+    for mref in it {
         let md: Metadata = mref.read(file)?;
         let tag = md.metatag;
         // Only track entries
@@ -445,7 +446,7 @@ fn parse_track_line(s: &str) -> Option<TrackInfo> {
     let mut postgap = 0u32;
     let mut kind = None::<TrackKind>;
 
-    for tok in s.split(|c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ',') {
+    for tok in s.split(|c: char| c.is_whitespace() || c == ',') {
         if tok.is_empty() {
             continue;
         }
@@ -760,7 +761,7 @@ fn default_file_attr(e: &IndexEntry) -> FileAttr {
     FileAttr {
         ino: e.ino,
         size: e.iso_size,
-        blocks: (e.iso_size + 511) / 512,
+        blocks: e.iso_size.div_ceil(512),
         atime: SystemTime::now(),
         mtime: SystemTime::now(),
         ctime: SystemTime::now(),
@@ -781,7 +782,7 @@ fn file_attr_for(e: &IndexEntry) -> Result<FileAttr> {
     Ok(FileAttr {
         ino: e.ino,
         size: e.iso_size,
-        blocks: (e.iso_size + 511) / 512,
+        blocks: e.iso_size.div_ceil(512),
         atime: SystemTime::now(),
         mtime: SystemTime::UNIX_EPOCH + Duration::from_secs(meta.mtime() as u64),
         ctime: SystemTime::UNIX_EPOCH + Duration::from_secs(meta.ctime() as u64),
