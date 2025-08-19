@@ -144,6 +144,11 @@ ls /mnt/retronas/roms/sony/playstation2/iso
 
 > Want Mode2/Form2 exposed? Add `,cd_allow_form2` to the `Options=` in the `.mount` unit.
 
+Instance service: after install, create /etc/chd2iso-fuse/<name>.conf (see ps2.conf example), then:
+```bash
+sudo systemctl enable --now chd2iso-fuse@<name>.service
+```
+
 ---
 
 ## fstab (classic alternative)
@@ -261,7 +266,7 @@ sudo apt install target/debian/chd2iso-fuse_*.deb
 
 ## License
 
-MIT © Lloyd Smart
+This project is licensed under the [MIT License](LICENSE.md).
 
 ---
 
