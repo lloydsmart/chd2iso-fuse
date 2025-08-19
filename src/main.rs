@@ -867,3 +867,45 @@ fn main() -> Result<()> {
     let mountpoint = fs.args.mountpoint.clone();
     fuser::mount2(fs, &mountpoint, &options).map_err(|e| anyhow!("mount failed: {e}"))
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_mode1_track_line() {
+        let line = "TRACK:1 TYPE:MODE1 SUBTYPE:NONE FRAMES:26888 PREGAP:0 PGTYPE:MODE1 PGSUB:RW_RAW POSTGAP:0";
+        let ti = parse_track_line(line).expect("should parse MODE1 track");
+        assert_eq!(ti.number, 1);
+        assert_eq!(ti.kind, TrackKind::Mode1);
+        assert_eq!(ti.frames, 26888);
+        assert_eq!(ti.pregap, 0);
+        assert_eq!(ti.postgap, 0);
+    }
+
+    #[test]
+    fn parse_mode2_2048_track_line() {
+        let line = "TRACK:2 TYPE:MODE2/2048 FRAMES:1234 PREGAP:5 POSTGAP:6";
+        let ti = parse_track_line(line).expect("should parse MODE2/2048 track");
+        assert_eq!(ti.number, 2);
+        assert_eq!(ti.kind, TrackKind::Mode2Form1);
+        assert_eq!(ti.frames, 1234);
+        assert_eq!(ti.pregap, 5);
+        assert_eq!(ti.postgap, 6);
+    }
+
+    #[test]
+    fn parse_mode2_2324_track_line() {
+        let line = "TRACK:3 TYPE:MODE2/2324 FRAMES:567 PREGAP:0 POSTGAP:0";
+        let ti = parse_track_line(line).expect("should parse MODE2/2324 track");
+        assert_eq!(ti.number, 3);
+        assert_eq!(ti.kind, TrackKind::Mode2Form2);
+        assert_eq!(ti.frames, 567);
+    }
+
+    #[test]
+    fn parse_malformed_track_line() {
+        // Missing TYPE field should result in None
+        let line = "TRACK:4 FRAMES:100";
+        assert!(parse_track_line(line).is_none());
+    }
+}
