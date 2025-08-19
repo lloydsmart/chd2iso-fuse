@@ -1,24 +1,22 @@
-name: Release (Debian Trixie)
+name: Lint & Build (Debian Trixie)
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [ main ]
+  pull_request:
 
 jobs:
-  release:
+  lint-build:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
       options: --init
     permissions:
-      contents: write   # needed to create/upload Release assets
+      contents: read
     env:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-tags: true
 
       - name: Install toolchain & build deps
         run: |
@@ -48,8 +46,19 @@ jobs:
       - name: Cargo clippy (deny warnings)
         run: cargo clippy -- -D warnings
 
+      - name: Build release (cargo)
+        run: cargo build --release
+
       - name: Build .deb (debuild)
         run: debuild -us -uc -b
+
+      - name: Lintian (non-fatal)
+        run: |
+          set -e
+          # Lint the build if present (ignore return to avoid failing PRs on advisories)
+          if ls ../chd2iso-fuse_*_amd64.changes >/dev/null 2>&1; then
+            lintian ../chd2iso-fuse_*_amd64.changes || true
+          fi
 
       - name: Collect Debian artifacts
         run: |
@@ -61,14 +70,14 @@ jobs:
             ../chd2iso-fuse_*_amd64.buildinfo \
             ../chd2iso-fuse_*_amd64.changes
           do
-            [ -e "$f" ] && cp "$f" artifacts/
+            [ -e "$f" ] && mv "$f" artifacts/
           done
-          ls -al artifacts
+          ls -al artifacts || true
 
-      - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
+      - name: Upload Debian artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: artifacts/*
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: chd2iso-fuse-debs
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
