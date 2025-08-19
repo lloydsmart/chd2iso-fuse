@@ -1,9 +1,8 @@
-name: CI (build .deb snapshot)
+name: CI (snapshot .deb for testing)
 
 on:
   push:
     branches: [ main ]
-    # don't run on tag pushes (release workflow handles those)
     tags-ignore: [ 'v*' ]
   pull_request:
     branches: [ main ]
@@ -11,7 +10,6 @@ on:
 permissions:
   contents: read
 
-# .github/workflows/ci-deb.yml (job section only)
 jobs:
   build-deb:
     name: Build Debian package (snapshot) — trixie
@@ -53,6 +51,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-debian-trixie-cargo-
 
+      - name: Lint (fmt + clippy)
+        run: |
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+
       - name: Build (sanity)
         run: cargo build --release
 
@@ -78,4 +81,3 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 30
-
