@@ -36,4 +36,13 @@ override_dh_auto_install:
 	  install -m 0644 packaging/systemd/* \
 	    debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/systemd/; \
 	fi
+	# Install systemd template unit
+	install -D -m 0644 packaging/systemd/chd2iso-fuse@.service \
+		debian/chd2iso-fuse/lib/systemd/system/chd2iso-fuse@.service
 
+	# Ensure config dir exists on target
+	install -d debian/chd2iso-fuse/etc/chd2iso-fuse
+
+	# Ship example instance config
+	install -D -m 0644 packaging/systemd/ps2.conf.example \
+		debian/chd2iso-fuse/usr/share/doc/chd2iso-fuse/examples/ps2.conf
