@@ -284,13 +284,13 @@ impl FsState {
         }
         let end = (offset.saturating_add(size as u64)).min(max_len);
 
-        let mut want = (end - offset) as usize;
-        let mut out = Vec::with_capacity(want);
-        let mut cur_iso_sector = (offset as usize) / per_sector;
-        let mut cur_in_sector_off = (offset as usize) % per_sector;
+        let mut want = end - offset;
+        let mut out = Vec::with_capacity(want as usize);
+        let mut cur_iso_sector = offset / per_sector as u64;
+        let mut cur_in_sector_off = offset % per_sector as u64;
 
         while want > 0 {
-            let frame_idx = start_frame + cur_iso_sector as u64;
+            let frame_idx = start_frame + cur_iso_sector;
             let sec = match self.get_cd_frame(file_id, path, frame_idx) {
                 Ok(v) => v,
                 Err(e) => {
@@ -301,10 +301,12 @@ impl FsState {
             };
 
             let payload = &sec[payload_start..payload_start + per_sector];
-            let avail = per_sector - cur_in_sector_off;
+            let avail = per_sector as u64 - cur_in_sector_off;
             let take = avail.min(want);
 
-            out.extend_from_slice(&payload[cur_in_sector_off..cur_in_sector_off + take]);
+            out.extend_from_slice(
+                &payload[cur_in_sector_off as usize..(cur_in_sector_off + take) as usize],
+            );
             want -= take;
             cur_iso_sector += 1;
             cur_in_sector_off = 0;
