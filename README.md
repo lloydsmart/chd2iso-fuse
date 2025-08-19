@@ -1,26 +1,23 @@
 # chd2iso-fuse
 
 **Mount a folder of CHD images and expose them as read-only `.iso`/`.bin` files via FUSE.**  
-Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space savings but still present ISO-style files to clients.
-A read-only FUSE filesystem that presents **.chd** images as **.iso** (2048-byte sectors) or **.bin** (2324-byte Mode2/Form2) files on the fly.
+Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space savings but still present ISO-style files to clients. Presents **.chd** images as **.iso** (2048-byte Mode1/Mode2-Form1) or **.bin** (2324-byte Mode2-Form2, optional) on the fly.
 
-**Why?** Store space-saving CHDs on your NAS, but expose a plain ISO/BIN view for devices that expect uncompressed images (e.g. a real PS2 over SMB/UDPBD or OPL). Works great for RetroNAS.
+**Why?** Store space-saving CHDs on your NAS, but expose a plain ISO/BIN view for devices that expect uncompressed images (e.g. a real PS2 over SMB/UDPBD or OPL). Works great with RetroNAS.
 
 ---
 
 ## Features
 
 - 🧰 **DVD/2048 passthrough** — CHDs from 2048-byte/sector DVDs are presented directly as `.iso` with zero-copy.
-- 💿 **CD/2352 payload extraction** — For CHDs created from 2352-byte CDs, on-the-fly decoding of CD sectors:
-  - **2048-byte sectors** for Mode1 / Mode2-Form1 tracks → exposed as `.iso`.
-  - **2324-byte sectors** for Mode2-Form2 (XA video/audio) → exposed as `.bin` **when enabled**.
-- 🧪 **Pragmatic fallback** — If no DVD/CD metadata is found, safely falls back to raw 2048 passthrough.
-- ⚡ **LRU cache** — Tunable by entry count or memory size for fast hunk/frame access.
+- 💿 **CD/2352 payload extraction** — For CD CHDs:
+  - **2048-byte sectors** (Mode1 / Mode2-Form1) → exposed as `.iso`.
+  - **2324-byte sectors** (Mode2-Form2 XA video/audio) → exposed as `.bin` **when enabled**.
+- 🧪 **Pragmatic fallback** — If no DVD/CD metadata is found, safely falls back to raw 2048 passthrough where valid.
+- ⚡ **LRU cache** — Tunable by entry count or memory cap for fast hunk/frame access.
 - 🔒 **Read-only** — No writes, no temp files; streams directly from CHD.
 - 🧭 **RetroNAS-friendly** — Keep `…/playstation2/chd` as source, mount at `…/playstation2/iso` for symlink compatibility.
 - 🌐 **Network-friendly** — Works over **SMB** and **UDPBD** for PS2 OPL game streaming.
-
----
 
 > 💡 Typical layout:
 > ```
@@ -33,31 +30,30 @@ A read-only FUSE filesystem that presents **.chd** images as **.iso** (2048-byte
 ## Requirements
 
 - Linux with FUSE (Debian/Ubuntu: `fuse3`, `fusermount3`).
-- Rust (for building from source): stable toolchain.
 - Runtime permissions:
-  - access to read your CHDs and mount the FUSE FS
-  - if using `--allow-other`, make sure `/etc/fuse.conf` contains `user_allow_other`.
+  - read access to your CHDs and permission to mount FUSE FS.
+  - if using `--allow-other`, ensure `/etc/fuse.conf` contains `user_allow_other`.
+- To **build from source** you need a Rust toolchain (stable).
 
 ---
 
 ## Install
 
-### From source
+### Generic Linux (from source)
 
 ```bash
-git clone https://github.com/lloydsmart/chd2iso-fuse.git
-cd chd2iso-fuse
-cargo build --release
-sudo install -m 0755 target/release/chd2iso-fuse /usr/local/bin/
+make
+sudo make install
 ```
+Installs to `/usr/local/bin/chd2iso-fuse` by default. Override PREFIX if needed, e.g. `make PREFIX=/usr make install`.
 
-### From .deb (if you built one)
+### Debian / Ubuntu (preferred)
 
 ```bash
-sudo apt install ./chd2iso-fuse_0.1.0-*.deb
+make deb
+sudo apt install ../chd2iso-fuse_*.deb
 ```
-
-The package also installs a **mount helper** (`/sbin/mount.chd2iso-fuse`) and optional systemd units.
+The `.deb` also installs a mount helper (`/sbin/mount.chd2iso-fuse`) and optional systemd units.
 
 ---
 
@@ -66,13 +62,15 @@ The package also installs a **mount helper** (`/sbin/mount.chd2iso-fuse`) and op
 ```bash
 # prepare dirs
 sudo mkdir -p /path/to/chd /path/to/iso
+
 # run in foreground for a quick test
 sudo chd2iso-fuse --source /path/to/chd --mount /path/to/iso --allow-other
+
 # in another shell
 ls /path/to/iso
 ```
 
-### CLI flags (common)
+### Common CLI flags
 
 ```
 --source <DIR>        # CHD source directory
@@ -84,24 +82,33 @@ ls /path/to/iso
 --verbose             # info-level logging; otherwise warn+
 ```
 
+Run `chd2iso-fuse --help` for full usage.
+
 ---
 
-## Systemd (recommended for NAS)
+## Systemd integration (recommended for NAS)
 
-> Unit names **must match the mountpoint path** (slashes → dashes). Example below assumes:
-> ```
-> What  = /mnt/retronas/roms/sony/playstation2/chd
-> Where = /mnt/retronas/roms/sony/playstation2/iso
-> Units = mnt-retronas-roms-sony-playstation2-iso.(mount|automount)
-> ```
+You can use either the **instance service template** or classic `.mount/.automount` units.
 
-1) Ensure the **mount helper** exists (installed by the `.deb`; otherwise create it manually):
+### Instance service (simple for multiple mounts)
 
+1) Create a config file at `/etc/chd2iso-fuse/<name>.conf`. Example:
+```bash
+SOURCE=/mnt/retronas/roms/sony/playstation2/chd
+TARGET=/mnt/retronas/roms/sony/playstation2/iso
+ALLOW_OTHER=yes
+CD_ALLOW_FORM2=no
+CACHE_HUNKS=512
+CACHE_BYTES=536870912
+VERBOSE=yes
 ```
-/sbin/mount.chd2iso-fuse
+2) Enable:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now chd2iso-fuse@<name>.service
 ```
 
-2) Create units:
+### Classic `.mount/.automount` (lazy on-demand)
 
 `/etc/systemd/system/mnt-retronas-roms-sony-playstation2-iso.mount`
 ```ini
@@ -133,8 +140,7 @@ Where=/mnt/retronas/roms/sony/playstation2/iso
 WantedBy=multi-user.target
 ```
 
-3) Enable:
-
+Enable:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now mnt-retronas-roms-sony-playstation2-iso.automount
@@ -142,39 +148,21 @@ sudo systemctl enable --now mnt-retronas-roms-sony-playstation2-iso.automount
 ls /mnt/retronas/roms/sony/playstation2/iso
 ```
 
-> Want Mode2/Form2 exposed? Add `,cd_allow_form2` to the `Options=` in the `.mount` unit.
-
-Instance service: after install, create /etc/chd2iso-fuse/<name>.conf (see ps2.conf example), then:
-```bash
-sudo systemctl enable --now chd2iso-fuse@<name>.service
-```
+> Unit filenames must match the `Where=` path (slashes → dashes).
 
 ---
 
-## fstab (classic alternative)
+## fstab (alternative)
 
-If you have the mount helper (`/sbin/mount.chd2iso-fuse`), you can use `fstab`:
-
+With the mount helper installed (`/sbin/mount.chd2iso-fuse`), you can use:
 ```
 /mnt/retronas/roms/sony/playstation2/chd  /mnt/retronas/roms/sony/playstation2/iso  chd2iso-fuse  allow_other,cache_hunks=512,cache_bytes=536870912,x-systemd.automount,x-systemd.idle-timeout=60s,nofail  0  0
 ```
-
 Then:
 ```bash
 sudo systemctl daemon-reload
 sudo mount -a
 ```
-
----
-
-## RetroNAS-friendly layout
-
-```
-/mnt/retronas/roms/sony/playstation2/chd  # put .chd files here
-/mnt/retronas/roms/sony/playstation2/iso  # export/share/symlink this to clients
-```
-
-RetroNAS symlink builders that filter by extension will naturally pick up `.iso` (and optionally `.bin`) from `iso/` and ignore `chd/`.
 
 ---
 
@@ -192,87 +180,45 @@ RetroNAS symlink builders that filter by extension will naturally pick up `.iso`
   ```bash
   chdman createraw -i game.iso -o game.chd
   ```
-  (works for 2048-byte/sector images; not ideal for mixed-mode CDs.)
 
-Verify a quick slice:
-```bash
-dd if=/path/to/iso/game.iso bs=1M count=16 | md5sum
-dd if=/path/to/mount/game.iso bs=1M count=16 | md5sum
-# should match for DVD/2048 (Mode1)
-```
-
-Form2 `.bin` will NOT match a 2048-byte `.iso` (different payload size).
+> Verify a quick slice:
+> ```bash
+> dd if=/path/to/iso/game.iso bs=1M count=16 | md5sum
+> dd if=/path/to/mount/game.iso bs=1M count=16 | md5sum
+> # should match for DVD/2048 (Mode1)
+> ```
+> Form2 `.bin` will NOT match a 2048-byte `.iso` (different payload size).
 
 ---
 
 ## Performance tuning
 
-- **Cache bytes**: set to ~5–20% of RAM for big libraries.  
-  Example 1 GiB: `--cache-bytes 1073741824`
-- **Cache hunks**: leave default or size for your typical CHD hunk count.  
-- **Network**: on SMB, larger read sizes help; UDPBD support is planned.
+- **Cache bytes**: set to ~5–20% of RAM for big libraries. Example 1 GiB: `--cache-bytes 1073741824`.
+- **Cache hunks**: leave default or match your typical CHD hunk size.
+- **Network**: large read sizes help over SMB. UDPBD works well, too.
 
 ---
 
 ## Troubleshooting
 
-- **Shell “hangs” when mounting**: expected if you run the binary directly—it stays in foreground. Use the systemd units or the mount helper (which backgrounds).
-- **Permission denied / empty dir**: ensure `/etc/fuse.conf` has:
-  ```
-  user_allow_other
-  ```
-  and you passed `--allow-other` (or used `allow_other` in Options).
-- **Automount “bad unit name”**: unit filenames must match `Where=` path; slashes → dashes.  
-  `/mnt/retronas/roms/sony/playstation2/iso` → `mnt-retronas-roms-sony-playstation2-iso.(mount|automount)`.
-- **Logs**: with the mount helper, see `/var/log/chd2iso-fuse.log`.  
-  With systemd: `journalctl -u mnt-retronas-roms-sony-playstation2-iso.mount -e`.
+- **Shell “hangs” when mounting**: expected when you run the binary directly—it stays in foreground. Use systemd units or the mount helper (which backgrounds).
+- **Permission denied / empty dir**: ensure `/etc/fuse.conf` has `user_allow_other` and you passed `--allow-other`.
+- **Automount “bad unit name”**: unit filenames must match `Where=` path; slashes → dashes.
+- **Logs**: `journalctl -u chd2iso-fuse@<name> -e` or the `.mount` unit you created.
 - **Form2 content missing**: enable with `--cd-allow-form2` (CLI) or `cd_allow_form2` in unit `Options=`.
 
 ---
 
-## Security notes
+## Development
 
-- `--allow-other` exposes files to all users; only use it if you need to.  
-- FUSE runs in userspace; this FS is **read-only** (by design) to avoid accidental writes.
+- Build: `make`
+- Install: `sudo make install`
+- Package: `make deb` (produces `../chd2iso-fuse_*.deb`)
 
----
-
-## Roadmap
-
-- UDPBD-aware read pattern / prefetch
-- Smarter readahead heuristics per client
-- Stats/metrics endpoint
-- Unit tests and property tests for edge track layouts
-
----
-
-## Building a Debian package
-
-**Native (`debhelper`, `dh-cargo`)**:
-```bash
-sudo apt install debhelper devscripts dh-cargo cargo rustc pkg-config
-debuild -us -uc -b
-sudo apt install ../chd2iso-fuse_*.deb
-```
-
-**cargo-deb (quick)**:
-```bash
-cargo install cargo-deb
-cargo deb --no-build
-sudo apt install target/debian/chd2iso-fuse_*.deb
-```
+PRs welcome! Please include a brief description, test notes, and update docs for behavior changes.
 
 ---
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE.md).
-
----
-
-## Contributing
-
-PRs welcome! Please include:
-- a short description of the change,
-- test notes (how you verified), and
-- for behavior changes, an update to this README.
