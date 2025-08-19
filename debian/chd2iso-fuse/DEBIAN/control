@@ -2,8 +2,9 @@ Package: chd2iso-fuse
 Version: 0.1.0-2
 Architecture: amd64
 Maintainer: Lloyd Smart <lloyd@lloydsmart.com>
-Installed-Size: 2805
+Installed-Size: 2815
 Depends: libc6 (>= 2.34), libfuse3-4 (>= 3.17.2), libgcc-s1 (>= 4.2)
+Recommends: systemd
 Section: utils
 Priority: optional
 Homepage: https://github.com/yourname/chd2iso-fuse

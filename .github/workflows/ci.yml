@@ -13,10 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # NEW: install FUSE headers + pkg-config
+      - name: Install system deps (fuse3 headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse3 libfuse3-dev pkg-config
+
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      # (Optional) speed up builds
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
 
       - name: Build (release)
         run: cargo build --release

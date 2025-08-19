@@ -27,7 +27,11 @@ const CD_FRAME_2352: usize = 2352;
 
 /// Flags / CLI
 #[derive(Parser, Debug)]
-#[command(name = "chd2iso-fuse", version, about = "Present CHD images as ISO files via FUSE")]
+#[command(
+    name = "chd2iso-fuse",
+    version,
+    about = "Present CHD images as ISO files via FUSE"
+)]
 struct Args {
     /// Source directory containing *.chd files
     #[arg(short = 's', long = "source", value_name = "DIR")]
@@ -82,7 +86,7 @@ enum CdPayloadKind {
 #[derive(Clone, Debug)]
 struct IndexEntry {
     ino: u64,
-    name: String,     // displayed filename (.iso or (Form2).bin)
+    name: String, // displayed filename (.iso or (Form2).bin)
     chd_path: PathBuf,
     kind: BackingKind,
     iso_size: u64, // size exposed to userspace
@@ -211,7 +215,7 @@ impl FsState {
                 let kind = BackingKind::Cd2352 {
                     first_data_lba: first_lba,
                     payload_kind: payload,
-                    track_frames: track_frames.map(|v| v as u64),
+                    track_frames,
                 };
                 return Ok(Some((name, kind, iso_size)));
             }
@@ -252,6 +256,7 @@ impl FsState {
         fh
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn read_iso_from_cd(
         &mut self,
         file_id: u64,
@@ -361,13 +366,12 @@ fn parse_cd_toc_from_metadata<R: Read + Seek>(
 ) -> Result<Option<(u64, CdPayloadKind, Option<u64>)>> {
     let mut tracks: Vec<TrackInfo> = Vec::new();
 
-    let mut it = chd.metadata_refs();
-    while let Some(mref) = it.next() {
+    let it = chd.metadata_refs();
+    for mref in it {
         let md: Metadata = mref.read(file)?;
         let tag = md.metatag;
         // Only track entries
-        if tag != KnownMetadata::CdRomTrack.metatag()
-            && tag != KnownMetadata::CdRomTrack2.metatag()
+        if tag != KnownMetadata::CdRomTrack.metatag() && tag != KnownMetadata::CdRomTrack2.metatag()
         {
             continue;
         }
@@ -442,7 +446,7 @@ fn parse_track_line(s: &str) -> Option<TrackInfo> {
     let mut postgap = 0u32;
     let mut kind = None::<TrackKind>;
 
-    for tok in s.split(|c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ',') {
+    for tok in s.split(|c: char| c.is_whitespace() || c == ',') {
         if tok.is_empty() {
             continue;
         }
@@ -615,13 +619,7 @@ impl Filesystem for FsState {
         }
 
         let fh = self.alloc_fh();
-        self.handles.insert(
-            fh,
-            Handle {
-                file_id,
-                chd_path,
-            },
-        );
+        self.handles.insert(fh, Handle { file_id, chd_path });
         reply.opened(fh, 0);
     }
 
@@ -763,7 +761,7 @@ fn default_file_attr(e: &IndexEntry) -> FileAttr {
     FileAttr {
         ino: e.ino,
         size: e.iso_size,
-        blocks: (e.iso_size + 511) / 512,
+        blocks: e.iso_size.div_ceil(512),
         atime: SystemTime::now(),
         mtime: SystemTime::now(),
         ctime: SystemTime::now(),
@@ -784,7 +782,7 @@ fn file_attr_for(e: &IndexEntry) -> Result<FileAttr> {
     Ok(FileAttr {
         ino: e.ino,
         size: e.iso_size,
-        blocks: (e.iso_size + 511) / 512,
+        blocks: e.iso_size.div_ceil(512),
         atime: SystemTime::now(),
         mtime: SystemTime::UNIX_EPOCH + Duration::from_secs(meta.mtime() as u64),
         ctime: SystemTime::UNIX_EPOCH + Duration::from_secs(meta.ctime() as u64),
@@ -833,7 +831,9 @@ fn main() -> Result<()> {
 
     info!(
         "mounting {:?} -> {:?} (entries: {})",
-        fs.args.source_dir, fs.args.mountpoint, fs.entries.len()
+        fs.args.source_dir,
+        fs.args.mountpoint,
+        fs.entries.len()
     );
 
     // capture before move

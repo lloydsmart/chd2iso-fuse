@@ -17,6 +17,7 @@ Vcs-Browser: https://github.com/yourname/chd2iso-fuse
 Package: chd2iso-fuse
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: systemd
 Description: FUSE filesystem to expose CHD images as ISO/BIN (PS2-friendly)
  chd2iso-fuse mounts a directory of .chd files and presents read-only .iso
  (2048-byte sectors) or .bin (Mode2/Form2 2324-byte sectors, when enabled)
