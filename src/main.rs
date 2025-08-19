@@ -27,7 +27,11 @@ const CD_FRAME_2352: usize = 2352;
 
 /// Flags / CLI
 #[derive(Parser, Debug)]
-#[command(name = "chd2iso-fuse", version, about = "Present CHD images as ISO files via FUSE")]
+#[command(
+    name = "chd2iso-fuse",
+    version,
+    about = "Present CHD images as ISO files via FUSE"
+)]
 struct Args {
     /// Source directory containing *.chd files
     #[arg(short = 's', long = "source", value_name = "DIR")]
@@ -82,7 +86,7 @@ enum CdPayloadKind {
 #[derive(Clone, Debug)]
 struct IndexEntry {
     ino: u64,
-    name: String,     // displayed filename (.iso or (Form2).bin)
+    name: String, // displayed filename (.iso or (Form2).bin)
     chd_path: PathBuf,
     kind: BackingKind,
     iso_size: u64, // size exposed to userspace
@@ -366,8 +370,7 @@ fn parse_cd_toc_from_metadata<R: Read + Seek>(
         let md: Metadata = mref.read(file)?;
         let tag = md.metatag;
         // Only track entries
-        if tag != KnownMetadata::CdRomTrack.metatag()
-            && tag != KnownMetadata::CdRomTrack2.metatag()
+        if tag != KnownMetadata::CdRomTrack.metatag() && tag != KnownMetadata::CdRomTrack2.metatag()
         {
             continue;
         }
@@ -615,13 +618,7 @@ impl Filesystem for FsState {
         }
 
         let fh = self.alloc_fh();
-        self.handles.insert(
-            fh,
-            Handle {
-                file_id,
-                chd_path,
-            },
-        );
+        self.handles.insert(fh, Handle { file_id, chd_path });
         reply.opened(fh, 0);
     }
 
@@ -833,7 +830,9 @@ fn main() -> Result<()> {
 
     info!(
         "mounting {:?} -> {:?} (entries: {})",
-        fs.args.source_dir, fs.args.mountpoint, fs.entries.len()
+        fs.args.source_dir,
+        fs.args.mountpoint,
+        fs.entries.len()
     );
 
     // capture before move
