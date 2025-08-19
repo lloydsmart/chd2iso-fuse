@@ -1,17 +1,19 @@
-name: Release (Debian Trixie)
+name: Build & (on tag) Release – Debian Trixie
 
 on:
   push:
+    branches: [ main ]
     tags:
-      - 'v*'   # e.g. v0.1.2
+      - 'v*'     # e.g. v0.1.2
+  pull_request:
 
 jobs:
-  release:
+  build-debs:
+    name: Build .deb (always)
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
       options: --init
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,7 +21,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Install build toolchain
+      - name: Install toolchain & build deps
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -28,36 +30,46 @@ jobs:
             rustc cargo rustfmt rust-clippy clang \
             devscripts debhelper dh-cargo lintian
 
+      # Optional: cache cargo registry & target to speed up builds
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Only bump debian/changelog when building from a tag
       - name: Set version from tag in debian/changelog
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}   # e.g. v0.1.2
         run: |
           set -e
           VERSION="${TAG#v}"
-          echo "Building version $VERSION"
           dch --changelog debian/changelog \
               -v "${VERSION}-1" \
               --distribution trixie \
               "Release ${VERSION}" || true
           dch -r "" || true
-
-          # sanity check: ensure dpkg version matches the tag
           dpkg-parsechangelog -S Version | grep -E "^${VERSION}-"
 
-      - name: Build (fmt + clippy + release)
+      - name: Cargo fmt + clippy + build
         run: |
           cargo fmt -- --check
           cargo clippy -- -D warnings
           cargo build --release
 
-      - name: Build .deb (debuild)
+      - name: Build .deb with debuild
         run: debuild -us -uc -b
 
       - name: Lintian (non-fatal)
-        run: |
-          lintian ../chd2iso-fuse_*_amd64.changes || true
+        run: lintian ../chd2iso-fuse_*_amd64.changes || true
 
-      - name: Gather artifacts
+      - name: Collect artifacts
         run: |
           mkdir -p artifacts
           mv ../chd2iso-fuse_*_amd64.deb artifacts/
@@ -66,7 +78,28 @@ jobs:
           mv ../chd2iso-fuse_*_amd64.changes artifacts/
           ls -l artifacts
 
-      - name: Upload release assets
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # keep a stable name so the release job can always download it
+          name: chd2iso-fuse-debs
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release (only on tag)
+    runs-on: ubuntu-latest
+    needs: build-debs
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: chd2iso-fuse-debs
+          path: artifacts
+
+      - name: Create/Update Release & attach artifacts
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
