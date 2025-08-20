@@ -33,7 +33,8 @@ jobs:
             build-essential pkg-config \
             libfuse3-dev fuse3 \
             rustc cargo rustfmt rust-clippy clang \
-            devscripts debhelper dh-cargo lintian
+            devscripts debhelper dh-cargo lintian \
+            curl jq ca-certificates git
 
       # Cache cargo registry & target to speed up builds
       - name: Cache cargo registry & target
@@ -47,20 +48,96 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      # Only bump debian/changelog when building from a tag
-      - name: Set version from tag in debian/changelog
+      # Generate Debian changelog with commits + merged PRs (only on tag)
+      - name: Generate Debian changelog from Git + merged PRs (on tag)
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          TAG: ${{ github.ref_name }}   # e.g. v0.1.2
+          TAG: ${{ github.ref_name }}          # e.g. v0.1.4
+          REPO: ${{ github.repository }}       # owner/name
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -euo pipefail
+
           VERSION="${TAG#v}"
+
+          # Ensure full tag context
+          git fetch --tags --force --prune
+
+          # Resolve previous tag relative to THIS tag's chronological position
+          mapfile -t TAGS < <(git tag --list --sort=creatordate)
+          PREV_TAG=""
+          for i in "${!TAGS[@]}"; do
+            if [[ "${TAGS[$i]}" == "${TAG}" ]]; then
+              if (( i > 0 )); then PREV_TAG="${TAGS[$((i-1))]}"; fi
+              break
+            fi
+          done
+
+          # Commit range for bullets (commits only)
+          if [[ -n "${PREV_TAG}" ]]; then
+            RANGE="${PREV_TAG}..${TAG}"
+          else
+            # first tag: include all reachable history up to this tag
+            FIRST_COMMIT="$(git rev-list --max-parents=0 "${TAG}")"
+            RANGE="${FIRST_COMMIT}..${TAG}"
+          fi
+
+          echo "Current tag : ${TAG}"
+          echo "Previous tag: ${PREV_TAG:-<none>}"
+          echo "Range       : ${RANGE}"
+
+          # Collect commit subjects (no merges; oldest -> newest)
+          mapfile -t CHANGES < <(git log --no-merges --reverse --pretty=format:'- %s (%h)' "${RANGE}" || true)
+
+          # Determine time window for merged PRs using tag commit timestamps (ISO-8601)
+          START_ISO="1970-01-01T00:00:00Z"
+          if [[ -n "${PREV_TAG}" ]]; then
+            START_ISO="$(git log -1 --format=%cI "${PREV_TAG}")"
+          fi
+          END_ISO="$(git log -1 --format=%cI "${TAG}")"
+
+          echo "PR window   : ${START_ISO} .. ${END_ISO}"
+
+          # Search merged PRs in the window
+          # Note: Search API caps 100 results; adjust if you expect >100 PRs per release.
+          PRS_JSON="$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:${START_ISO}..${END_ISO}&per_page=100")"
+
+          # Extract "title (#number) by @user"
+          mapfile -t PR_LINES < <(echo "${PRS_JSON}" \
+            | jq -r '.items[] | "- PR #\(.number): \(.title) (@\(.user.login))"' || true)
+
+          # Start new changelog entry
           dch --changelog debian/changelog \
               -v "${VERSION}-1" \
               --distribution trixie \
-              "Release ${VERSION}" || true
-          dch -r "" || true
-          dpkg-parsechangelog -S Version | grep -E "^${VERSION}-"
+              --urgency medium \
+              "Release ${VERSION}"
+
+          # Append commit bullets
+          if ((${#CHANGES[@]})); then
+            for line in "${CHANGES[@]}"; do
+              dch --changelog debian/changelog -a "$line"
+            done
+          else
+            dch --changelog debian/changelog -a "No direct commit changes since ${PREV_TAG:-initial}."
+          fi
+
+          # Append a PR section (if any)
+          if ((${#PR_LINES[@]})); then
+            dch --changelog debian/changelog -a ""
+            dch --changelog debian/changelog -a "Merged PRs:"
+            for pr in "${PR_LINES[@]}"; do
+              dch --changelog debian/changelog -a "  ${pr}"
+            done
+          else
+            dch --changelog debian/changelog -a ""
+            dch --changelog debian/changelog -a "Merged PRs: (none in this window)"
+          fi
+
+          # Finalize the entry trailer
+          dch --changelog debian/changelog -r ""
 
       - name: Cargo fmt + clippy + build
         run: |
