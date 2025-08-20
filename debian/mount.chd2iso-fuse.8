@@ -1,0 +1,26 @@
+.\"                                      -*- nroff -*-
+.TH MOUNT.CHD2ISO-FUSE 8 "August 2025" "chd2iso-fuse" "System Administration"
+.SH NAME
+mount.chd2iso-fuse \- helper to mount CHD images as ISO via FUSE
+.SH SYNOPSIS
+.B mount.chd2iso-fuse
+.I source mountpoint
+.RI [ options ...]
+.SH DESCRIPTION
+The
+.B mount.chd2iso-fuse
+program is a convenience wrapper that invokes
+.BR chd2iso-fuse (1)
+to mount a directory of CHD files as ISO files using the
+Linux FUSE framework.
+
+It is normally invoked automatically by
+.BR mount (8)
+when specifying the filesystem type
+.B chd2iso-fuse
+in
+.BR /etc/fstab .
+.SH SEE ALSO
+.BR chd2iso-fuse (1),
+.BR mount (8),
+.BR umount.chd2iso-fuse (8)
