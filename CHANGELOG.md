@@ -1,5 +1,8 @@
 # Changelog
 ### CI
+- ci/debian: derive debian/changelog version from tag; guard against mismatches (4c9bec5)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.14 (76c4290)### Other
+- PR #8: chore(release): update changelogs for v0.1.14 (d8b1565)### CI
 - ci: include debian/changelog in release PR (b76989d)### Docs
 - docs(changelog): update for v0.1.13 (8496cd6)### Other
 - PR #7: docs(changelog): update for v0.1.13 (cdc2991)### Chore
