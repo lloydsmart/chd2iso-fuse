@@ -1,5 +1,6 @@
 # Changelog
 ### CI
+- ci: collect release artifacts by debian version instead of hard-coded names (69c2bb1)### CI
 - ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly (16c5430)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.16 (7af875f)### Other
 - PR #10: chore(release): update changelogs for v0.1.16 (16588fc)### CI
