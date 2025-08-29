@@ -1,3 +1,15 @@
+chd2iso-fuse (0.1.6) trixie; urgency=medium
+
+  * Integrate automated changelog generation:
+    - Added scripts/gen-debian-changelog.sh using gbp dch
+    - Added scripts/gen-release-notes.sh using git-cliff
+    - Updated CI workflow to call these scripts on tag builds
+    - Installed git-cliff and git-buildpackage in CI container
+    - Included generated CHANGELOG.md in release artifacts
+    - Added tailored cliff.toml config with PR title capture
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 10:30:00 +0100
+
 chd2iso-fuse (0.1.0-2) bookworm; urgency=medium
 
   * Debian packaging polish:
