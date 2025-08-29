@@ -31,7 +31,7 @@ jobs:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
 
     steps:
-      # NEW: ensure checkout has real git (otherwise it falls back to an archive w/o .git)
+      # Ensure checkout uses real git (not a tarball)
       - name: Install git for checkout
         run: |
           set -e
@@ -44,6 +44,13 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
           fetch-tags: true
+
+      # NEW: mark the workspace as a safe git directory (fixes "dubious ownership")
+      - name: Trust workspace for git (safe.directory)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # Print for debug
+          git config --global --get-all safe.directory || true
 
       # Single apt step (adds remaining build deps incl. sccache etc.)
       - name: Install build deps (one shot)
@@ -132,7 +139,7 @@ jobs:
       - name: Install git-cliff (pinned)
         working-directory: ${{ github.workspace }}
         run: |
-          if ! command -v git-cliff >/dev/null 2>&1; then
+          if ! command -v git-cliff >/dev/null 21>&1; then
             cargo install git-cliff --locked --version "${GIT_CLIFF_VERSION}"
           fi
 
