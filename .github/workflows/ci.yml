@@ -55,10 +55,12 @@ jobs:
       # Detect rustc version for smarter cache keys
       - name: Detect rustc version
         id: rustver
-        run: echo "ver=$(rustc -V | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "ver=$(rustc -V | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Show rustc version
-        run: echo "Detected rustc version: ${{ steps.rustver.outputs.ver }}"
+        run: |
+          echo "Detected rustc version: ${{ steps.rustver.outputs.ver }}"
 
       # Compute a stable key component even if there’s no Cargo.lock
       - name: Compute Cargo.lock hash (safe)
