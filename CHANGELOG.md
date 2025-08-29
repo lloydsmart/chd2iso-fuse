@@ -1,5 +1,8 @@
 # Changelog
 ### CI
+- ci/debian: force changelog version from tag and guard before build (2dd7105)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.15 (4e5860e)### Other
+- PR #9: chore(release): update changelogs for v0.1.15 (761ce5f)### CI
 - ci/debian: derive debian/changelog version from tag; guard against mismatches (4c9bec5)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.14 (76c4290)### Other
 - PR #8: chore(release): update changelogs for v0.1.14 (d8b1565)### CI
