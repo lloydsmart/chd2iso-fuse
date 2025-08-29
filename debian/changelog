@@ -1,3 +1,18 @@
+chd2iso-fuse (0.1.23-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.22
+  * ci(release): build first, PR later — stop changelog from being clobbered mid-run
+    - Move CHANGELOG copy + create-pull-request steps to end of build job (after artifacts)
+    - Keep pre- and post-build version guards to enforce ${TAG#v}-1
+    - Collect artifacts by parsed Debian version; POSIX-safe shell
+    - Preserve sccache/caching, reproducible flags, and release publishing
+
+  [ Lloyd Smart ]
+  * Release 0.1.23
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 16:25:49 +0000
+
 chd2iso-fuse (0.1.22-1) trixie; urgency=medium
 
   [ lloydsmart ]
