@@ -7,7 +7,6 @@ on:
       - 'v*'
   pull_request:
 
-# Needed to create releases and open PRs
 permissions:
   contents: write
   actions: read
@@ -21,21 +20,16 @@ jobs:
       image: debian:trixie
       options: --init
     env:
-      # Pin git-cliff to a version compatible with Debian's rustc (1.85.0)
       GIT_CLIFF_VERSION: "2.9.1"
-      # Speed up Rust builds with sccache
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 2G
-      # Stabilize debug info paths to improve cache hits
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
-      # Needed by dch/gbp dch to write debian/changelog
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
       EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
-      # Ensure checkout uses real git (not a tarball)
       - name: Install git for checkout
         run: |
           set -e
@@ -49,22 +43,19 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # Trust workspace & set git identity (avoids dubious ownership + gives a maintainer)
       - name: Configure git trust and identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name "Lloyd Smart"
           git config --global user.email "lloydsmart@users.noreply.github.com"
-          git config --global --get-all safe.directory || true
 
-      # --- Diagnostics: show event/ref info early ---
       - name: Debug event info
         run: |
           echo "event_name=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
           echo "ref_name=${GITHUB_REF_NAME}"
+          git describe --tags --always || true
 
-      # Single apt step (adds remaining build deps incl. sccache etc.)
       - name: Install build deps (one shot)
         run: |
           set -e
@@ -81,17 +72,11 @@ jobs:
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # Detect rustc version for smarter cache keys
       - name: Detect rustc version
         id: rustver
         run: |
           echo "ver=$(rustc -V | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Show rustc version
-        run: |
-          echo "Detected rustc version: ${{ steps.rustver.outputs.ver }}"
-
-      # Compute a stable key component even if there’s no Cargo.lock
       - name: Compute Cargo.lock hash (safe)
         id: cargo_lock_hash
         run: |
@@ -103,19 +88,16 @@ jobs:
             echo "hash=none" >> "$GITHUB_OUTPUT"
           fi
 
-      # Stable SOURCE_DATE_EPOCH (commit timestamp) for reproducible builds & cache hits
       - name: Compute SOURCE_DATE_EPOCH from HEAD
         id: sde
         run: |
           echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
-      # Ensure sccache dir exists & show it (handy for debugging cache hits)
       - name: Ensure sccache dir exists and show path
         run: |
           mkdir -p "${SCCACHE_DIR}"
           echo "SCCACHE_DIR=${SCCACHE_DIR}"
 
-      # Cache sccache first so cargo can use it immediately
       - name: Cache sccache store
         uses: actions/cache@v4
         with:
@@ -124,7 +106,6 @@ jobs:
           restore-keys: |
             sccache-${{ runner.os }}-
 
-      # Cache cargo registry & target (key includes rust version + Cargo.lock hash)
       - name: Cache cargo registry & target
         uses: actions/cache@v4
         with:
@@ -136,7 +117,6 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      # Avoid recompiling git-cliff on every run
       - name: Cache git-cliff binary
         uses: actions/cache@v4
         with:
@@ -154,7 +134,6 @@ jobs:
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
 
-      # Optional: clear prior sccache counters for cleaner stats
       - name: sccache zero-stats
         run: sccache --zero-stats || true
 
@@ -173,22 +152,15 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: scripts/gen-debian-changelog.sh "$TAG" trixie
 
-      - name: Verify Debian version matches tag
+      - name: Verify Debian version matches tag (pre-build)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          set -e
+          set -eu
           EXPECT="${{ steps.ver.outputs.debver }}"
           ACTUAL="$(dpkg-parsechangelog -SVersion)"
-          echo "Debian version check: expected=${EXPECT} actual=${ACTUAL}"
-          if [[ "${ACTUAL}" != "${EXPECT}" ]]; then
-            echo "ERROR: debian/changelog version mismatch"
-            sed -n '1,40p' debian/changelog
-            exit 1
-          fi
-
-      - name: Preview updated debian/changelog (top)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: sed -n '1,40p' debian/changelog || true
+          echo "PRE-BUILD: expected=${EXPECT} actual=${ACTUAL}"
+          sed -n '1,20p' debian/changelog || true
+          [ "${ACTUAL}" = "${EXPECT}" ]
 
       - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
         if: startsWith(github.ref, 'refs/tags/')
@@ -241,36 +213,37 @@ jobs:
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      - name: sccache stats
-        run: sccache --show-stats || true
-
       - name: Show produced files (parent dir)
         run: |
           echo "Parent directory after build:"
           ls -l .. | sed -n '1,200p' || true
 
-      # Collect artifacts for *tag builds* by Debian version (robust to name variations)
+      # Strong post-build guard: ensure the files for this tag's Debian version exist
+      - name: Guard: built files for expected deb version must exist
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          VER_EXPECT="${{ steps.ver.outputs.debver }}"
+          echo "POST-BUILD: expecting files containing _${VER_EXPECT}_"
+          if ! find .. -maxdepth 1 -type f \( -name "*_${VER_EXPECT}_*.deb" -o -name "*_${VER_EXPECT}_*.buildinfo" -o -name "*_${VER_EXPECT}_*.changes" \) | grep -q .; then
+            echo "ERROR: No files for ${VER_EXPECT} were built."
+            echo "Top of debian/changelog at build time:"
+            sed -n '1,20p' debian/changelog || true
+            exit 1
+          fi
+
       - name: Collect artifacts (tagged build; auto-detect by version)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           set -eu
           mkdir -p artifacts
           VER="$(dpkg-parsechangelog -SVersion)"
-          echo "Looking for files with _${VER}_ in parent dir…"
+          echo "Collecting *_${VER}_* from parent dir…"
+          find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) -print0 \
+            | xargs -0 -I{} mv "{}" artifacts/
+          test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
+          ls -l artifacts || true
 
-          if ! find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) | grep -q .; then
-            echo "No files matched. Parent directory listing:"
-            ls -la ..
-            # still create notes so the release can be created
-            : > artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
-          else
-            find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) -print0 \
-              | xargs -0 -I{} mv "{}" artifacts/
-            test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
-            echo "Artifacts collected:"; ls -l artifacts || true
-          fi
-
-      # Collect artifacts for non-tag builds (looser patterns)
       - name: Collect artifacts (non-tag)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
@@ -297,7 +270,6 @@ jobs:
     needs: build-debs
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build-debs.result == 'success' }}
     steps:
-      # --- Diagnostics: show event/ref info here too ---
       - name: Debug event info
         run: |
           echo "event_name=${GITHUB_EVENT_NAME}"
