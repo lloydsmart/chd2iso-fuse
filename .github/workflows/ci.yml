@@ -155,7 +155,7 @@ jobs:
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
 
-      # Optional: clear prior sccache counters for cleaner stats
+      # Clear prior sccache counters for cleaner stats
       - name: sccache zero-stats
         working-directory: ${{ github.workspace }}
         run: sccache --zero-stats || true
@@ -177,9 +177,11 @@ jobs:
           VERSION="${TAG#v}"
           EXPECT="${VERSION}-1"
           ACTUAL="$(dpkg-parsechangelog -SVersion)"
-          echo "Expected Debian version: ${EXPECT} ; Actual: ${ACTUAL}"
+          echo "Debian version check: expected=${EXPECT} actual=${ACTUAL}"
           if [[ "${ACTUAL}" != "${EXPECT}" ]]; then
-            echo "ERROR: debian/changelog version mismatch"; sed -n '1,40p' debian/changelog; exit 1
+            echo "ERROR: debian/changelog version mismatch"
+            sed -n '1,40p' debian/changelog
+            exit 1
           fi
 
       - name: Preview updated debian/changelog (top 40 lines)
@@ -248,7 +250,11 @@ jobs:
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      # Optional: show sccache hit/miss ratio after all builds (cargo + dh-cargo)
+      - name: Show produced files (version sanity)
+        run: |
+          ls -l ../chd2iso-fuse_* || true
+
+      # Show sccache hit/miss ratio after all builds (cargo + dh-cargo)
       - name: sccache stats
         working-directory: ${{ github.workspace }}
         run: sccache --show-stats || true
