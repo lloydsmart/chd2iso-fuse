@@ -1,5 +1,10 @@
 # Changelog
 ### CI
+- ci(release): make tag releases bullet-proof (221376b)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.17 (bbb1795)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.18 (9d01cc1)### Other
+- PR #11: chore(release): update changelogs for v0.1.17 (d9f788d)
+- PR #12: chore(release): update changelogs for v0.1.18 (5e4627a)### CI
 - ci: collect release artifacts by debian version instead of hard-coded names (69c2bb1)### CI
 - ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly (16c5430)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.16 (7af875f)### Other
