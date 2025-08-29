@@ -52,16 +52,29 @@ jobs:
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
+      # Compute a stable key component even if there's no Cargo.lock at repo root
+      - name: Compute Cargo.lock hash (safe)
+        id: cargo_lock_hash
+        run: |
+          set -e
+          if find . -name Cargo.lock -type f | grep -q .; then
+            # Concatenate all Cargo.lock files (sorted) and hash them
+            sha=$(find . -name Cargo.lock -type f -print0 | sort -z | xargs -0 cat | sha256sum | cut -d' ' -f1)
+            echo "hash=$sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "hash=none" >> "$GITHUB_OUTPUT"
+          fi
+
       # Cache sccache first so cargo can use it immediately
       - name: Cache sccache store
         uses: actions/cache@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-rust-1.85.0
+          key: sccache-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-1.85.0
           restore-keys: |
             sccache-${{ runner.os }}-
 
-      # Cache cargo registry & target (key includes rust version + lockfile)
+      # Cache cargo registry & target (key includes rust version + Cargo.lock hash)
       - name: Cache cargo registry & target
         uses: actions/cache@v4
         with:
@@ -69,7 +82,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-rust-1.85.0
+          key: cargo-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-1.85.0
           restore-keys: |
             cargo-${{ runner.os }}-
 
