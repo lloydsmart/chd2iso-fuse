@@ -1,3 +1,18 @@
+chd2iso-fuse (0.1.17-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.16
+  * ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly
+    - gen-debian-changelog.sh: use `dch --newversion ${TAG#v}-1` and guard with dpkg-parsechangelog
+    - CI: verify changelog version matches tag before build
+    - CI: on tags, collect artifacts only for the expected ${TAG#v}-1 filenames
+    - Adds logs to preview changelog and produced files for sanity
+
+  [ Lloyd Smart ]
+  * Release 0.1.17
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 15:26:14 +0000
+
 chd2iso-fuse (0.1.16-1) trixie; urgency=medium
 
   [ lloydsmart ]
