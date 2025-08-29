@@ -27,6 +27,8 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 2G
+      # Stabilize debug info paths to improve cache hits
+      RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
 
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +76,12 @@ jobs:
             echo "hash=none" >> "$GITHUB_OUTPUT"
           fi
 
+      # Stable SOURCE_DATE_EPOCH (commit timestamp) for reproducible builds & cache hits
+      - name: Compute SOURCE_DATE_EPOCH from HEAD
+        id: sde
+        run: |
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
       # Ensure sccache dir exists & show it (handy for debugging cache hits)
       - name: Ensure sccache dir exists and show path
         run: |
@@ -119,22 +127,20 @@ jobs:
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
 
-      # Optional: clear prior sccache counters for cleaner stats
+      # Clear prior sccache counters for cleaner stats
       - name: sccache zero-stats
         run: sccache --zero-stats || true
 
-# === Only on tags: generate Debian changelog via gbp dch ===
+      # === Only on tags: generate Debian changelog via gbp dch ===
       - name: Generate Debian changelog (gbp dch)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}
-        working-directory: ${{ github.workspace }}
         run: scripts/gen-debian-changelog.sh "$TAG" trixie
 
       # === Only on tags: generate Markdown changelog + release notes via git-cliff ===
       - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
         if: startsWith(github.ref, 'refs/tags/')
-        working-directory: ${{ github.workspace }}
         run: scripts/gen-release-notes.sh artifacts
 
       # === Only on tags: open a PR to update CHANGELOG.md on main ===
@@ -172,18 +178,21 @@ jobs:
 
       # Lint without network and fail on warnings (no extra release build here)
       - name: Cargo fmt + clippy
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: |
           cargo fmt -- --check
           cargo clippy --all-targets --frozen -- -D warnings
 
       - name: Build .deb with debuild
         env:
-          # Ensure dh-cargo builds also benefit from sccache
+          # Ensure dh-cargo builds also benefit from sccache and stable timestamps
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
+          SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      # Optional: show sccache hit/miss ratio after all builds (cargo + dh-cargo)
+      # Show sccache hit/miss ratio after all builds (cargo + dh-cargo)
       - name: sccache stats
         run: sccache --show-stats || true
 
