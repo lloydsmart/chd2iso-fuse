@@ -123,16 +123,18 @@ jobs:
       - name: sccache zero-stats
         run: sccache --zero-stats || true
 
-      # === Only on tags: generate Debian changelog via gbp dch ===
+# === Only on tags: generate Debian changelog via gbp dch ===
       - name: Generate Debian changelog (gbp dch)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}
+        working-directory: ${{ github.workspace }}
         run: scripts/gen-debian-changelog.sh "$TAG" trixie
 
       # === Only on tags: generate Markdown changelog + release notes via git-cliff ===
       - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
         if: startsWith(github.ref, 'refs/tags/')
+        working-directory: ${{ github.workspace }}
         run: scripts/gen-release-notes.sh artifacts
 
       # === Only on tags: open a PR to update CHANGELOG.md on main ===

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Always run from repo root (script is in scripts/)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# (Optional) tiny debug helps if this ever fails again
+echo "gen-debian-changelog: PWD=$PWD"
+git rev-parse --show-toplevel || true
+
 # Usage: scripts/gen-debian-changelog.sh v0.3.1 trixie
 TAG="${1:?tag (e.g. v0.3.1) required}"
 DIST="${2:-trixie}"
