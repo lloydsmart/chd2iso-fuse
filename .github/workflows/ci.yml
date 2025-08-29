@@ -240,19 +240,30 @@ jobs:
         run: |
           ls -l .. | sed -n '1,200p' || true
 
-      # Collect artifacts for *tag builds* with explicit expected version
-      - name: Collect artifacts (tagged build)
+      # Collect artifacts for tagged builds; auto-detect by version
+      - name: Collect artifacts (tagged build; auto-detect by version)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p artifacts
-          VER="${{ steps.ver.outputs.debver }}"
-          mv ../chd2iso-fuse_"${VER}"_amd64.deb artifacts/
-          mv ../chd2iso-fuse-dbgsym_"${VER}"_amd64.deb artifacts/ || true
-          mv ../chd2iso-fuse_"${VER}"_amd64.buildinfo artifacts/
-          mv ../chd2iso-fuse_"${VER}"_amd64.changes artifacts/
+          SRC="$(dpkg-parsechangelog -SSource)"
+          VER="$(dpkg-parsechangelog -SVersion)"
+          echo "Looking for artifacts matching *_${VER}_* in parent dir…"
+          found="$(find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) -print)"
+          if [ -z "$found" ]; then
+            echo "No files matched. Parent directory listing for debug:"; ls -la ..
+            exit 1
+          fi
+          # Move all matching files (main .deb, dbgsym, buildinfo, changes)
+          while IFS= read -r f; do
+            echo "Moving $f"
+            mv "$f" artifacts/
+          done <<< "$found"
+
+          # Ensure release notes exist
           test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
-          ls -l artifacts || true
+          echo "Artifacts collected:"; ls -l artifacts || true
+
 
       # Collect artifacts for non-tag builds (looser patterns)
       - name: Collect artifacts (non-tag)
