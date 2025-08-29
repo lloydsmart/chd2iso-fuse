@@ -1,40 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Always run from repo root (script is in scripts/)
+# Usage: gen-debian-changelog.sh TAG DIST
+# Example: gen-debian-changelog.sh v0.1.14 trixie
+TAG="${1:-}"
+DIST="${2:-unstable}"
+
+if [[ -z "${TAG}" ]]; then
+  echo "Usage: $0 <tag> <dist>"; exit 2
+fi
+
+# Always run from repo root (script lives in scripts/)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# Tiny debug helps if this ever fails again
-echo "gen-debian-changelog: PWD=$PWD"
-git rev-parse --show-toplevel || true
+echo "gen-debian-changelog: ***"
+pwd
 
-# Usage: scripts/gen-debian-changelog.sh v0.3.1 trixie
-TAG="${1:?tag (e.g. v0.3.1) required}"
-DIST="${2:-trixie}"
+# Ensure git context is sane inside container
+git config --global --add safe.directory "$PWD" || true
 
-VERSION="${TAG#v}"
+# Calculate versions
+VERSION="${TAG#v}"          # e.g. v0.1.14 -> 0.1.14
+DEBVER="${VERSION}-1"       # Debian revision 1
 
+# Make sure we have all tags (for gbp dch --since)
 git fetch --tags --force --prune
 
-# Find previous tag (by creation date order)
-PREV_TAG="$(git tag --list --sort=creatordate | awk -v t="$TAG" '
-  $0==t{found=1; exit}
-  {last=$0}
-  END{if(found && last!=""){print last}}'
-)"
+# Find previous tag (if any)
+prev_tag="$(git tag --sort=creatordate | awk -v t="${TAG}" '$0==t{found=1;exit} {last=$0} END{if(found&&last) print last}')"
 
-RANGE_ARG=()
-if [[ -n "${PREV_TAG}" ]]; then
-  RANGE_ARG=(--since "${PREV_TAG}")
+# Generate changes from git history
+if [[ -n "${prev_tag}" ]]; then
+  gbp dch --ignore-branch --git-author --since="${prev_tag}" --full
+else
+  gbp dch --ignore-branch --git-author --full
 fi
 
-# Generate Debian changelog stanza from Git history
-# - gbp dch writes debian/changelog with proper Debian formatting
-# - --full: include all commits since previous release
-# - --ignore-branch: safe in CI even if building outside debian-branch
-gbp dch --new-version "${VERSION}-1" --distribution "${DIST}" \
-  --full --ignore-branch "${RANGE_ARG[@]}"
+# Explicitly set the new version + distro and close the entry
+dch --changelog debian/changelog \
+    -v "${DEBVER}" \
+    --distribution "${DIST}" \
+    --urgency medium \
+    --force-distribution \
+    "Release ${VERSION}"
 
-# Close the entry with timestamp/maintainer line
-dch -r ""
+dch --changelog debian/changelog -r ""
+
+# Show the top stanza for debug
+sed -n '1,20p' debian/changelog || true
