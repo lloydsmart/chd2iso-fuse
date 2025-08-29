@@ -1,3 +1,18 @@
+chd2iso-fuse (0.1.16-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.15
+  * ci/debian: force changelog version from tag and guard before build
+    - gen-debian-changelog.sh: use `dch --newversion ${TAG#v}-1` and close entry
+    - Add CI step to verify dpkg-parsechangelog matches the tag-derived version
+    - Print top of debian/changelog and built filenames for sanity
+    - Fixes release assets being one version behind the tag
+
+  [ Lloyd Smart ]
+  * Release 0.1.16
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 15:13:04 +0000
+
 chd2iso-fuse (0.1.15-1) trixie; urgency=medium
 
   [ lloydsmart ]
