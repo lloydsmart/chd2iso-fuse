@@ -1,3 +1,18 @@
+chd2iso-fuse (0.1.22-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.20
+  * ci(release): fix YAML and finalize post-build version guard
+    - Quote guard step name (contains a colon) to satisfy YAML parser
+    - Add missing `if:` and `run:` fields to the guard step
+    - Ensure tag builds fail if artifacts for the expected Debian version (${TAG#v}-1) are absent
+    - Keep parent-dir listing for easier debugging
+
+  [ Lloyd Smart ]
+  * Release 0.1.22
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 16:18:55 +0000
+
 chd2iso-fuse (0.1.20-1) trixie; urgency=medium
 
   [ lloydsmart ]

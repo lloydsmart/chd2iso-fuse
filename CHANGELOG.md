@@ -1,5 +1,11 @@
 # Changelog
 ### CI
+- ci(release): fix YAML and finalize post-build version guard (6af91e0)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.20 (7bf19fd)### Other
+- PR #14: chore(release): update changelogs for v0.1.20 (0915c50)### CI
+- ci(release): harden tag builds—pre/post version guards and POSIX-safe artifact collection (b44ab6b)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.19 (9d90a86)### Other
+- PR #13: chore(release): update changelogs for v0.1.19 (cfacaea)### CI
 - ci: fix artifact collection on tag builds (POSIX sh) (0bee93c)### CI
 - ci(release): make tag releases bullet-proof (221376b)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.17 (bbb1795)
