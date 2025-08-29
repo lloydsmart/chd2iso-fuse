@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# (Optional) tiny debug helps if this ever fails again
+# Tiny debug helps if this ever fails again
 echo "gen-debian-changelog: PWD=$PWD"
 git rev-parse --show-toplevel || true
 

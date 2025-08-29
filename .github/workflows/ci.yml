@@ -31,13 +31,21 @@ jobs:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
 
     steps:
+      # NEW: ensure checkout has real git (otherwise it falls back to an archive w/o .git)
+      - name: Install git for checkout
+        run: |
+          set -e
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git ca-certificates
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
           fetch-tags: true
 
-      # Single apt step (adds sccache too)
+      # Single apt step (adds remaining build deps incl. sccache etc.)
       - name: Install build deps (one shot)
         run: |
           set -e
@@ -49,7 +57,7 @@ jobs:
             devscripts debhelper dh-cargo lintian \
             git-buildpackage \
             sccache \
-            curl jq ca-certificates git
+            curl jq ca-certificates
 
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
