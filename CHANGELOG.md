@@ -1,5 +1,8 @@
 # Changelog
-### Chore
+### CI
+- ci: include debian/changelog in release PR (b76989d)### Docs
+- docs(changelog): update for v0.1.13 (8496cd6)### Other
+- PR #7: docs(changelog): update for v0.1.13 (cdc2991)### Chore
 - chore(cliff): fix template vars and TOML; use commit.message/id (812625e)### Chore
 - chore(cliff): fix TOML inline-table error; use array-of-tables for commit_parsers (20a72ae)### CI
 - ci: set DEBFULLNAME/DEBEMAIL and git identity for dch; fix git-cliff check (35b78df)### CI

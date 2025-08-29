@@ -1,3 +1,14 @@
+chd2iso-fuse (0.1.14-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * docs(changelog): update for v0.1.13
+  * ci: include debian/changelog in release PR
+    - Add debian/changelog to create-pull-request add-paths
+    - Preview generated debian/changelog in logs for sanity
+    - Ensures gbp dch output is committed back to main on tag builds
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 13:45:09 +0000
+
 chd2iso-fuse (0.1.6) trixie; urgency=medium
 
   * Integrate automated changelog generation:
