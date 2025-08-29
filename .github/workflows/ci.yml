@@ -25,7 +25,7 @@ jobs:
       GIT_CLIFF_VERSION: "2.9.1"
       # Speed up Rust builds with sccache
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ${{ runner.temp }}/sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 2G
 
     steps:
@@ -59,7 +59,7 @@ jobs:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-rust-1.85.0
           restore-keys: |
-            sccache-${{ runner.os }}-
+          sccache-${{ runner.os }}-
 
       # Cache cargo registry & target (key includes rust version + lockfile)
       - name: Cache cargo registry & target
@@ -135,8 +135,7 @@ jobs:
 
       - name: Build .deb with debuild
         env:
-          # Ensure dh-cargo builds also benefit from sccache
-          RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
+          RUSTC_WRAPPER: sccache
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: debuild -us -uc -b
 
