@@ -1,5 +1,6 @@
 # Changelog
 ### CI
+- ci: fix artifact collection on tag builds (POSIX sh) (0bee93c)### CI
 - ci(release): make tag releases bullet-proof (221376b)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.17 (bbb1795)
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.18 (9d01cc1)### Other
