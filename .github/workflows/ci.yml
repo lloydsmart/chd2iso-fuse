@@ -253,24 +253,22 @@ jobs:
       - name: Collect artifacts (tagged build; auto-detect by version)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          set -euo pipefail
+          set -eu
           mkdir -p artifacts
-          SRC="$(dpkg-parsechangelog -SSource)"
           VER="$(dpkg-parsechangelog -SVersion)"
-          echo "Looking for artifacts matching *_${VER}_* in parent dir…"
-          found="$(find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) -print)"
-          if [ -z "$found" ]; then
-            echo "No files matched. Parent directory listing for debug:"; ls -la ..
-            # still create notes so the release can be created, assets can be attached later if needed
-            test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
+          echo "Looking for files with _${VER}_ in parent dir…"
+
+          if ! find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) | grep -q .; then
+            echo "No files matched. Parent directory listing:"
+            ls -la ..
+            # still create notes so the release can be created
+            : > artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
           else
-            while IFS= read -r f; do
-              echo "Moving $f"
-              mv "$f" artifacts/
-            done <<< "$found"
+            find .. -maxdepth 1 -type f \( -name "*_${VER}_*.deb" -o -name "*_${VER}_*.buildinfo" -o -name "*_${VER}_*.changes" \) -print0 \
+              | xargs -0 -I{} mv "{}" artifacts/
             test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
+            echo "Artifacts collected:"; ls -l artifacts || true
           fi
-          echo "Artifacts collected:"; ls -l artifacts || true
 
       # Collect artifacts for non-tag builds (looser patterns)
       - name: Collect artifacts (non-tag)
