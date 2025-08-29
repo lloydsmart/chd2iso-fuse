@@ -4,10 +4,9 @@ on:
   push:
     branches: [ main ]
     tags:
-      - 'v*'     # e.g. v0.1.4
+      - 'v*'
   pull_request:
 
-# Needed to create releases and open PRs
 permissions:
   contents: write
   actions: read
@@ -21,21 +20,16 @@ jobs:
       image: debian:trixie
       options: --init
     env:
-      # Pin git-cliff to a version compatible with Debian's rustc (1.85.0)
       GIT_CLIFF_VERSION: "2.9.1"
-      # Speed up Rust builds with sccache
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 2G
-      # Stabilize debug info paths to improve cache hits
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
-      # >>> Needed by dch/gbp dch to write debian/changelog
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
       EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
-      # Ensure checkout uses real git (not a tarball)
       - name: Install git for checkout
         run: |
           set -e
@@ -49,16 +43,13 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # Trust workspace & set git identity (avoids dubious ownership + gives a maintainer)
       - name: Configure git trust and identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name "Lloyd Smart"
           git config --global user.email "lloydsmart@users.noreply.github.com"
           git config --global --get-all safe.directory || true
-          git config --global --list | sed -n 's/^user\.\(name\|email\)=/&/p'
 
-      # Single apt step (adds remaining build deps incl. sccache etc.)
       - name: Install build deps (one shot)
         run: |
           set -e
@@ -75,19 +66,16 @@ jobs:
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # Detect rustc version for smarter cache keys
       - name: Detect rustc version
         id: rustver
         working-directory: ${{ github.workspace }}
         run: |
           echo "ver=$(rustc -V | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-
       - name: Show rustc version
         working-directory: ${{ github.workspace }}
         run: |
           echo "Detected rustc version: ${{ steps.rustver.outputs.ver }}"
 
-      # Compute a stable key component even if there’s no Cargo.lock
       - name: Compute Cargo.lock hash (safe)
         id: cargo_lock_hash
         working-directory: ${{ github.workspace }}
@@ -100,21 +88,18 @@ jobs:
             echo "hash=none" >> "$GITHUB_OUTPUT"
           fi
 
-      # Stable SOURCE_DATE_EPOCH (commit timestamp) for reproducible builds & cache hits
       - name: Compute SOURCE_DATE_EPOCH from HEAD
         id: sde
         working-directory: ${{ github.workspace }}
         run: |
           echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
-      # Ensure sccache dir exists & show it (handy for debugging cache hits)
       - name: Ensure sccache dir exists and show path
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p "${SCCACHE_DIR}"
           echo "SCCACHE_DIR=${SCCACHE_DIR}"
 
-      # Cache sccache first so cargo can use it immediately
       - name: Cache sccache store
         uses: actions/cache@v4
         with:
@@ -123,7 +108,6 @@ jobs:
           restore-keys: |
             sccache-${{ runner.os }}-
 
-      # Cache cargo registry & target (key includes rust version + Cargo.lock hash)
       - name: Cache cargo registry & target
         uses: actions/cache@v4
         with:
@@ -135,7 +119,6 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      # Avoid recompiling git-cliff on every run
       - name: Cache git-cliff binary
         uses: actions/cache@v4
         with:
@@ -155,13 +138,20 @@ jobs:
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
 
-      # Clear prior sccache counters for cleaner stats
       - name: sccache zero-stats
         working-directory: ${{ github.workspace }}
         run: sccache --zero-stats || true
 
-      # === Only on tags: generate Debian changelog via gbp dch ===
-      - name: Generate Debian changelog (gbp dch)
+      # --- Release-only changelog generation ---
+      - name: Derive version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "debver=${VERSION}-1" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}
@@ -170,12 +160,9 @@ jobs:
 
       - name: Verify Debian version matches tag
         if: startsWith(github.ref, 'refs/tags/')
-        env:
-          TAG: ${{ github.ref_name }}
         run: |
           set -e
-          VERSION="${TAG#v}"
-          EXPECT="${VERSION}-1"
+          EXPECT="${{ steps.ver.outputs.debver }}"
           ACTUAL="$(dpkg-parsechangelog -SVersion)"
           echo "Debian version check: expected=${EXPECT} actual=${ACTUAL}"
           if [[ "${ACTUAL}" != "${EXPECT}" ]]; then
@@ -184,17 +171,15 @@ jobs:
             exit 1
           fi
 
-      - name: Preview updated debian/changelog (top 40 lines)
+      - name: Preview updated debian/changelog (top)
         if: startsWith(github.ref, 'refs/tags/')
         run: sed -n '1,40p' debian/changelog || true
 
-      # === Only on tags: generate Markdown changelog + release notes via git-cliff ===
       - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: ${{ github.workspace }}
         run: scripts/gen-release-notes.sh artifacts
 
-      # === Only on tags: open a PR to update CHANGELOG.md on main ===
       - name: Prepare CHANGELOG update (copy into repo)
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: ${{ github.workspace }}
@@ -221,18 +206,16 @@ jobs:
             automated
             changelog
 
-      # Enforce a committed lockfile so CI never re-resolves deps
+      # --- Build & package ---
       - name: Verify Cargo.lock is present
         working-directory: ${{ github.workspace }}
         run: |
           test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
 
-      # Prefetch deps strictly from lockfile (no network during later steps)
       - name: cargo fetch (locked)
         working-directory: ${{ github.workspace }}
         run: cargo fetch --locked
 
-      # Lint without network and fail on warnings (no extra release build here)
       - name: Cargo fmt + clippy
         working-directory: ${{ github.workspace }}
         env:
@@ -244,27 +227,36 @@ jobs:
       - name: Build .deb with debuild
         working-directory: ${{ github.workspace }}
         env:
-          # Ensure dh-cargo builds also benefit from sccache and stable timestamps
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      - name: Show produced files (version sanity)
-        run: |
-          ls -l ../chd2iso-fuse_* || true
-
-      # Show sccache hit/miss ratio after all builds (cargo + dh-cargo)
       - name: sccache stats
         working-directory: ${{ github.workspace }}
         run: sccache --show-stats || true
 
-      - name: Lintian (non-fatal)
-        working-directory: ${{ github.workspace }}
-        run: lintian ../chd2iso-fuse_*_amd64.changes || true
+      - name: Show produced files (parent dir)
+        run: |
+          ls -l .. | sed -n '1,200p' || true
 
-      - name: Collect artifacts
-        working-directory: ${{ github.workspace }}
+      # Collect artifacts for *tag builds* with explicit expected version
+      - name: Collect artifacts (tagged build)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -e
+          mkdir -p artifacts
+          VER="${{ steps.ver.outputs.debver }}"
+          mv ../chd2iso-fuse_"${VER}"_amd64.deb artifacts/
+          mv ../chd2iso-fuse-dbgsym_"${VER}"_amd64.deb artifacts/ || true
+          mv ../chd2iso-fuse_"${VER}"_amd64.buildinfo artifacts/
+          mv ../chd2iso-fuse_"${VER}"_amd64.changes artifacts/
+          test -f artifacts/RELEASE_NOTES.md || echo "(tag build – notes elsewhere)" > artifacts/RELEASE_NOTES.md
+          ls -l artifacts || true
+
+      # Collect artifacts for non-tag builds (looser patterns)
+      - name: Collect artifacts (non-tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
           set -e
           mkdir -p artifacts
@@ -272,7 +264,6 @@ jobs:
           mv ../chd2iso-fuse-dbgsym_*_amd64.deb artifacts/ || true
           mv ../chd2iso-fuse_*_amd64.buildinfo artifacts/ || true
           mv ../chd2iso-fuse_*_amd64.changes artifacts/ || true
-          # Ensure release notes exist for non-tag pushes (placeholder)
           test -f artifacts/RELEASE_NOTES.md || echo "(build from branch/PR – no tagged release notes)" > artifacts/RELEASE_NOTES.md
           ls -l artifacts || true
 
