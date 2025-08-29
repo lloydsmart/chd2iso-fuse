@@ -52,25 +52,38 @@ jobs:
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # Compute a stable key component even if there's no Cargo.lock at repo root
+      # Detect rustc version for smarter cache keys
+      - name: Detect rustc version
+        id: rustver
+        run: echo "ver=$(rustc -V | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Show rustc version
+        run: echo "Detected rustc version: ${{ steps.rustver.outputs.ver }}"
+
+      # Compute a stable key component even if there’s no Cargo.lock
       - name: Compute Cargo.lock hash (safe)
         id: cargo_lock_hash
         run: |
           set -e
           if find . -name Cargo.lock -type f | grep -q .; then
-            # Concatenate all Cargo.lock files (sorted) and hash them
             sha=$(find . -name Cargo.lock -type f -print0 | sort -z | xargs -0 cat | sha256sum | cut -d' ' -f1)
             echo "hash=$sha" >> "$GITHUB_OUTPUT"
           else
             echo "hash=none" >> "$GITHUB_OUTPUT"
           fi
 
+      # Ensure sccache dir exists & show it (handy for debugging cache hits)
+      - name: Ensure sccache dir exists and show path
+        run: |
+          mkdir -p "${SCCACHE_DIR}"
+          echo "SCCACHE_DIR=${SCCACHE_DIR}"
+
       # Cache sccache first so cargo can use it immediately
       - name: Cache sccache store
         uses: actions/cache@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: sccache-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-1.85.0
+          key: sccache-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-${{ steps.rustver.outputs.ver }}
           restore-keys: |
             sccache-${{ runner.os }}-
 
@@ -82,7 +95,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-1.85.0
+          key: cargo-${{ runner.os }}-${{ steps.cargo_lock_hash.outputs.hash }}-rust-${{ steps.rustver.outputs.ver }}
           restore-keys: |
             cargo-${{ runner.os }}-
 
@@ -103,6 +116,10 @@ jobs:
         run: |
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
+
+      # Optional: clear prior sccache counters for cleaner stats
+      - name: sccache zero-stats
+        run: sccache --zero-stats || true
 
       # === Only on tags: generate Debian changelog via gbp dch ===
       - name: Generate Debian changelog (gbp dch)
@@ -152,6 +169,10 @@ jobs:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: debuild -us -uc -b
+
+      # Optional: show sccache hit/miss ratio after all builds (cargo + dh-cargo)
+      - name: sccache stats
+        run: sccache --show-stats || true
 
       - name: Lintian (non-fatal)
         run: lintian ../chd2iso-fuse_*_amd64.changes || true
