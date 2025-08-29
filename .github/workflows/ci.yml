@@ -29,6 +29,10 @@ jobs:
       SCCACHE_CACHE_SIZE: 2G
       # Stabilize debug info paths to improve cache hits
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
+      # >>> Needed by dch/gbp dch to write debian/changelog
+      DEBFULLNAME: "Lloyd Smart"
+      DEBEMAIL: "lloydsmart@users.noreply.github.com"
+      EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
       # Ensure checkout uses real git (not a tarball)
@@ -45,12 +49,14 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # NEW: mark the workspace as a safe git directory (fixes "dubious ownership")
-      - name: Trust workspace for git (safe.directory)
+      # Trust workspace & set git identity (avoids dubious ownership + gives a maintainer)
+      - name: Configure git trust and identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          # Print for debug
+          git config --global user.name "Lloyd Smart"
+          git config --global user.email "lloydsmart@users.noreply.github.com"
           git config --global --get-all safe.directory || true
+          git config --global --list | sed -n 's/^user\.\(name\|email\)=/&/p'
 
       # Single apt step (adds remaining build deps incl. sccache etc.)
       - name: Install build deps (one shot)
@@ -139,7 +145,7 @@ jobs:
       - name: Install git-cliff (pinned)
         working-directory: ${{ github.workspace }}
         run: |
-          if ! command -v git-cliff >/dev/null 21>&1; then
+          if ! command -v git-cliff >/dev/null 2>&1; then
             cargo install git-cliff --locked --version "${GIT_CLIFF_VERSION}"
           fi
 
