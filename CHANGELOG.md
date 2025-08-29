@@ -1,5 +1,8 @@
 # Changelog
 ### CI
+- ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly (16c5430)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.16 (7af875f)### Other
+- PR #10: chore(release): update changelogs for v0.1.16 (16588fc)### CI
 - ci/debian: force changelog version from tag and guard before build (2dd7105)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.15 (4e5860e)### Other
 - PR #9: chore(release): update changelogs for v0.1.15 (761ce5f)### CI
