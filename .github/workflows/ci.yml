@@ -35,7 +35,11 @@ jobs:
             libfuse3-dev fuse3 \
             rustc cargo rustfmt rust-clippy clang \
             devscripts debhelper dh-cargo lintian \
+            git-buildpackage \
             curl jq ca-certificates git
+
+      - name: Add ~/.cargo/bin to PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       # Cache cargo registry & target to speed up builds
       - name: Cache cargo registry & target
@@ -49,94 +53,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      # Build a Debian changelog entry + Markdown release notes (only on tags)
-      - name: Generate Debian changelog from Git + merged PRs (on tag)
+      - name: Install git-cliff
+        run: cargo install git-cliff --locked
+
+      - name: Ensure helper scripts are executable
+        run: |
+          chmod +x scripts/gen-debian-changelog.sh
+          chmod +x scripts/gen-release-notes.sh
+
+      # === Only on tags: generate Debian changelog via gbp dch ===
+      - name: Generate Debian changelog (gbp dch)
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          TAG: ${{ github.ref_name }}          # e.g. v0.1.4
-          REPO: ${{ github.repository }}       # owner/name
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
+          TAG: ${{ github.ref_name }}
+        run: scripts/gen-debian-changelog.sh "$TAG" trixie
 
-          VERSION="${TAG#v}"
-          git fetch --tags --force --prune
-
-          # Work out range between previous tag and this tag
-          mapfile -t TAGS < <(git tag --list --sort=creatordate)
-          PREV_TAG=""
-          for i in "${!TAGS[@]}"; do
-            if [[ "${TAGS[$i]}" == "${TAG}" ]]; then
-              if (( i > 0 )); then PREV_TAG="${TAGS[$((i-1))]}"; fi
-              break
-            fi
-          done
-
-          if [[ -n "${PREV_TAG}" ]]; then
-            RANGE="${PREV_TAG}..${TAG}"
-          else
-            FIRST_COMMIT="$(git rev-list --max-parents=0 "${TAG}")"
-            RANGE="${FIRST_COMMIT}..${TAG}"
-          fi
-
-          # Collect commits (no merges)
-          mapfile -t CHANGES < <(git log --no-merges --reverse --pretty=format:'- %s (%h)' "${RANGE}" || true)
-
-          # Collect merged PRs via GitHub API between prev and current tag dates
-          START_ISO="1970-01-01T00:00:00Z"
-          if [[ -n "${PREV_TAG}" ]]; then
-            START_ISO="$(git log -1 --format=%cI "${PREV_TAG}")"
-          fi
-          END_ISO="$(git log -1 --format=%cI "${TAG}")"
-
-          PRS_JSON="$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/search/issues?q=repo:${REPO}+is:pr+is:merged+merged:${START_ISO}..${END_ISO}&per_page=100")"
-
-          mapfile -t PR_LINES < <(echo "${PRS_JSON}" \
-            | jq -r '.items[] | "- PR #\(.number): \(.title) (@\(.user.login))"' || true)
-
-          # Start a new Debian changelog entry
-          dch --changelog debian/changelog \
-              -v "${VERSION}-1" \
-              --distribution trixie \
-              --urgency medium \
-              "Release ${VERSION}"
-
-          if ((${#CHANGES[@]})); then
-            for line in "${CHANGES[@]}"; do
-              dch --changelog debian/changelog -a "$line"
-            done
-          else
-            dch --changelog debian/changelog -a "No direct commit changes since ${PREV_TAG:-initial}."
-          fi
-
-          if ((${#PR_LINES[@]})); then
-            dch --changelog debian/changelog -a ""
-            dch --changelog debian/changelog -a "Merged PRs:"
-            for pr in "${PR_LINES[@]}"; do
-              dch --changelog debian/changelog -a "  ${pr}"
-            done
-          else
-            dch --changelog debian/changelog -a ""
-            dch --changelog debian/changelog -a "Merged PRs: (none in this window)"
-          fi
-
-          # Close the entry
-          dch --changelog debian/changelog -r ""
-
-          # Emit Markdown release body from *latest* changelog stanza
-          mkdir -p artifacts
-          VER=$(dpkg-parsechangelog -l debian/changelog -S Version)
-          DATE=$(dpkg-parsechangelog -l debian/changelog -S Date || true)
-          CHG=$(dpkg-parsechangelog -l debian/changelog -S Changes | sed 's/^[ ]*//')
-
-          {
-            echo "# chd2iso-fuse ${VER}"
-            [[ -n "$DATE" ]] && echo "_${DATE}_"
-            echo
-            echo "${CHG}"
-          } > artifacts/RELEASE_NOTES.md
+      # === Only on tags: generate Markdown changelog + release notes via git-cliff ===
+      - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: scripts/gen-release-notes.sh artifacts
 
       - name: Cargo fmt + clippy + build
         run: |
@@ -158,7 +93,7 @@ jobs:
           mv ../chd2iso-fuse-dbgsym_*_amd64.deb artifacts/ || true
           mv ../chd2iso-fuse_*_amd64.buildinfo artifacts/ || true
           mv ../chd2iso-fuse_*_amd64.changes artifacts/ || true
-          # ensure release notes file exists even on non-tag pushes
+          # Ensure release notes exist for non-tag pushes (placeholder)
           test -f artifacts/RELEASE_NOTES.md || echo "(build from branch/PR – no tagged release notes)" > artifacts/RELEASE_NOTES.md
           ls -l artifacts || true
 
@@ -187,9 +122,10 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: chd2iso-fuse ${{ github.ref_name }}
-          body_path: artifacts/RELEASE_NOTES.md
+          body_path: artifacts/RELEASE_NOTES.md   # generated by git-cliff on tags
           generate_release_notes: false
           files: |
+            artifacts/CHANGELOG.md
             artifacts/*.deb
             artifacts/*.buildinfo
             artifacts/*.changes

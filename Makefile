@@ -49,3 +49,11 @@ version:
 .PHONY: help
 help:
 	@sed -n '1,40p' Makefile | sed -n '1,20p' | sed 's/^# \{0,1\}//'
+
+.PHONY: changelog
+changelog:
+	git-cliff --output CHANGELOG.md
+
+.PHONY: changelog-latest
+changelog-latest:
+	git-cliff --latest --strip all > RELEASE_NOTES.md
