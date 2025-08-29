@@ -13,6 +13,11 @@ permissions:
   actions: read
   pull-requests: write
 
+# Ensure every `run:` executes from the repo root
+defaults:
+  run:
+    working-directory: ${{ github.workspace }}
+
 jobs:
   build-debs:
     name: Build .deb (always)
@@ -127,7 +132,7 @@ jobs:
           chmod +x scripts/gen-debian-changelog.sh
           chmod +x scripts/gen-release-notes.sh
 
-      # Clear prior sccache counters for cleaner stats
+      # Optional: clear prior sccache counters for cleaner stats
       - name: sccache zero-stats
         run: sccache --zero-stats || true
 
@@ -136,16 +141,19 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           TAG: ${{ github.ref_name }}
+        working-directory: ${{ github.workspace }}
         run: scripts/gen-debian-changelog.sh "$TAG" trixie
 
       # === Only on tags: generate Markdown changelog + release notes via git-cliff ===
       - name: Generate CHANGELOG.md + RELEASE_NOTES.md (git-cliff)
         if: startsWith(github.ref, 'refs/tags/')
+        working-directory: ${{ github.workspace }}
         run: scripts/gen-release-notes.sh artifacts
 
       # === Only on tags: open a PR to update CHANGELOG.md on main ===
       - name: Prepare CHANGELOG update (copy into repo)
         if: startsWith(github.ref, 'refs/tags/')
+        working-directory: ${{ github.workspace }}
         run: cp artifacts/CHANGELOG.md CHANGELOG.md
 
       - name: Create PR to update CHANGELOG.md on main
@@ -192,7 +200,7 @@ jobs:
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      # Show sccache hit/miss ratio after all builds (cargo + dh-cargo)
+      # Optional: show sccache hit/miss ratio after all builds (cargo + dh-cargo)
       - name: sccache stats
         run: sccache --show-stats || true
 
