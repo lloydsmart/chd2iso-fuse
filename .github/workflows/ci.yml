@@ -219,13 +219,15 @@ jobs:
           ls -l .. | sed -n '1,200p' || true
 
       # Strong post-build guard: ensure the files for this tag's Debian version exist
-      - name: Guard: built files for expected deb version must exist
+      - name: "Guard: built files for expected deb version must exist"
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           set -eu
           VER_EXPECT="${{ steps.ver.outputs.debver }}"
           echo "POST-BUILD: expecting files containing _${VER_EXPECT}_"
-          if ! find .. -maxdepth 1 -type f \( -name "*_${VER_EXPECT}_*.deb" -o -name "*_${VER_EXPECT}_*.buildinfo" -o -name "*_${VER_EXPECT}_*.changes" \) | grep -q .; then
+          if ! find .. -maxdepth 1 -type f \
+               \( -name "*_${VER_EXPECT}_*.deb" -o -name "*_${VER_EXPECT}_*.buildinfo" -o -name "*_${VER_EXPECT}_*.changes" \) \
+               | grep -q .; then
             echo "ERROR: No files for ${VER_EXPECT} were built."
             echo "Top of debian/changelog at build time:"
             sed -n '1,20p' debian/changelog || true
