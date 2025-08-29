@@ -1,19 +1,15 @@
-chd2iso-fuse (0.1.19-1) trixie; urgency=medium
+chd2iso-fuse (0.1.20-1) trixie; urgency=medium
 
   [ lloydsmart ]
-  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.17
-  * chore(release): update CHANGELOG.md and debian/changelog for v0.1.18
-  * ci(release): make tag releases bullet-proof
-    - Add debug steps to print event/ref info in both jobs
-    - Strengthen publish-release job condition to tag pushes with successful build
-    - Set fail_on_unmatched_files=false so a Release is still created even if assets don’t match globs
-    - Collect artifacts by Debian version parsed from debian/changelog (robust to name variations)
-    - Keep forced Debian version from tag + pre-build verification guards
+  * ci: fix artifact collection on tag builds (POSIX sh)
+    - Replace bash-only here-strings/pipefail with POSIX-safe logic
+    - Use `find … -print0 | xargs -0` to move all *_<VER>_* files
+    - Prevents `/bin/sh: Syntax error: redirection unexpected` in container
 
   [ Lloyd Smart ]
-  * Release 0.1.19
+  * Release 0.1.20
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 15:51:37 +0000
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 29 Aug 2025 16:02:39 +0000
 
 chd2iso-fuse (0.1.18-1) trixie; urgency=medium
 
