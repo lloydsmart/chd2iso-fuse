@@ -159,11 +159,20 @@ jobs:
             automated
             changelog
 
-      - name: Cargo fmt + clippy + build
+      # Enforce a committed lockfile so CI never re-resolves deps
+      - name: Verify Cargo.lock is present
+        run: |
+          test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
+
+      # Prefetch deps strictly from lockfile (no network during later steps)
+      - name: cargo fetch (locked)
+        run: cargo fetch --locked
+
+      # Lint without network and fail on warnings (no extra release build here)
+      - name: Cargo fmt + clippy
         run: |
           cargo fmt -- --check
-          cargo clippy -- -D warnings
-          cargo build --release
+          cargo clippy --all-targets --frozen -- -D warnings
 
       - name: Build .deb with debuild
         env:
