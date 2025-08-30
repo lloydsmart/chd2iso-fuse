@@ -20,14 +20,14 @@ jobs:
       image: debian:trixie
       options: --init
     env:
-    GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
-    RUSTC_WRAPPER: sccache
-    SCCACHE_DIR: ${{ github.workspace }}/.sccache
-    SCCACHE_CACHE_SIZE: 2G
-    RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
-    DEBFULLNAME: "Lloyd Smart"
-    DEBEMAIL: "lloydsmart@users.noreply.github.com"
-    EMAIL: "lloydsmart@users.noreply.github.com"
+      GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: 2G
+      RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
+      DEBFULLNAME: "Lloyd Smart"
+      DEBEMAIL: "lloydsmart@users.noreply.github.com"
+      EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
       - name: Install git for checkout
@@ -238,7 +238,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # --- NOW do the PR (after build & upload) so nothing clobbers our changelog before packaging ---
+      # Do the PR at the end so nothing clobbers changelog before packaging
       - name: Prepare CHANGELOG update (copy into repo)
         if: startsWith(github.ref, 'refs/tags/')
         run: cp artifacts/CHANGELOG.md CHANGELOG.md
