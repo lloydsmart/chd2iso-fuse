@@ -1,5 +1,8 @@
 # Changelog
 ### CI
+- ci(release): build first, PR later — stop changelog from being clobbered mid-run (d6ceb09)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.22 (9c45c67)### Other
+- PR #15: chore(release): update changelogs for v0.1.22 (aa508ed)### CI
 - ci(release): fix YAML and finalize post-build version guard (6af91e0)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.20 (7bf19fd)### Other
 - PR #14: chore(release): update changelogs for v0.1.20 (0915c50)### CI
