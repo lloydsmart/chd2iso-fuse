@@ -110,14 +110,14 @@ jobs:
           echo "ref_name=${GITHUB_REF_NAME}"
           git describe --tags --always || true
 
-      - name: Install build deps (one shot)
+      - name: Install build deps (no Rust from apt)
         run: |
           set -e
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential pkg-config \
             libfuse3-dev fuse3 \
-            rustc cargo rustfmt rust-clippy clang \
+            clang \
             devscripts debhelper dh-cargo lintian \
             git-buildpackage \
             sccache \
@@ -125,6 +125,14 @@ jobs:
 
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      # Pin Rust/Cargo toolchain to avoid lockfile format drift
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Set this to exactly match your local `rustc -V` if you prefer
+          toolchain: 1.81.0
+          components: rustfmt, clippy
 
       - name: Ensure helper scripts are executable
         run: |
