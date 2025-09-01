@@ -10,9 +10,9 @@ Build-Depends:
  pkg-config
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
-Homepage: https://github.com/yourname/chd2iso-fuse
-Vcs-Git: https://github.com/yourname/chd2iso-fuse.git
-Vcs-Browser: https://github.com/yourname/chd2iso-fuse
+Homepage: https://github.com/lloydsmart/chd2iso-fuse
+Vcs-Git: https://github.com/lloydsmart/chd2iso-fuse.git
+Vcs-Browser: https://github.com/lloydsmart/chd2iso-fuse
 
 Package: chd2iso-fuse
 Architecture: any
@@ -29,4 +29,3 @@ Description: FUSE filesystem to expose CHD images as ISO/BIN (PS2-friendly)
   * Optional exposure of Mode2/Form2 tracks
   * LRU frame cache with size/entry caps
   * Read-only FUSE filesystem, PS2-friendly
-
