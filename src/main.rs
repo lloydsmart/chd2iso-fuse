@@ -29,8 +29,10 @@ const CD_FRAME_2352: usize = 2352;
 #[derive(Parser, Debug)]
 #[command(
     name = "chd2iso-fuse",
-    version,
-    about = "Present CHD images as ISO files via FUSE"
+    author,            // show Cargo authors
+    version,           // from Cargo.toml
+    about = "Present CHD images as ISO files via FUSE",
+    long_about = None
 )]
 struct Args {
     /// Source directory containing *.chd files

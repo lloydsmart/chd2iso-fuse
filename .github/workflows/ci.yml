@@ -68,6 +68,13 @@ jobs:
             sccache \
             curl jq ca-certificates
 
+      - name: Install cargo-edit (for cargo set-version)
+        run: |
+          set -eux
+          if ! command -v cargo-set-version >/dev/null 2>&1; then
+            cargo install cargo-edit --locked
+          fi
+
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
@@ -144,6 +151,14 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "debver=${VERSION}-1" >> "$GITHUB_OUTPUT"
 
+      - name: Sync Cargo.toml version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eux
+          cargo set-version "${{ steps.ver.outputs.version }}"
+          git add Cargo.toml
+          git commit -m "chore(release): set Cargo version to ${{ steps.ver.outputs.version }}" || true
+
       - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -176,6 +191,15 @@ jobs:
           cargo generate-lockfile --locked
           # Ensure the resolved graph is valid with the locked set
           cargo metadata --locked --format-version=1 -q > /dev/null
+
+      - name: Verify Cargo.toml version matches tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          EXPECT="${{ steps.ver.outputs.version }}"
+          ACTUAL="$(sed -n 's/^version\s*=\s*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
+          [ "${ACTUAL}" = "${EXPECT}" ]
 
       - name: cargo fetch (locked, workspace)
         run: cargo fetch --locked --workspace
@@ -272,6 +296,7 @@ jobs:
           add-paths: |
             CHANGELOG.md
             debian/changelog
+            Cargo.toml
           delete-branch: true
           labels: |
             automated
