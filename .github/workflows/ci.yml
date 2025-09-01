@@ -169,8 +169,16 @@ jobs:
         run: |
           test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
 
-      - name: cargo fetch (locked)
-        run: cargo fetch --locked
+      - name: Validate lockfile consistency (fail fast)
+        run: |
+          set -eu
+          # Quick consistency check without changing files
+          cargo generate-lockfile --locked
+          # Ensure the resolved graph is valid with the locked set
+          cargo metadata --locked --format-version=1 -q > /dev/null
+
+      - name: cargo fetch (locked, workspace)
+        run: cargo fetch --locked --workspace
 
       - name: Cargo fmt + clippy
         env:
@@ -185,6 +193,11 @@ jobs:
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
+
+      - name: Assert Cargo.lock unchanged by build
+        run: |
+          # Guard against any tool regenerating the lockfile during build
+          git diff --exit-code -- Cargo.lock || { echo "ERROR: Cargo.lock was modified during the build."; exit 1; }
 
       - name: Show produced files (parent dir)
         run: |
