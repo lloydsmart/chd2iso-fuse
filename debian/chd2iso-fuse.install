@@ -1,6 +1,3 @@
 target/release/chd2iso-fuse usr/bin/
 debian/mount.chd2iso-fuse sbin/
 debian/umount.chd2iso-fuse sbin/
-debian/systemd/chd2iso-fuse@.service lib/systemd/system/
-debian/systemd/mnt-retronas-roms-sony-playstation2-iso.mount lib/systemd/system/
-debian/systemd/mnt-retronas-roms-sony-playstation2-iso.automount lib/systemd/system/
