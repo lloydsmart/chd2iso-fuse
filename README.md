@@ -1,6 +1,6 @@
 # chd2iso-fuse
 
-![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg?branch=main) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
+[![License](https://img.shields.io/github/license/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/blob/master/LICENSE) ![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg?branch=main) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
 
 
 **Mount a folder of CHD images and expose them as read-only `.iso`/`.bin` files via FUSE.**  
