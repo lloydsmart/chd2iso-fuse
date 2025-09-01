@@ -447,7 +447,7 @@ fn dump_all_flags_and_exit() -> ! {
     use std::process;
 
     // Build a clap Command from Args
-    let mut cmd = <Args as CommandFactory>::command();
+    let cmd = <Args as CommandFactory>::command();
     // Collect all long flag names, including hidden ones
     let mut flags: Vec<String> = Vec::new();
     for arg in cmd.get_arguments() {
