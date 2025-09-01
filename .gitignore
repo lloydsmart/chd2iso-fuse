@@ -1,3 +1,10 @@
 /target
 **/*.swp
 .debbuild/
+debian/.debhelper/
+debian/*debhelper
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/files
+debian/*.log
+debian/chd2iso-fuse/        # the staged package root

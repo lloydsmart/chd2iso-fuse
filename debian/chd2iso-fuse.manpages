@@ -1,1 +1,3 @@
 debian/chd2iso-fuse.1
+debian/mount.chd2iso-fuse.8
+debian/umount.chd2iso-fuse.8
