@@ -130,8 +130,8 @@ jobs:
       - name: Install Rust toolchain (pinned)
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Set this to exactly match your local `rustc -V` if you prefer
-          toolchain: 1.81.0
+          # Match local toolchain
+          toolchain: 1.86.0
           components: rustfmt, clippy
 
       - name: Ensure helper scripts are executable
