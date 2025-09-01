@@ -10,11 +10,13 @@ override_dh_auto_configure:
 override_dh_auto_build:
 	cargo build --release --locked
 
-# Ship units but do NOT enable or start them automatically.
 override_dh_installsystemd:
-	dh_installsystemd --no-enable --no-start chd2iso-fuse@.service
-	dh_installsystemd --no-enable --no-start mnt-retronas-roms-sony-playstation2-iso.mount
-	dh_installsystemd --no-enable --no-start mnt-retronas-roms-sony-playstation2-iso.automount
+	# apply no-enable/no-start to everything by default
+	dh_installsystemd --no-enable --no-start
+	# then explicitly enable just the automount (only if it exists)
+	if [ -f debian/mnt-retronas-roms-sony-playstation2-iso.automount ]; then \
+	  dh_installsystemd mnt-retronas-roms-sony-playstation2-iso.automount; \
+	fi
 
 override_dh_auto_install:
 	# Main binary
