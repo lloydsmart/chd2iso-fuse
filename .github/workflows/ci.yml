@@ -196,8 +196,8 @@ jobs:
           echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
           [ "$ACTUAL" = "$EXPECT" ]
 
-      - name: cargo fetch (locked, workspace)
-        run: cargo fetch --locked --workspace
+      - name: cargo fetch (locked)
+        run: cargo fetch --locked
 
       - name: Cargo fmt + clippy
         env:
