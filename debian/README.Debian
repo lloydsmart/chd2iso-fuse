@@ -1,0 +1,50 @@
+chd2iso-fuse for Debian
+=======================
+
+This package installs:
+
+ - /usr/bin/chd2iso-fuse
+ - /usr/sbin/mount.chd2iso-fuse and umount.chd2iso-fuse
+ - systemd template unit: chd2iso-fuse@.service
+
+Systemd units
+-------------
+
+The package ships only the template service `chd2iso-fuse@.service`.
+This unit expects an EnvironmentFile containing configuration for a
+particular instance. Example configuration files can be found in:
+
+  /usr/share/doc/chd2iso-fuse/examples/
+
+Typical steps:
+
+  1. Copy and edit the example configuration:
+
+       sudo install -D -m644 /usr/share/doc/chd2iso-fuse/examples/ps2.conf.example \
+         /etc/chd2iso-fuse/ps2.conf
+
+     Adjust `source_dir` and `mountpoint` to match your system.
+
+  2. Start an instance of the service using the name of your config
+     (without extension):
+
+       sudo systemctl enable --now chd2iso-fuse@ps2.service
+
+     This will mount the CHD images as ISOs according to the config.
+
+Automount / mount units
+-----------------------
+
+Example `.mount` and `.automount` units are also shipped in
+`/usr/share/doc/chd2iso-fuse/examples/systemd/`.
+
+These are **not enabled by default**, since their paths are system-specific.
+If desired, copy and adjust them into `/etc/systemd/system/`, then enable:
+
+  sudo systemctl enable --now mnt-retronas-roms-sony-playstation2-iso.automount
+
+Support
+-------
+
+For documentation and updates, see:
+  https://github.com/lloydsmart/chd2iso-fuse
