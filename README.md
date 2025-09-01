@@ -40,6 +40,68 @@ Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space sa
 
 ---
 
+# Release & Packaging Flow
+
+This project uses **tag-driven releases**. The Git tag is the single source of truth for the version. On tagged builds, CI updates all versioned artifacts and publishes a GitHub Release with Debian packages.
+
+## TL;DR
+
+1. Create a tag:
+   ```bash
+   git switch main
+   git pull --rebase
+   export VER=0.4.2
+   git tag "v$VER" -m "chd2iso-fuse v$VER"
+   git push origin "v$VER"
+   ```
+2. GitHub Actions will:
+   - Set `Cargo.toml` → `version = "$VER"` (no cargo-edit; via `scripts/set-cargo-version.sh`)
+   - Update `debian/changelog` → `${VER}-1` (via `gbp dch`/`dch`)
+   - Regenerate `CHANGELOG.md` for the tag (via `git-cliff`)
+   - Build Debian packages with `debuild`
+   - Upload artifacts to the GitHub Release
+   - Open a PR to commit `Cargo.toml`, `debian/changelog`, and `CHANGELOG.md` back to `main`
+
+## What gets synced
+
+- **Cargo.toml**: crate version = `X.Y.Z` (matches `vX.Y.Z` tag)
+- **debian/changelog**: package version = `X.Y.Z-1`
+- **CHANGELOG.md**: generated for the tag with `git-cliff`
+
+## Artifacts
+
+The CI publishes:
+- `chd2iso-fuse_*_amd64.deb`
+- `chd2iso-fuse-dbgsym_*_amd64.deb`
+- `*.buildinfo`, `*.changes`
+- `CHANGELOG.md` (as a release attachment)
+- `RELEASE_NOTES.md` (used for the release body)
+
+## Local dry-run (optional)
+
+You can preview the version sync locally (no build):
+
+```bash
+export VER=0.4.2
+scripts/set-cargo-version.sh "$VER"
+scripts/gen-debian-changelog.sh "v$VER" trixie
+git-cliff --tag "v$VER" -o CHANGELOG.md
+```
+
+## Bumping for next release
+
+- Don’t manually edit `Cargo.toml` or `debian/changelog` for a release.
+- Just create a new tag (`vX.Y.Z`) and push — CI takes care of the rest.
+- For pre-releases, tags like `v0.5.0-rc.1` are supported; Debian version becomes `0.5.0-rc.1-1`.
+
+## Troubleshooting
+
+- **Mismatch errors**: CI verifies that `Cargo.toml` and `debian/changelog` match the tag. If it fails, check the CI logs for the “Verify … matches tag” steps.
+- **Missing `Cargo.lock`**: the build fails if `Cargo.lock` isn’t committed.
+- **Debian build files missing**: CI enforces that files containing `_X.Y.Z-1_` exist post-build; review `debian/changelog` and the build logs if this guard trips.
+
+---
+
 ## Install
 
 ### Generic Linux (from source)
