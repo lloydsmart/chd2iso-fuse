@@ -77,7 +77,7 @@ jobs:
     env:
       GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache }
       SCCACHE_CACHE_SIZE: 2G
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
       DEBFULLNAME: "Lloyd Smart"
@@ -193,7 +193,7 @@ jobs:
         run: |
           echo "Installing git-cliff ${GIT_CLIFF_VERSION}"
           if ! command -v git-cliff >/dev/null 2>&1; then
-            cargo install git-cliff --locked --version "${GIT_CLIFF_VERSION}"
+            cargo install git-cliff --version "${GIT_CLIFF_VERSION}"
           fi
 
       - name: sccache zero-stats
@@ -243,11 +243,15 @@ jobs:
         run: |
           test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
 
-      - name: Validate lockfile consistency (fail fast)
+      # Prefetch deps respecting the lock to avoid network during validation
+      - name: cargo fetch (locked)
+        run: cargo fetch --locked
+
+      - name: Validate lockfile consistency (offline, fail fast)
         run: |
           set -eu
-          cargo generate-lockfile --locked
-          cargo metadata --locked --format-version=1 -q > /dev/null
+          # Verify the current lock resolves without touching the network
+          cargo metadata --locked --offline --format-version=1 -q > /dev/null
 
       - name: Verify Cargo.toml version matches tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -258,9 +262,6 @@ jobs:
           ACTUAL="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
           echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
           [ "$ACTUAL" = "$EXPECT" ]
-
-      - name: cargo fetch (locked)
-        run: cargo fetch --locked
 
       - name: Cargo fmt + clippy
         env:
