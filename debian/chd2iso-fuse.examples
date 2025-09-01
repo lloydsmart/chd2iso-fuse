@@ -1,1 +1,3 @@
 packaging/systemd/ps2.conf.example
+packaging/systemd/mnt-retronas-roms-sony-playstation2-iso.mount
+packaging/systemd/mnt-retronas-roms-sony-playstation2-iso.automount

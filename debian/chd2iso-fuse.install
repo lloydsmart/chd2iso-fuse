@@ -1,3 +1,3 @@
 target/release/chd2iso-fuse usr/bin/
-debian/mount.chd2iso-fuse sbin/
-debian/umount.chd2iso-fuse sbin/
+debian/mount.chd2iso-fuse usr/sbin/
+debian/umount.chd2iso-fuse usr/sbin/
