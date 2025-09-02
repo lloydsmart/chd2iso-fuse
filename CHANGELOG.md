@@ -1,7 +1,11 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.37 from tag (027101e)
-- chore(release): sync Cargo.lock to version 0.1.37 (c5f0c38)### CI
+- chore(release): set Cargo version to 0.1.38 from tag (39533fd)
+- chore(release): sync Cargo.lock to version 0.1.38 (b4ddfc5)### CI
+- ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification (bbe422c)
+- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)### Other
+- PR #26: chore(release): update changelogs for v0.1.37 (495d483)### CI
 - ci: upload explicit asset list to release and verify post-publish (420ec0b)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36 (3a0c3ac)### Other
 - PR #25: chore(release): update changelogs for v0.1.36 (d4cb934)### CI
