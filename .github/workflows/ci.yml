@@ -217,14 +217,20 @@ jobs:
           git add Cargo.toml Cargo.toml.bak || true
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
-      # IMPORTANT: After bumping Cargo.toml, rewrite Cargo.lock (root version) OFFLINE
+      # IMPORTANT: After bumping Cargo.toml, rewrite and commit Cargo.lock (root version) OFFLINE
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           set -eu
           cargo generate-lockfile --offline
-          # Show if lock actually changed (expected on version bump)
           git status --porcelain || true
+
+      - name: Commit lockfile after version bump
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          git add Cargo.lock
+          git commit -m "chore(release): sync Cargo.lock to version ${{ steps.ver.outputs.version }}" || true
 
       - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
