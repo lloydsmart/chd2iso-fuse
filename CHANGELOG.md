@@ -1,7 +1,10 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.35 from tag (486049a)
-- chore(release): sync Cargo.lock to version 0.1.35 (8ceb8f2)### Chore
+- chore(release): set Cargo version to 0.1.36 from tag (f88660b)
+- chore(release): sync Cargo.lock to version 0.1.36 (56b7973)### CI
+- ci: normalize release notes path and upload assets reliably (fbb64a2)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35 (2c618a1)### Other
+- PR #24: chore(release): update changelogs for v0.1.35 (d5ea3f8)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34 (9b1f99e)### Other
 - PR #23: chore(release): update changelogs for v0.1.34 (0979c28)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.32 (f1db3bc)

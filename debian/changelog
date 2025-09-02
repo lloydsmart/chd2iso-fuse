@@ -1,3 +1,20 @@
+chd2iso-fuse (0.1.36-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35
+  * ci: normalize release notes path and upload assets reliably
+    - Ensure RELEASE_NOTES.md exists at repo root (move/copy fallback)
+    - Use recursive globs for .deb/.buildinfo/.changes uploads
+    - Keep draft->upload->publish flow, concurrency, idempotence
+    - Pin Rust 1.86.0; regenerate+commit Cargo.lock; offline lock guard
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.36 from tag
+  * chore(release): sync Cargo.lock to version 0.1.36
+  * Release 0.1.36
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 16:02:12 +0000
+
 chd2iso-fuse (0.1.35-1) trixie; urgency=medium
 
   [ lloydsmart ]
