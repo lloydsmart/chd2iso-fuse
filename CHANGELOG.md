@@ -1,7 +1,10 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.30 from tag (d855cc0)
-- chore(release): sync Cargo.lock to version 0.1.30 (e29ae72)### CI
+- chore(release): set Cargo version to 0.1.31 from tag (9ecfaa8)
+- chore(release): sync Cargo.lock to version 0.1.31 (dc526f2)### CI
+- ci: add concurrency + idempotent release publish; keep pinned toolchain and offline lockfile guard (d6b89b3)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.30 (14b5733)### Other
+- PR #18: chore(release): update changelogs for v0.1.30 (a11693d)### CI
 - ci: fix workflow parsing and job condition (dde556a)
 - ci: fix YAML indentation in publish-release job (indent run: under step) (36c64a9)
 - ci: fix YAML indentation in publish-release job (indent run: under step) (04a8635)### Chore
