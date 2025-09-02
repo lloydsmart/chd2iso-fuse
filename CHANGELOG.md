@@ -1,7 +1,8 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.32 from tag (ab13b4a)
-- chore(release): sync Cargo.lock to version 0.1.32 (eee9199)### CI
+- chore(release): set Cargo version to 0.1.33 from tag (452722c)
+- chore(release): sync Cargo.lock to version 0.1.33 (8f1d81a)### CI
+- ci: fix release uploads by scanning workspace and using recursive globs (2f1d8b5)### CI
 - ci: fix release asset upload and harden publish flow (c64dc24)
 - ci: remove rust-toolchain from dependabot.yml (25205eb)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.31 (80ba0c7)
