@@ -1,7 +1,13 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.28 from tag (8f097ce)
-- chore(release): sync Cargo.lock to version 0.1.28 (8c1a15e)### CI
+- chore(release): set Cargo version to 0.1.30 from tag (d855cc0)
+- chore(release): sync Cargo.lock to version 0.1.30 (e29ae72)### CI
+- ci: fix workflow parsing and job condition (dde556a)
+- ci: fix YAML indentation in publish-release job (indent run: under step) (36c64a9)
+- ci: fix YAML indentation in publish-release job (indent run: under step) (04a8635)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.28 (fd29939)### Other
+- PR #17: chore(release): update changelogs for v0.1.28 (67d53fd)
+- release(ci): support Immutable Releases by uploading assets to a draft first (bd1e3e8)### CI
 - ci: commit regenerated Cargo.lock after tag version bump (db8c446)### CI
 - ci: regenerate Cargo.lock offline after tag version bump to satisfy --locked (f08e8fe)### CI
 - ci: make lockfile guard deterministic (prefetch + offline) (aaa1a26)### CI
