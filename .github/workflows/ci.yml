@@ -196,7 +196,7 @@ jobs:
       - name: Install git-cliff (pinned)
         run: |
           echo "Installing git-cliff ${GIT_CLIFF_VERSION}"
-          if ! command -v git-cliff >/dev/null 21; then
+          if ! command -v git-cliff >/dev/null 2>&1; then
             cargo install git-cliff --version "${GIT_CLIFF_VERSION}"
           fi
 
@@ -399,12 +399,18 @@ jobs:
           path: .
 
       - name: List downloaded artifacts & guard
+        shell: bash
         run: |
-          echo "Tree under ./artifacts:"
-          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
-          shopt -s nullglob
-          files=(artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes)
-          (( ${#files[@]} )) || { echo "No .deb/.buildinfo/.changes files found under ./artifacts"; exit 1; }
+          echo "Looking for release assets in workspace:"
+          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" \) -printf '%P\n' | sort || true
+          shopt -s nullglob globstar
+          deb=(**/*.deb)
+          bi=(**/*.buildinfo)
+          ch=(**/*.changes)
+          if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
+            echo "No .deb/.buildinfo/.changes files found anywhere after download."
+            exit 1
+          fi
 
       - name: Check if release already exists
         id: check_release
@@ -446,10 +452,10 @@ jobs:
           draft: true
           fail_on_unmatched_files: false
           files: |
-            artifacts/CHANGELOG.md
-            artifacts/*.deb
-            artifacts/*.buildinfo
-            artifacts/*.changes
+            **/*.deb
+            **/*.buildinfo
+            **/*.changes
+            **/CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
