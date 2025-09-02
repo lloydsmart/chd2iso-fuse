@@ -1,3 +1,25 @@
+chd2iso-fuse (0.1.32-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.31
+  * ci: fix release asset upload and harden publish flow
+    - Download artifacts to repo root so files land under ./artifacts/*
+    - List & guard to ensure .deb/.buildinfo/.changes exist
+    - Keep draft->upload->publish model and idempotent checks
+    - Toolchain pinned to 1.86.0; offline lockfile guard; commit Cargo.lock after tag bump
+  * chore: update dependabot.yml
+  * ci: remove rust-toolchain from dependabot.yml
+
+  [ Lloyd Smart ]
+  * Create dependabot.yml
+  * Update dependabot.yml
+  * Update dependabot.yml
+  * chore(release): set Cargo version to 0.1.32 from tag
+  * chore(release): sync Cargo.lock to version 0.1.32
+  * Release 0.1.32
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 13:52:50 +0000
+
 chd2iso-fuse (0.1.31-1) trixie; urgency=medium
 
   [ lloydsmart ]
