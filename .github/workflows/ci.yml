@@ -77,7 +77,7 @@ jobs:
     env:
       GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
       RUSTC_WRAPPER: sccache
-      SCCACHE_DIR: ${{ github.workspace }}/.sccache }
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: 2G
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
       DEBFULLNAME: "Lloyd Smart"
@@ -130,7 +130,6 @@ jobs:
       - name: Install Rust toolchain (pinned)
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Match local toolchain
           toolchain: 1.86.0
           components: rustfmt, clippy
 
@@ -218,6 +217,15 @@ jobs:
           git add Cargo.toml Cargo.toml.bak || true
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
+      # IMPORTANT: After bumping Cargo.toml, rewrite Cargo.lock (root version) OFFLINE
+      - name: Rewrite Cargo.lock to reflect new package version (offline)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          cargo generate-lockfile --offline
+          # Show if lock actually changed (expected on version bump)
+          git status --porcelain || true
+
       - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -250,7 +258,6 @@ jobs:
       - name: Validate lockfile consistency (offline, fail fast)
         run: |
           set -eu
-          # Verify the current lock resolves without touching the network
           cargo metadata --locked --offline --format-version=1 -q > /dev/null
 
       - name: Verify Cargo.toml version matches tag
@@ -356,6 +363,7 @@ jobs:
             CHANGELOG.md
             debian/changelog
             Cargo.toml
+            Cargo.lock
           delete-branch: true
           labels: |
             automated
