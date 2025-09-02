@@ -412,6 +412,21 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure RELEASE_NOTES.md is present in repo root
+        shell: bash
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            echo "Using RELEASE_NOTES.md from repo root."
+          elif [ -f artifacts/RELEASE_NOTES.md ]; then
+            echo "Moving artifacts/RELEASE_NOTES.md -> RELEASE_NOTES.md"
+            mv artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
+          elif [ -f CHANGELOG.md ]; then
+            echo "No release notes found; copying CHANGELOG.md -> RELEASE_NOTES.md"
+            cp CHANGELOG.md RELEASE_NOTES.md
+          else
+            echo "(no release notes provided)" > RELEASE_NOTES.md
+          fi
+
       - name: Check if release already exists
         id: check_release
         uses: actions/github-script@v7
@@ -447,7 +462,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: chd2iso-fuse ${{ github.ref_name }}
-          body_path: artifacts/RELEASE_NOTES.md
+          body_path: RELEASE_NOTES.md
           generate_release_notes: false
           draft: true
           fail_on_unmatched_files: false
