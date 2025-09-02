@@ -191,7 +191,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/git-cliff
-        key: git-cliff-bin-${{ runner.os }}-${{ env.GIT_CLIFF_VERSION }}
+          key: git-cliff-bin-${{ runner.os }}-${{ env.GIT_CLIFF_VERSION }}
 
       - name: Install git-cliff (pinned)
         run: |
@@ -456,28 +456,28 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
-          let exists = false, draft = false, assets_ok = false;
-          try {
-            const res = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag
-            });
-            exists = true;
-            draft = !!res.data.draft;
-            const assets = res.data.assets || [];
-            const required = ['.deb', '.buildinfo', '.changes'];
-            assets_ok = required.every(ext => assets.some(a => a.name.endsWith(ext)));
-            core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
-          } catch (e) {
-            if (e.status !== 404) throw e;
-            core.info(`No release for tag ${tag}.`);
-          }
-          core.setOutput('exists', String(exists));
-          core.setOutput('draft', String(draft));
-          core.setOutput('assets_ok', String(assets_ok));
+          script: |
+            const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
+            let exists = false, draft = false, assets_ok = false;
+            try {
+              const res = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              exists = true;
+              draft = !!res.data.draft;
+              const assets = res.data.assets || [];
+              const required = ['.deb', '.buildinfo', '.changes'];
+              assets_ok = required.every(ext => assets.some(a => a.name.endsWith(ext)));
+              core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
+            } catch (e) {
+              if (e.status !== 404) throw e;
+              core.info(`No release for tag ${tag}.`);
+            }
+            core.setOutput('exists', String(exists));
+            core.setOutput('draft', String(draft));
+            core.setOutput('assets_ok', String(assets_ok));
 
       # Create (if needed) as DRAFT and upload assets while editable
       - name: Create draft release & upload assets
