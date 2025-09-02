@@ -16,6 +16,11 @@ permissions:
   pull-requests: write
   issues: write
 
+# Cancel older in-flight runs on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   uscan-check:
     name: Watch upstream (uscan)
@@ -393,8 +398,35 @@ jobs:
           name: chd2iso-fuse-debs
           path: artifacts
 
-      # 1) Create a DRAFT release and upload all assets while it's editable
+      - name: Check if release already exists
+        id: check_release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
+            try {
+              const res = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              core.setOutput('exists', 'true');
+              core.setOutput('draft', String(res.data.draft));
+              core.info(`Release for tag ${tag} exists (draft=${res.data.draft}).`);
+            } catch (e) {
+              if (e.status === 404) {
+                core.setOutput('exists', 'false');
+                core.setOutput('draft', 'false');
+                core.info(`No release for tag ${tag} (will create).`);
+              } else {
+                throw e;
+              }
+            }
+
+      # Create (if needed) as DRAFT and upload assets while editable
       - name: Create draft release & upload assets
+        if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -411,11 +443,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2) Publish the release (flip draft -> published)
+      # Publish only if we created a new draft or found an existing draft
       - name: Publish release (flip draft -> published)
+        if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # If a published release already exists, no-op (idempotent)
+      - name: Skip note (release already published)
+        if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' }}
+        run: echo "Release already published for tag '${GITHUB_REF_NAME}'. Skipping uploads/publish."
