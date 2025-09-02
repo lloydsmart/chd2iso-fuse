@@ -196,7 +196,7 @@ jobs:
       - name: Install git-cliff (pinned)
         run: |
           echo "Installing git-cliff ${GIT_CLIFF_VERSION}"
-          if ! command -v git-cliff >/dev/null 2>&1; then
+          if ! command -v git-cliff >/dev/null 21; then
             cargo install git-cliff --version "${GIT_CLIFF_VERSION}"
           fi
 
@@ -396,7 +396,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: chd2iso-fuse-debs
-          path: artifacts
+          path: .
+
+      - name: List downloaded artifacts & guard
+        run: |
+          echo "Tree under ./artifacts:"
+          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+          shopt -s nullglob
+          files=(artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes)
+          (( ${#files[@]} )) || { echo "No .deb/.buildinfo/.changes files found under ./artifacts"; exit 1; }
 
       - name: Check if release already exists
         id: check_release
@@ -405,24 +413,26 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
+            let exists = false, draft = false, assets_ok = false;
             try {
               const res = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag
               });
-              core.setOutput('exists', 'true');
-              core.setOutput('draft', String(res.data.draft));
-              core.info(`Release for tag ${tag} exists (draft=${res.data.draft}).`);
+              exists = true;
+              draft = !!res.data.draft;
+              const assets = res.data.assets || [];
+              const required = ['.deb', '.buildinfo', '.changes'];
+              assets_ok = required.every(ext => assets.some(a => a.name.endsWith(ext)));
+              core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
             } catch (e) {
-              if (e.status === 404) {
-                core.setOutput('exists', 'false');
-                core.setOutput('draft', 'false');
-                core.info(`No release for tag ${tag} (will create).`);
-              } else {
-                throw e;
-              }
+              if (e.status !== 404) throw e;
+              core.info(`No release for tag ${tag}.`);
             }
+            core.setOutput('exists', String(exists));
+            core.setOutput('draft', String(draft));
+            core.setOutput('assets_ok', String(assets_ok));
 
       # Create (if needed) as DRAFT and upload assets while editable
       - name: Create draft release & upload assets
@@ -443,7 +453,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Publish only if we created a new draft or found an existing draft
       - name: Publish release (flip draft -> published)
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
@@ -453,7 +462,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # If a published release already exists, no-op (idempotent)
-      - name: Skip note (release already published)
-        if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' }}
-        run: echo "Release already published for tag '${GITHUB_REF_NAME}'. Skipping uploads/publish."
+      # If a published release exists but is missing assets, fail loudly with instructions
+      - name: Fail if published release is missing assets (immutable blocks uploads)
+        if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' && steps.check_release.outputs.assets_ok != 'true' }}
+        run: |
+          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing .deb assets."
+          echo "Because releases are immutable, assets cannot be attached after publish."
+          echo "Fix: Delete the release (keep the tag) and re-run this job, or temporarily disable immutability."
+          exit 1
