@@ -25,7 +25,6 @@ jobs:
   uscan-check:
     name: Watch upstream (uscan)
     runs-on: ubuntu-latest
-    # Only run this job for the schedule/manual triggers to avoid doing it on every push/PR
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout (with tags)
@@ -131,7 +130,6 @@ jobs:
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # Pin Rust/Cargo toolchain to avoid lockfile format drift
       - name: Install Rust toolchain (pinned)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -222,7 +220,6 @@ jobs:
           git add Cargo.toml Cargo.toml.bak || true
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
-      # IMPORTANT: After bumping Cargo.toml, rewrite and commit Cargo.lock (root version) OFFLINE
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -262,7 +259,6 @@ jobs:
         run: |
           test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
 
-      # Prefetch deps respecting the lock to avoid network during validation
       - name: cargo fetch (locked)
         run: cargo fetch --locked
 
@@ -314,7 +310,6 @@ jobs:
                \( -name "*_${VER_EXPECT}_*.deb" -o -name "*_${VER_EXPECT}_*.buildinfo" -o -name "*_${VER_EXPECT}_*.changes" \) \
                | grep -q .; then
             echo "ERROR: No files for ${VER_EXPECT} were built."
-            echo "Top of debian/changelog at build time:"
             sed -n '1,20p' debian/changelog || true
             exit 1
           fi
@@ -343,6 +338,27 @@ jobs:
           test -f artifacts/RELEASE_NOTES.md || echo "(build from branch/PR – no tagged release notes)" > artifacts/RELEASE_NOTES.md
           ls -l artifacts || true
 
+      - name: Create SHA256SUMS for artifacts
+        run: |
+          set -e
+          shopt -s nullglob
+          if [ -d artifacts ]; then
+            (
+              cd artifacts
+              shopt -s nullglob
+              files=( *.deb *.buildinfo *.changes )
+              if [ ${#files[@]} -gt 0 ]; then
+                sha256sum "${files[@]}" > SHA256SUMS
+                echo "SHA256SUMS created:"
+                sed -n '1,200p' SHA256SUMS
+              else
+                echo "No .deb/.buildinfo/.changes in artifacts/; skipping SHA256SUMS."
+              fi
+            )
+          else
+            echo "artifacts/ directory not found; skipping SHA256SUMS."
+          fi
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -351,7 +367,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Do the PR at the end so nothing clobbers changelog before packaging
       - name: Prepare CHANGELOG update (copy into repo)
         if: startsWith(github.ref, 'refs/tags/')
         run: cp artifacts/CHANGELOG.md CHANGELOG.md
@@ -402,7 +417,7 @@ jobs:
         shell: bash
         run: |
           echo "Looking for release assets in workspace:"
-          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" \) -printf '%P\n' | sort || true
+          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" -o -name "SHA256SUMS" \) -printf '%P\n' | sort || true
           shopt -s nullglob globstar
           deb=(**/*.deb)
           bi=(**/*.buildinfo)
@@ -427,7 +442,6 @@ jobs:
             echo "(no release notes provided)" > RELEASE_NOTES.md
           fi
 
-      # Build an explicit, newline-separated list of files to upload
       - name: Assemble release asset list
         id: assets
         shell: bash
@@ -435,7 +449,7 @@ jobs:
           set -e
           shopt -s nullglob
           files=()
-          for f in *.deb *.buildinfo *.changes CHANGELOG.md; do
+          for f in *.deb *.buildinfo *.changes CHANGELOG.md SHA256SUMS; do
             [ -e "$f" ] && files+=("$f")
           done
           if [ ${#files[@]} -eq 0 ]; then
@@ -468,8 +482,12 @@ jobs:
               exists = true;
               draft = !!res.data.draft;
               const assets = res.data.assets || [];
-              const required = ['.deb', '.buildinfo', '.changes'];
-              assets_ok = required.every(ext => assets.some(a => a.name.endsWith(ext)));
+              const needed = ['.deb', '.buildinfo', '.changes', 'SHA256SUMS'];
+              assets_ok = needed.every(token => 
+                token.startsWith('.')
+                  ? assets.some(a => a.name.endsWith(token))
+                  : assets.some(a => a.name === token)
+              );
               core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
             } catch (e) {
               if (e.status !== 404) throw e;
@@ -479,7 +497,6 @@ jobs:
             core.setOutput('draft', String(draft));
             core.setOutput('assets_ok', String(assets_ok));
 
-      # Create (if needed) as DRAFT and upload assets while editable
       - name: Create draft release & upload assets
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
@@ -503,16 +520,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # If a published release exists but is missing assets, fail loudly with instructions
       - name: Fail if published release is missing assets (immutable blocks uploads)
         if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' && steps.check_release.outputs.assets_ok != 'true' }}
         run: |
-          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing .deb assets."
-          echo "Because releases are immutable, assets cannot be attached after publish."
-          echo "Fix: Delete the release (keep the tag) and re-run this job, or temporarily disable immutability."
+          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing required assets (.deb/.buildinfo/.changes/SHA256SUMS)."
+          echo "Recreate the release (keep the tag) and re-run this job."
           exit 1
 
-      # Double-check the published release actually has assets
       - name: Verify assets attached to release
         uses: actions/github-script@v7
         with:
