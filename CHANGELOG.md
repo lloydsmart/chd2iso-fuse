@@ -1,5 +1,33 @@
 # Changelog
-### CI
+### Chore
+- chore(release): set Cargo version to 0.1.28 from tag (8f097ce)
+- chore(release): sync Cargo.lock to version 0.1.28 (8c1a15e)### CI
+- ci: commit regenerated Cargo.lock after tag version bump (db8c446)### CI
+- ci: regenerate Cargo.lock offline after tag version bump to satisfy --locked (f08e8fe)### CI
+- ci: make lockfile guard deterministic (prefetch + offline) (aaa1a26)### CI
+- ci: pin Rust toolchain to 1.81.0 and remove apt Rust to fix lockfile drift (dd357cc)
+- ci: pin Rust toolchain to 1.86.0 to match local and fix lockfile drift (ed52b09)### Fixes
+- fix: variable didn't need to be mutable (7e6f01f)### CI
+- ci(cliff): make git-cliff version configurable via GIT_CLIFF_VERSION secret (fallback 2.9.1) (6fdfed9)
+- ci: fix YAML env indentation; read git-cliff version from secret with fallback (3952fa2)
+- ci: enforce Cargo.lock consistency in GitHub Actions (1f6c6fe)
+- ci: sync Cargo.toml version from tags (74a3675)
+- ci: drop cargo-edit and sync Cargo.toml from tag with script (aeb6c28)
+- ci: fix cargo fetch invocation (fda5ab9)
+- ci: add scheduled uscan job to detect newer upstream via debian/watch (7b47bdb)### Chore
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.23 (2bb30d6)
+- chore: update readme with license tag (1f381be)
+- chore: Update cargo.lock (a309fe9)### Docs
+- docs: add release & packaging flow guide (c401d73)### Fixes
+- fix: replace generic URL in debian/control (e7c0b3c)### Other
+- PR #16: chore(release): update changelogs for v0.1.23 (fc71a53)
+- debian: drop build artifacts and staged package tree; keep only source packaging (0b559b8)
+- debian: switch to dh_installsystemd for unit handling; don’t auto-enable units (f9cc93a)
+- debian: point .examples to real example config (47cfc55)
+- debian: let dh_installsystemd autodetect units; remove explicit unit args (1c97ba5)
+- debian: stop referencing non-shipped automount unit in dh_installsystemd (5e385c5)
+- debian: ship only template service; keep mount/automount as examples (140d09d)
+- debian: add README.Debian with usage and configuration guidance (4eb294d)### CI
 - ci(release): build first, PR later — stop changelog from being clobbered mid-run (d6ceb09)### Chore
 - chore(release): update CHANGELOG.md and debian/changelog for v0.1.22 (9c45c67)### Other
 - PR #15: chore(release): update changelogs for v0.1.22 (aa508ed)### CI
