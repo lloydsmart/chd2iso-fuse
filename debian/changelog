@@ -1,3 +1,24 @@
+chd2iso-fuse (0.1.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37
+  * ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification
+  * ci: reliably attach release assets + fix $GITHUB_ENV heredoc
+    - Build explicit newline-separated asset list (*.deb/*.buildinfo/*.changes/CHANGELOG.md)
+      and pass it to softprops via $GITHUB_ENV (unquoted EOF delimiter).
+    - Normalize RELEASE_NOTES.md to repo root and use it as body_path.
+    - Download artifacts to repo root; guard and list assets before upload.
+    - Verify assets after publish via GitHub API; fail fast if missing.
+    - Fix YAML issues (cache `key` under `with`, correct `github-script` `script:` level).
+    - Keep draft → upload → publish flow, pinned Rust 1.86.0, and offline lockfile guard.
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.38 from tag
+  * chore(release): sync Cargo.lock to version 0.1.38
+  * Release 0.1.38
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 16:46:59 +0000
+
 chd2iso-fuse (0.1.37-1) trixie; urgency=medium
 
   [ lloydsmart ]
