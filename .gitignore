@@ -8,3 +8,4 @@ debian/*.substvars
 debian/files
 debian/*.log
 debian/chd2iso-fuse/        # the staged package root
+scripts/setup-release-gpg.sh

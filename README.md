@@ -301,3 +301,41 @@ match the target distribution (e.g., RetroNAS).
   - builds a `.deb` artifact for testing
 - When you push a git tag like `v0.1.2`, CI builds a release `.deb` and attaches it
   to the corresponding GitHub Release.
+
+---
+
+### Verify downloads
+
+We publish a `SHA256SUMS` file and a GPG signature `SHA256SUMS.asc` with every release.
+
+1. Import Lloyd’s release key and verify its fingerprint:
+   ```bash
+   # Option A: from a local file
+   gpg --import docs/KEYS/lloydsmart-release-public-key.gpg
+
+   # Option B: from a URL
+   curl -sSL https://example.com/lloydsmart-release-public-key.gpg | gpg --import
+
+   # Option C: from a keyserver
+   gpg --keyserver keyserver.ubuntu.com --recv-keys D91C59CCB2B5AA41
+
+   # Check fingerprint
+   gpg --fingerprint D91C59CCB2B5AA41
+   ```
+   Expected fingerprint:  
+   `28A3 555E 056E 6DFF ED98  84DB D91C 59CC B2B5 AA41`
+
+2. Verify the signature over the checksum file:
+   ```bash
+   gpg --verify SHA256SUMS.asc SHA256SUMS
+   ```
+
+3. Verify the files you downloaded:
+   ```bash
+   sha256sum --check SHA256SUMS
+   # or on macOS: shasum -a 256 -c SHA256SUMS
+   ```
+
+All lines should report `OK`. If you see `BAD signature` or a checksum **FAILED**, do not use the files.
+
+**Details and troubleshooting:** see [`SECURITY.md`](./SECURITY.md#verifying-release-artifacts).
