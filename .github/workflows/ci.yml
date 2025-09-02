@@ -125,7 +125,8 @@ jobs:
             devscripts debhelper dh-cargo lintian \
             git-buildpackage \
             sccache \
-            curl jq ca-certificates
+            curl jq ca-certificates \
+            gnupg dirmngr
 
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
@@ -345,7 +346,6 @@ jobs:
           if [ -d artifacts ]; then
             (
               cd artifacts
-              shopt -s nullglob
               files=( *.deb *.buildinfo *.changes )
               if [ ${#files[@]} -gt 0 ]; then
                 sha256sum "${files[@]}" > SHA256SUMS
@@ -357,6 +357,41 @@ jobs:
             )
           else
             echo "artifacts/ directory not found; skipping SHA256SUMS."
+          fi
+
+      - name: Import GPG signing key
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # capture keyid and trust ultimately to avoid prompts
+          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          echo -e "5\ny\n" | gpg --command-fd 0 --batch --yes --edit-key "$KEYID" trust quit
+          echo "GPG_KEYID=$KEYID" >> "$GITHUB_ENV"
+
+      - name: Sign SHA256SUMS (armored, detached)
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
+          if [ -f artifacts/SHA256SUMS ]; then
+            (
+              cd artifacts
+              gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+                  --armor --detach-sign --local-user "$GPG_KEYID" \
+                  --output SHA256SUMS.asc SHA256SUMS
+              echo "Created artifacts/SHA256SUMS.asc"
+              gpg --verify SHA256SUMS.asc SHA256SUMS
+            )
+          else
+            echo "No SHA256SUMS to sign; skipping."
           fi
 
       - name: Upload artifacts
@@ -417,11 +452,9 @@ jobs:
         shell: bash
         run: |
           echo "Looking for release assets in workspace:"
-          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" -o -name "SHA256SUMS" \) -printf '%P\n' | sort || true
+          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" -o -name "SHA256SUMS" -o -name "SHA256SUMS.asc" \) -printf '%P\n' | sort || true
           shopt -s nullglob globstar
-          deb=(**/*.deb)
-          bi=(**/*.buildinfo)
-          ch=(**/*.changes)
+          deb=(**/*.deb); bi=(**/*.buildinfo); ch=(**/*.changes)
           if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
             echo "No .deb/.buildinfo/.changes files found anywhere after download."
             exit 1
@@ -449,7 +482,7 @@ jobs:
           set -e
           shopt -s nullglob
           files=()
-          for f in *.deb *.buildinfo *.changes CHANGELOG.md SHA256SUMS; do
+          for f in *.deb *.buildinfo *.changes CHANGELOG.md SHA256SUMS SHA256SUMS.asc; do
             [ -e "$f" ] && files+=("$f")
           done
           if [ ${#files[@]} -eq 0 ]; then
@@ -468,10 +501,13 @@ jobs:
       - name: Check if release already exists
         id: check_release
         uses: actions/github-script@v7
+        env:
+          EXPECT_ASC: ${{ secrets.GPG_PRIVATE_KEY != '' }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
+            const expectAsc = (process.env.EXPECT_ASC || 'false') === 'true';
             let exists = false, draft = false, assets_ok = false;
             try {
               const res = await github.rest.repos.getReleaseByTag({
@@ -482,13 +518,13 @@ jobs:
               exists = true;
               draft = !!res.data.draft;
               const assets = res.data.assets || [];
-              const needed = ['.deb', '.buildinfo', '.changes', 'SHA256SUMS'];
-              assets_ok = needed.every(token => 
-                token.startsWith('.')
-                  ? assets.some(a => a.name.endsWith(token))
-                  : assets.some(a => a.name === token)
-              );
-              core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
+              const hasDeb = assets.some(a => a.name.endsWith('.deb'));
+              const hasBuildinfo = assets.some(a => a.name.endsWith('.buildinfo'));
+              const hasChanges = assets.some(a => a.name.endsWith('.changes'));
+              const hasSums = assets.some(a => a.name === 'SHA256SUMS');
+              const hasAsc = assets.some(a => a.name === 'SHA256SUMS.asc');
+              assets_ok = hasDeb && hasBuildinfo && hasChanges && hasSums && (!expectAsc || hasAsc);
+              core.info(`Release exists (draft=${draft}); assets_ok=${assets_ok}; expectAsc=${expectAsc}; assets=[${assets.map(a=>a.name).join(', ')}]`);
             } catch (e) {
               if (e.status !== 404) throw e;
               core.info(`No release for tag ${tag}.`);
@@ -523,7 +559,7 @@ jobs:
       - name: Fail if published release is missing assets (immutable blocks uploads)
         if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' && steps.check_release.outputs.assets_ok != 'true' }}
         run: |
-          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing required assets (.deb/.buildinfo/.changes/SHA256SUMS)."
+          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing required assets (.deb/.buildinfo/.changes/SHA256SUMS and optional SHA256SUMS.asc)."
           echo "Recreate the release (keep the tag) and re-run this job."
           exit 1
 
