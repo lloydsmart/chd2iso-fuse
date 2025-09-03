@@ -1,3 +1,57 @@
+chd2iso-fuse (0.2.2-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.0
+  * chore(clap): use Cargo name/description in --help; keep version from Cargo
+    - `name = env!("CARGO_PKG_NAME")`, `about = env!("CARGO_PKG_DESCRIPTION")`
+    - `#[command(version)]` continues to surface CARGO_PKG_VERSION
+    - If `--version` shows 0.1.0 locally, it’s a stale binary in $PATH rather than code
+  * ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag
+    - Build release binary and verify `./target/release/chd2iso-fuse --version`
+      equals Cargo.toml (and tag on tagged builds)
+    - After debuild, extract the .deb and verify the packaged binary reports the
+      expected version (matches Cargo.toml and Debian upstream portion)
+  * chore(scripts): harden set-cargo-version.sh and adjust CI backup handling
+    - Preserve existing quote style (single/double) when updating version in Cargo.toml
+    - Handle CRLF endings gracefully
+    - Add robust temp file cleanup with trap
+    - Keep .bak for local safety but exclude it from CI commits (rm before git add)
+    - No functional change to versioning flow; improves safety and cleanliness
+  * chore(ci): quote-out step name
+  * ci: quote step names with colons to satisfy YAML parser.
+    GitHub workflow failed with “Invalid workflow file … YAML syntax” due to
+    unquoted names containing ‘:’. Quote the new sanity-check steps (and other
+    colon-bearing names) to keep the workflow valid.
+  * ci: verify Cargo.toml bump, recache release build, and fix tag version check
+    - Assert Cargo.toml version equals tag right after bump
+    - Force fresh compile for packaging (SCCACHE_RECACHE=1)
+    - Derive TAG_VERSION from GITHUB_REF_NAME in post-package check
+  * ci: verify Cargo.toml bump and force fresh compile for packaging
+    - Assert Cargo.toml version equals tag right after bump
+    - Add SCCACHE_RECACHE=1 (or bypass RUSTC_WRAPPER) for debuild so version
+      embedded via env!("CARGO_PKG_VERSION") isn’t taken from stale cache
+    - Make post-package tag version check robust via GITHUB_REF_NAME
+  * ci: relax Debian-upstream version check on non-tag builds
+    - Always assert that binary `--version` matches Cargo.toml
+    - Only enforce Debian upstream match when:
+      • building from a tag (release path), or
+      • changelog upstream already equals Cargo.toml
+    - Prevents false failures on branch/PR builds where debian/changelog
+      is ahead of Cargo.toml
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.1
+  * ci: fix syntax error in github-script release asset check
+    - Add missing closing braces in github-script block
+    - Ensure assets array is checked safely with Array.isArray
+    - Handle 404 (release not found) with a clear failure message
+    - Prevents “Unexpected token ')'” runtime error in CI
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.2.2 from tag
+  * chore(release): sync Cargo.lock to version 0.2.2
+  * Release 0.2.2
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 03 Sep 2025 15:50:19 +0000
+
 chd2iso-fuse (0.2.1-1) trixie; urgency=medium
 
   [ lloydsmart ]
