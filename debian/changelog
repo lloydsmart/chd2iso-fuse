@@ -1,3 +1,63 @@
+chd2iso-fuse (0.2.0-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.38
+  * ci: add SHA256SUMS to release artifacts and upload
+    - Generate SHA256SUMS over *.deb/*.buildinfo/*.changes in artifacts/
+    - Upload SHA256SUMS with other artifacts; include in release upload list
+    - List SHA256SUMS in logs and require it when checking existing releases
+  * ci: GPG-sign SHA256SUMS and attach SHA256SUMS.asc to releases
+    - Install gnupg; import private key from secrets; trust key; capture KEYID
+    - Create SHA256SUMS for *.deb/*.buildinfo/*.changes and sign (armored, detached)
+    - Upload SHA256SUMS + SHA256SUMS.asc as artifacts and release assets
+    - Require .asc only when signing key is configured; keep explicit upload & verification
+  * docs: add release signing public key
+  * ci: stop using secrets.* in expressions; guard signing in-shell
+    - Import/sign GPG only if GPG_PRIVATE_KEY is present (shell guards)
+    - Set EXPECT_ASC from downloaded files; pass to github-script via env
+    - Remove `if: ${{ secrets… }}` and secrets in expression contexts (unsupported)
+  * ci(build): use bash for build-debs job (fix shopt not found)
+  * fix: update getattr signature for latest fuser API
+    `Filesystem::getattr` in `fuser` now takes an additional
+    `Option<u64>` file handle argument. Updated our impl to
+    match the new trait signature, discarding the handle since
+    we don’t use it. This fixes E0050 build errors against
+    current fuser versions.
+
+  [ dependabot[bot] ]
+  * chore(deps): bump lru from 0.12.5 to 0.16.0.
+    Bumps [lru](https://github.com/jeromefroe/lru-rs) from 0.12.5 to 0.16.0.
+    - [Changelog](https://github.com/jeromefroe/lru-rs/blob/master/CHANGELOG.md)
+    - [Commits](https://github.com/jeromefroe/lru-rs/compare/0.12.5...0.16.0)
+    ---
+    updated-dependencies:
+    - dependency-name: lru
+      dependency-version: 0.16.0
+      dependency-type: direct:production
+      update-type: version-update:semver-minor
+    ...
+    Signed-off-by: dependabot[bot] <support@github.com>
+  * chore(deps): bump fuser from 0.14.0 to 0.15.1.
+    Bumps [fuser](https://github.com/cberner/fuser) from 0.14.0 to 0.15.1.
+    - [Release notes](https://github.com/cberner/fuser/releases)
+    - [Changelog](https://github.com/cberner/fuser/blob/master/CHANGELOG.md)
+    - [Commits](https://github.com/cberner/fuser/compare/v0.14.0...v0.15.1)
+    ---
+    updated-dependencies:
+    - dependency-name: fuser
+      dependency-version: 0.15.1
+      dependency-type: direct:production
+      update-type: version-update:semver-minor
+    ...
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.2.0 from tag
+  * chore(release): sync Cargo.lock to version 0.2.0
+  * Release 0.2.0
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 03 Sep 2025 09:36:11 +0000
+
 chd2iso-fuse (0.1.38-1) trixie; urgency=medium
 
   [ lloydsmart ]
