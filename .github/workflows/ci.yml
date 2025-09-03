@@ -671,13 +671,22 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tag = process.env.GITHUB_REF_NAME;
-            const res = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag
-            });
-            const assets = res.data.assets || [];
-            core.info(`Release assets: ${assets.map(a => a.name).join(', ') || '(none)'}`);
-            if (assets.length === 0) {
-              core.setFailed('Release has no assets attached.');
+            const tag = process.env.GITHUB_REF_NAME || (context.ref || '').replace('refs/tags/', '');
+            try {
+              const res = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag
+              });
+              const assets = Array.isArray(res.data.assets) ? res.data.assets : [];
+              core.info(`Release assets: ${assets.map(a => a.name).join(', ') || '(none)'}`);
+              if (assets.length === 0) {
+                core.setFailed('Release has no assets attached.');
+              }
+            } catch (e) {
+              if (e.status === 404) {
+                core.setFailed(`Release for tag ${tag} not found.`);
+              } else {
+                throw e;
+              }
+            }
