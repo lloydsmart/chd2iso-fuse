@@ -289,14 +289,14 @@ jobs:
           cargo fmt -- --check
           cargo clippy --all-targets --frozen -- -D warnings
 
-      - name: Build release binary (for sanity check)
+      - name: "Build release binary (for sanity check)"
         env:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: cargo build --release --locked
 
-      - name: Sanity check: binary --version matches Cargo.toml
+      - name: "Sanity check: binary --version matches Cargo.toml"
         run: |
           set -euo pipefail
           # Extract Cargo package version (first match only)
@@ -612,7 +612,7 @@ jobs:
             core.setOutput('draft', String(draft));
             core.setOutput('assets_ok', String(assets_ok));
 
-      - name: Create draft release & upload assets
+      - name: "Create draft release & upload assets"
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
@@ -626,7 +626,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish release (flip draft -> published)
+      - name: "Publish release (flip draft -> published)"
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
