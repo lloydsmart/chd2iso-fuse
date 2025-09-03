@@ -225,6 +225,16 @@ jobs:
           git add Cargo.toml
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
+      - name: "Verify Cargo.toml updated to tag version"
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          EXPECT: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          ACTUAL="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          echo "Cargo.toml: expected=${EXPECT} actual=${ACTUAL}"
+          [ "$ACTUAL" = "$EXPECT" ] || { echo "ERROR: Cargo.toml not updated"; git --no-pager diff -- Cargo.toml || true; exit 1; }
+
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -238,6 +248,10 @@ jobs:
           set -eu
           git add Cargo.lock
           git commit -m "chore(release): sync Cargo.lock to version ${{ steps.ver.outputs.version }}" || true
+
+      - name: "Show Cargo.toml diff"
+        if: startsWith(github.ref, 'refs/tags/')
+        run: git --no-pager diff -- Cargo.toml || true
 
       - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
@@ -325,28 +339,24 @@ jobs:
         env:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
+          SCCACHE_RECACHE: "1"
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
       - name: "Sanity check: binary inside .deb reports expected version"
         run: |
           set -euo pipefail
-
-          # Determine expected versions
           CARGO_VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
           DEB_VERSION="$(dpkg-parsechangelog -SVersion)"
-          # Upstream part of Debian version (strip -N, -NbuildX, etc.)
           UPSTREAM_VERSION="${DEB_VERSION%%-*}"
 
           echo "Cargo version:    ${CARGO_VERSION}"
           echo "Debian version:   ${DEB_VERSION}"
           echo "Upstream version: ${UPSTREAM_VERSION}"
 
-          # Find the .deb we just built (there should be exactly one main binary .deb)
           DEB_FILE="$(ls -1 ../chd2iso-fuse_*_amd64.deb | head -n1)"
           echo "Checking .deb: ${DEB_FILE}"
 
-          # Extract to a temp dir and run the binary
           TMPDIR="$(mktemp -d)"
           dpkg-deb -x "$DEB_FILE" "$TMPDIR"
           BIN="$TMPDIR/usr/bin/chd2iso-fuse"
@@ -355,13 +365,11 @@ jobs:
           BIN_VERSION="$("$BIN" --version | awk '{print $2}')"
           echo "Binary in .deb --version: ${BIN_VERSION}"
 
-          # Must match Cargo.toml and the upstream part of Debian version
           [ "$BIN_VERSION" = "$CARGO_VERSION" ] || { echo "ERROR: .deb binary version != Cargo.toml"; exit 1; }
           [ "$BIN_VERSION" = "$UPSTREAM_VERSION" ] || { echo "ERROR: .deb binary version != Debian upstream version"; exit 1; }
 
-          # On tagged builds, also assert it matches the tag
           if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
-            TAG_VERSION="${{ steps.ver.outputs.version }}"
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
             echo "Tag version: ${TAG_VERSION}"
             [ "$BIN_VERSION" = "$TAG_VERSION" ] || { echo "ERROR: .deb binary version != tag version"; exit 1; }
           fi
