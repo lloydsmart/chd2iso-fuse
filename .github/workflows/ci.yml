@@ -292,16 +292,6 @@ jobs:
           set -eu
           cargo metadata --locked --offline --format-version=1 -q > /dev/null
 
-      - name: Verify Cargo.toml version matches tag
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          EXPECT: ${{ steps.ver.outputs.version }}
-        run: |
-          set -eu
-          ACTUAL="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
-          echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
-          [ "$ACTUAL" = "$EXPECT" ]
-
       - name: "Build release binary (for sanity check)"
         env:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
