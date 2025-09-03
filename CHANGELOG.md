@@ -1,20 +1,19 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.2.0 from tag (2b7463e)
-- chore(release): sync Cargo.lock to version 0.2.0 (e5fdf24)### CI
-- ci: add SHA256SUMS to release artifacts and upload (8a2fce8)
-- ci: GPG-sign SHA256SUMS and attach SHA256SUMS.asc to releases (21bd4ab)
-- ci: stop using secrets.* in expressions; guard signing in-shell (351575f)
-- ci(build): use bash for build-debs job (fix shopt not found) (ad9e8c6)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.38 (3c7b293)
-- chore(deps): bump lru from 0.12.5 to 0.16.0 (1eb46f4)### Docs
-- docs: add release signing public key (ac19f3b)### Fixes
-- fix: update getattr signature for latest fuser API (e80cd67)### Other
-- PR #27: chore(release): update changelogs for v0.1.38 (5a16737)
-- PR #28: chore(deps): bump lru from 0.12.5 to 0.16.0 (084a6f5)
-- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (4ef6bcb)
-- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (fe6057d)
-- PR #29: chore(deps): bump fuser from 0.14.0 to 0.15.1 (14db063)### CI
+- chore(release): set Cargo version to 0.2.1 from tag (4a063a9)
+- chore(release): sync Cargo.lock to version 0.2.1 (0a59df2)### CI
+- ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (836d2d6)
+- ci: quote step names with colons to satisfy YAML parser (303a59f)
+- ci: verify Cargo.toml bump, recache release build, and fix tag version check (46b1dbe)
+- ci: verify Cargo.toml bump and force fresh compile for packaging (eacf820)
+- ci: relax Debian-upstream version check on non-tag builds (7110ef8)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.0 (935a298)
+- chore(clap): use Cargo name/description in --help; keep version from Cargo (d5678c0)
+- chore(scripts): harden set-cargo-version.sh and adjust CI backup handling (000c3fb)
+- chore(ci): quote-out step name (639270e)### Other
+- PR #30: chore(release): update changelogs for v0.2.0 (5c4e7ac)
+- PR #32: Hotfix/version update (74f5bab)
+- PR #33: Hotfix / version update (3e09728)### CI
 - ci: switch snapshot packaging to Debian container (trixie) for distro-native deps (5ffcf39)
 - ci: build snapshot .debs inside Debian Trixie container and upload artifacts (2633bc3)
 - ci: add Debian Trixie build & release workflows with Cargo caching (ea2c3e3)
@@ -73,7 +72,11 @@
 - ci: normalize release notes path and upload assets reliably (fbb64a2)
 - ci: upload explicit asset list to release and verify post-publish (420ec0b)
 - ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification (bbe422c)
-- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)### Chore
+- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)
+- ci: add SHA256SUMS to release artifacts and upload (8a2fce8)
+- ci: GPG-sign SHA256SUMS and attach SHA256SUMS.asc to releases (21bd4ab)
+- ci: stop using secrets.* in expressions; guard signing in-shell (351575f)
+- ci(build): use bash for build-debs job (fix shopt not found) (ad9e8c6)### Chore
 - chore(debian): update changelog for 0.1.6 release (c017903)
 - chore: add Cargo.lock (enable locked/frozen CI builds) (36cb897)
 - chore(cliff): fix TOML inline-table error; use array-of-tables for commit_parsers (20a72ae)
@@ -99,15 +102,19 @@
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34 (9b1f99e)
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35 (2c618a1)
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36 (3a0c3ac)
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)### Docs
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.38 (3c7b293)
+- chore(deps): bump lru from 0.12.5 to 0.16.0 (1eb46f4)### Docs
 - docs: add CI/release badges and CI section (GitHub Actions on Debian Trixie) (1f273fa)
 - docs: update cache default (be2768b)
 - docs: clarify allow-other description (be048e0)
 - docs(changelog): update for v0.1.13 (8496cd6)
-- docs: add release & packaging flow guide (c401d73)### Fixes
+- docs: add release & packaging flow guide (c401d73)
+- docs: add release signing public key (ac19f3b)### Fixes
 - fix Cargo.toml (f2a175d)
 - fix: replace generic URL in debian/control (e7c0b3c)
-- fix: variable didn't need to be mutable (7e6f01f)### Other
+- fix: variable didn't need to be mutable (7e6f01f)
+- fix: update getattr signature for latest fuser API (e80cd67)### Other
 - CI: add GitHub Actions for .deb releases and basic build checks (77372db)
 - CI: install libfuse3-dev and pkg-config so fuser builds (1ddf4b0)
 - style: rustfmt codebase to satisfy CI (b57f1f6)
@@ -154,7 +161,12 @@
 - PR #23: chore(release): update changelogs for v0.1.34 (0979c28)
 - PR #24: chore(release): update changelogs for v0.1.35 (d5ea3f8)
 - PR #25: chore(release): update changelogs for v0.1.36 (d4cb934)
-- PR #26: chore(release): update changelogs for v0.1.37 (495d483)### Tests
+- PR #26: chore(release): update changelogs for v0.1.37 (495d483)
+- PR #27: chore(release): update changelogs for v0.1.38 (5a16737)
+- PR #28: chore(deps): bump lru from 0.12.5 to 0.16.0 (084a6f5)
+- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (4ef6bcb)
+- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (fe6057d)
+- PR #29: chore(deps): bump fuser from 0.14.0 to 0.15.1 (14db063)### Tests
 - test: cover parse_track_line modes (6e24ec9)### Other
 - Initial import (b9abe6d)
 - Debian packaging: add initial debian/ files for chd2iso-fuse (32eff7a)
