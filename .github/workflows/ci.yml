@@ -228,12 +228,18 @@ jobs:
       - name: "Verify Cargo.toml updated to tag version"
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          EXPECT: ${{ steps.ver.outputs.version }}
+          EXPECT: ${{ steps.ver.outputs.version }}  # already stripped of 'v' above
         run: |
           set -euo pipefail
+          # Normalize just in case future changes pass a v-prefixed string
+          EXPECT_NOV="${EXPECT#v}"
           ACTUAL="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
-          echo "Cargo.toml: expected=${EXPECT} actual=${ACTUAL}"
-          [ "$ACTUAL" = "$EXPECT" ] || { echo "ERROR: Cargo.toml not updated"; git --no-pager diff -- Cargo.toml || true; exit 1; }
+          echo "Cargo.toml: expected=${EXPECT_NOV} actual=${ACTUAL}"
+          [ "$ACTUAL" = "$EXPECT_NOV" ] || {
+            echo "ERROR: Cargo.toml not updated"
+            git --no-pager diff -- Cargo.toml || true
+            exit 1
+          }
 
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
