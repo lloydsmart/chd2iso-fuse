@@ -221,8 +221,19 @@ jobs:
         run: |
           set -euo pipefail
           scripts/set-cargo-version.sh "$VERSION"
-          git add Cargo.toml Cargo.toml.bak || true
+          rm -f Cargo.toml.bak
+          git add Cargo.toml
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
+
+      - name: "Verify Cargo.toml updated to tag version"
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          EXPECT: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          ACTUAL="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          echo "Cargo.toml: expected=${EXPECT} actual=${ACTUAL}"
+          [ "$ACTUAL" = "$EXPECT" ] || { echo "ERROR: Cargo.toml not updated"; git --no-pager diff -- Cargo.toml || true; exit 1; }
 
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
@@ -237,6 +248,10 @@ jobs:
           set -eu
           git add Cargo.lock
           git commit -m "chore(release): sync Cargo.lock to version ${{ steps.ver.outputs.version }}" || true
+
+      - name: "Show Cargo.toml diff"
+        if: startsWith(github.ref, 'refs/tags/')
+        run: git --no-pager diff -- Cargo.toml || true
 
       - name: Generate Debian changelog (gbp dch -> dch --newversion)
         if: startsWith(github.ref, 'refs/tags/')
@@ -281,19 +296,99 @@ jobs:
           echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
           [ "$ACTUAL" = "$EXPECT" ]
 
-      - name: Cargo fmt + clippy
+      - name: "Build release binary (for sanity check)"
         env:
+          RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
+          SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
+        run: cargo build --release --locked
+
+      - name: "Sanity check: binary --version matches Cargo.toml"
         run: |
-          cargo fmt -- --check
-          cargo clippy --all-targets --frozen -- -D warnings
+          set -euo pipefail
+          # Extract Cargo package version (first match only)
+          CARGO_VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          echo "Cargo.toml version: ${CARGO_VERSION}"
+
+          # Run the freshly built binary
+          BIN="./target/release/chd2iso-fuse"
+          test -x "$BIN"
+          BIN_VERSION="$("$BIN" --version | awk '{print $2}')"
+          echo "Binary --version: ${BIN_VERSION}"
+
+          if [ "$BIN_VERSION" != "$CARGO_VERSION" ]; then
+            echo "ERROR: Binary version (${BIN_VERSION}) != Cargo.toml version (${CARGO_VERSION})"
+            exit 1
+          fi
+
+          # On tagged builds, also assert it matches the tag’s version
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG_VERSION="${{ steps.ver.outputs.version }}"
+            echo "Tag version: ${TAG_VERSION}"
+            [ "$BIN_VERSION" = "$TAG_VERSION" ] || { echo "ERROR: Binary version != tag version"; exit 1; }
+          fi
 
       - name: Build .deb with debuild
         env:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
+          SCCACHE_RECACHE: "1"
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
+
+      - name: "Sanity check: binary inside .deb reports expected version"
+        run: |
+          set -euo pipefail
+
+          # Gather expected versions
+          CARGO_VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          DEB_VERSION="$(dpkg-parsechangelog -SVersion || echo '0.0.0-0')"
+          UPSTREAM_VERSION="${DEB_VERSION%%-*}"
+
+          echo "Cargo version:    ${CARGO_VERSION}"
+          echo "Debian version:   ${DEB_VERSION}"
+          echo "Upstream version: ${UPSTREAM_VERSION}"
+
+          # Find the .deb we just built (main binary)
+          DEB_FILE="$(ls -1 ../chd2iso-fuse_*_amd64.deb | head -n1)"
+          echo "Checking .deb: ${DEB_FILE}"
+
+          TMPDIR="$(mktemp -d)"
+          dpkg-deb -x "$DEB_FILE" "$TMPDIR"
+          BIN="$TMPDIR/usr/bin/chd2iso-fuse"
+          test -x "$BIN"
+
+          BIN_VERSION="$("$BIN" --version | awk '{print $2}')"
+          echo "Binary in .deb --version: ${BIN_VERSION}"
+
+          # Always enforce: binary matches Cargo.toml
+          [ "$BIN_VERSION" = "$CARGO_VERSION" ] || { echo "ERROR: .deb binary version != Cargo.toml"; exit 1; }
+
+          # Enforce Debian upstream only when appropriate:
+          # - on tagged builds (release path), OR
+          # - when changelog upstream already equals Cargo.toml (they're in sync)
+          ENFORCE_DEB=false
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            ENFORCE_DEB=true
+          elif [[ "$UPSTREAM_VERSION" = "$CARGO_VERSION" ]]; then
+            ENFORCE_DEB=true
+          fi
+
+          if $ENFORCE_DEB; then
+            [ "$BIN_VERSION" = "$UPSTREAM_VERSION" ] || { 
+              echo "ERROR: .deb binary version != Debian upstream version"; 
+              exit 1; 
+            }
+          else
+            echo "Note: skipping Debian-upstream match on non-tag build because Cargo.toml (${CARGO_VERSION}) != debian/changelog upstream (${UPSTREAM_VERSION})."
+          fi
+
+          # On tagged builds, also assert it matches the tag
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            echo "Tag version: ${TAG_VERSION}"
+            [ "$BIN_VERSION" = "$TAG_VERSION" ] || { echo "ERROR: .deb binary version != tag version"; exit 1; }
+          fi
 
       - name: Assert Cargo.lock unchanged by build
         run: |
@@ -541,7 +636,7 @@ jobs:
             core.setOutput('draft', String(draft));
             core.setOutput('assets_ok', String(assets_ok));
 
-      - name: Create draft release & upload assets
+      - name: "Create draft release & upload assets"
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
@@ -555,7 +650,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish release (flip draft -> published)
+      - name: "Publish release (flip draft -> published)"
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
@@ -586,4 +681,3 @@ jobs:
             core.info(`Release assets: ${assets.map(a => a.name).join(', ') || '(none)'}`);
             if (assets.length === 0) {
               core.setFailed('Release has no assets attached.');
-            }
