@@ -328,7 +328,7 @@ jobs:
           SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
         run: debuild -us -uc -b
 
-      - name: Sanity check: binary inside .deb reports expected version
+      - name: "Sanity check: binary inside .deb reports expected version"
         run: |
           set -euo pipefail
 
