@@ -28,10 +28,10 @@ const CD_FRAME_2352: usize = 2352;
 /// Flags / CLI
 #[derive(Parser, Debug)]
 #[command(
-    name = "chd2iso-fuse",
-    author,            // show Cargo authors
-    version,           // from Cargo.toml
-    about = "Present CHD images as ISO files via FUSE",
+    name = env!("CARGO_PKG_NAME"),
+    author,            // Cargo authors
+    version,           // Cargo version (CARGO_PKG_VERSION)
+    about = env!("CARGO_PKG_DESCRIPTION"),
     long_about = None
 )]
 struct Args {
