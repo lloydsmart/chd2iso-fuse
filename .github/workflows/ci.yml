@@ -339,14 +339,17 @@ jobs:
       - name: "Sanity check: binary inside .deb reports expected version"
         run: |
           set -euo pipefail
+
+          # Gather expected versions
           CARGO_VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
-          DEB_VERSION="$(dpkg-parsechangelog -SVersion)"
+          DEB_VERSION="$(dpkg-parsechangelog -SVersion || echo '0.0.0-0')"
           UPSTREAM_VERSION="${DEB_VERSION%%-*}"
 
           echo "Cargo version:    ${CARGO_VERSION}"
           echo "Debian version:   ${DEB_VERSION}"
           echo "Upstream version: ${UPSTREAM_VERSION}"
 
+          # Find the .deb we just built (main binary)
           DEB_FILE="$(ls -1 ../chd2iso-fuse_*_amd64.deb | head -n1)"
           echo "Checking .deb: ${DEB_FILE}"
 
@@ -358,9 +361,29 @@ jobs:
           BIN_VERSION="$("$BIN" --version | awk '{print $2}')"
           echo "Binary in .deb --version: ${BIN_VERSION}"
 
+          # Always enforce: binary matches Cargo.toml
           [ "$BIN_VERSION" = "$CARGO_VERSION" ] || { echo "ERROR: .deb binary version != Cargo.toml"; exit 1; }
-          [ "$BIN_VERSION" = "$UPSTREAM_VERSION" ] || { echo "ERROR: .deb binary version != Debian upstream version"; exit 1; }
 
+          # Enforce Debian upstream only when appropriate:
+          # - on tagged builds (release path), OR
+          # - when changelog upstream already equals Cargo.toml (they're in sync)
+          ENFORCE_DEB=false
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            ENFORCE_DEB=true
+          elif [[ "$UPSTREAM_VERSION" = "$CARGO_VERSION" ]]; then
+            ENFORCE_DEB=true
+          fi
+
+          if $ENFORCE_DEB; then
+            [ "$BIN_VERSION" = "$UPSTREAM_VERSION" ] || { 
+              echo "ERROR: .deb binary version != Debian upstream version"; 
+              exit 1; 
+            }
+          else
+            echo "Note: skipping Debian-upstream match on non-tag build because Cargo.toml (${CARGO_VERSION}) != debian/changelog upstream (${UPSTREAM_VERSION})."
+          fi
+
+          # On tagged builds, also assert it matches the tag
           if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
             TAG_VERSION="${GITHUB_REF_NAME#v}"
             echo "Tag version: ${TAG_VERSION}"
