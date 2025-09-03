@@ -565,7 +565,8 @@ impl Filesystem for FsState {
         }
     }
 
-    fn getattr(&mut self, _req: &Request<'_>, ino: u64, reply: ReplyAttr) {
+    fn getattr(&mut self, _req: &Request<'_>, ino: u64, fh: Option<u64>, reply: ReplyAttr) {
+        let _ = fh;
         if ino == 1 {
             let attr = FileAttr {
                 ino: 1,
