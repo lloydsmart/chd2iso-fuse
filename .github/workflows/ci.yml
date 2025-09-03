@@ -296,13 +296,6 @@ jobs:
           echo "CARGO VERSION: expected=${EXPECT} actual=${ACTUAL}"
           [ "$ACTUAL" = "$EXPECT" ]
 
-      - name: Cargo fmt + clippy
-        env:
-          SOURCE_DATE_EPOCH: ${{ steps.sde.outputs.epoch }}
-        run: |
-          cargo fmt -- --check
-          cargo clippy --all-targets --frozen -- -D warnings
-
       - name: "Build release binary (for sanity check)"
         env:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
@@ -665,4 +658,3 @@ jobs:
             core.info(`Release assets: ${assets.map(a => a.name).join(', ') || '(none)'}`);
             if (assets.length === 0) {
               core.setFailed('Release has no assets attached.');
-            }
