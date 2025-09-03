@@ -1,105 +1,28 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.38 from tag (39533fd)
-- chore(release): sync Cargo.lock to version 0.1.38 (b4ddfc5)### CI
-- ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification (bbe422c)
-- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)### Other
-- PR #26: chore(release): update changelogs for v0.1.37 (495d483)### CI
-- ci: upload explicit asset list to release and verify post-publish (420ec0b)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36 (3a0c3ac)### Other
-- PR #25: chore(release): update changelogs for v0.1.36 (d4cb934)### CI
-- ci: normalize release notes path and upload assets reliably (fbb64a2)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35 (2c618a1)### Other
-- PR #24: chore(release): update changelogs for v0.1.35 (d5ea3f8)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34 (9b1f99e)### Other
-- PR #23: chore(release): update changelogs for v0.1.34 (0979c28)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.32 (f1db3bc)
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.33 (2c3e42d)### Other
-- PR #21: chore(release): update changelogs for v0.1.32 (29fca34)
-- PR #22: chore(release): update changelogs for v0.1.33 (e689522)### CI
-- ci: fix release uploads by scanning workspace and using recursive globs (2f1d8b5)### CI
-- ci: fix release asset upload and harden publish flow (c64dc24)
-- ci: remove rust-toolchain from dependabot.yml (25205eb)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.31 (80ba0c7)
-- chore: update dependabot.yml (c0ff9de)### Other
-- PR #19: chore(release): update changelogs for v0.1.31 (0ad6d92)
-- Create dependabot.yml (128a78d)
-- Update dependabot.yml (b937251)
-- Update dependabot.yml (6c134ad)
-- PR #20: Update dependabot.yml (f7ed260)### CI
-- ci: add concurrency + idempotent release publish; keep pinned toolchain and offline lockfile guard (d6b89b3)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.30 (14b5733)### Other
-- PR #18: chore(release): update changelogs for v0.1.30 (a11693d)### CI
-- ci: fix workflow parsing and job condition (dde556a)
-- ci: fix YAML indentation in publish-release job (indent run: under step) (36c64a9)
-- ci: fix YAML indentation in publish-release job (indent run: under step) (04a8635)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.28 (fd29939)### Other
-- PR #17: chore(release): update changelogs for v0.1.28 (67d53fd)
-- release(ci): support Immutable Releases by uploading assets to a draft first (bd1e3e8)### CI
-- ci: commit regenerated Cargo.lock after tag version bump (db8c446)### CI
-- ci: regenerate Cargo.lock offline after tag version bump to satisfy --locked (f08e8fe)### CI
-- ci: make lockfile guard deterministic (prefetch + offline) (aaa1a26)### CI
-- ci: pin Rust toolchain to 1.81.0 and remove apt Rust to fix lockfile drift (dd357cc)
-- ci: pin Rust toolchain to 1.86.0 to match local and fix lockfile drift (ed52b09)### Fixes
-- fix: variable didn't need to be mutable (7e6f01f)### CI
-- ci(cliff): make git-cliff version configurable via GIT_CLIFF_VERSION secret (fallback 2.9.1) (6fdfed9)
-- ci: fix YAML env indentation; read git-cliff version from secret with fallback (3952fa2)
-- ci: enforce Cargo.lock consistency in GitHub Actions (1f6c6fe)
-- ci: sync Cargo.toml version from tags (74a3675)
-- ci: drop cargo-edit and sync Cargo.toml from tag with script (aeb6c28)
-- ci: fix cargo fetch invocation (fda5ab9)
-- ci: add scheduled uscan job to detect newer upstream via debian/watch (7b47bdb)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.23 (2bb30d6)
-- chore: update readme with license tag (1f381be)
-- chore: Update cargo.lock (a309fe9)### Docs
-- docs: add release & packaging flow guide (c401d73)### Fixes
-- fix: replace generic URL in debian/control (e7c0b3c)### Other
-- PR #16: chore(release): update changelogs for v0.1.23 (fc71a53)
-- debian: drop build artifacts and staged package tree; keep only source packaging (0b559b8)
-- debian: switch to dh_installsystemd for unit handling; don’t auto-enable units (f9cc93a)
-- debian: point .examples to real example config (47cfc55)
-- debian: let dh_installsystemd autodetect units; remove explicit unit args (1c97ba5)
-- debian: stop referencing non-shipped automount unit in dh_installsystemd (5e385c5)
-- debian: ship only template service; keep mount/automount as examples (140d09d)
-- debian: add README.Debian with usage and configuration guidance (4eb294d)### CI
-- ci(release): build first, PR later — stop changelog from being clobbered mid-run (d6ceb09)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.22 (9c45c67)### Other
-- PR #15: chore(release): update changelogs for v0.1.22 (aa508ed)### CI
-- ci(release): fix YAML and finalize post-build version guard (6af91e0)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.20 (7bf19fd)### Other
-- PR #14: chore(release): update changelogs for v0.1.20 (0915c50)### CI
-- ci(release): harden tag builds—pre/post version guards and POSIX-safe artifact collection (b44ab6b)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.19 (9d90a86)### Other
-- PR #13: chore(release): update changelogs for v0.1.19 (cfacaea)### CI
-- ci: fix artifact collection on tag builds (POSIX sh) (0bee93c)### CI
-- ci(release): make tag releases bullet-proof (221376b)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.17 (bbb1795)
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.18 (9d01cc1)### Other
-- PR #11: chore(release): update changelogs for v0.1.17 (d9f788d)
-- PR #12: chore(release): update changelogs for v0.1.18 (5e4627a)### CI
-- ci: collect release artifacts by debian version instead of hard-coded names (69c2bb1)### CI
-- ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly (16c5430)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.16 (7af875f)### Other
-- PR #10: chore(release): update changelogs for v0.1.16 (16588fc)### CI
-- ci/debian: force changelog version from tag and guard before build (2dd7105)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.15 (4e5860e)### Other
-- PR #9: chore(release): update changelogs for v0.1.15 (761ce5f)### CI
-- ci/debian: derive debian/changelog version from tag; guard against mismatches (4c9bec5)### Chore
-- chore(release): update CHANGELOG.md and debian/changelog for v0.1.14 (76c4290)### Other
-- PR #8: chore(release): update changelogs for v0.1.14 (d8b1565)### CI
-- ci: include debian/changelog in release PR (b76989d)### Docs
-- docs(changelog): update for v0.1.13 (8496cd6)### Other
-- PR #7: docs(changelog): update for v0.1.13 (cdc2991)### Chore
-- chore(cliff): fix template vars and TOML; use commit.message/id (812625e)### Chore
-- chore(cliff): fix TOML inline-table error; use array-of-tables for commit_parsers (20a72ae)### CI
-- ci: set DEBFULLNAME/DEBEMAIL and git identity for dch; fix git-cliff check (35b78df)### CI
-- ci: fix git “dubious ownership” inside container by trusting $GITHUB_WORKSPACE (0538435)### CI
-- ci: install git before checkout in container to ensure .git exists (df862ed)### CI
-- ci: always run from repo root; fix “not a git repository” for changelog scripts (0541d8f)
-- ci: remove defaults.working-directory; set repo working dir per step (4bc0fa7)### CI
-- ci: ensure changelog scripts run in repo; fix “not a git repository” error (b9b29cd)
-- ci: stabilize build inputs for better sccache hits (4cccc0d)### CI
+- chore(release): set Cargo version to 0.2.0 from tag (2b7463e)
+- chore(release): sync Cargo.lock to version 0.2.0 (e5fdf24)### CI
+- ci: add SHA256SUMS to release artifacts and upload (8a2fce8)
+- ci: GPG-sign SHA256SUMS and attach SHA256SUMS.asc to releases (21bd4ab)
+- ci: stop using secrets.* in expressions; guard signing in-shell (351575f)
+- ci(build): use bash for build-debs job (fix shopt not found) (ad9e8c6)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.38 (3c7b293)
+- chore(deps): bump lru from 0.12.5 to 0.16.0 (1eb46f4)### Docs
+- docs: add release signing public key (ac19f3b)### Fixes
+- fix: update getattr signature for latest fuser API (e80cd67)### Other
+- PR #27: chore(release): update changelogs for v0.1.38 (5a16737)
+- PR #28: chore(deps): bump lru from 0.12.5 to 0.16.0 (084a6f5)
+- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (4ef6bcb)
+- Merge branch 'main' into dependabot/cargo/fuser-0.15.1 (fe6057d)
+- PR #29: chore(deps): bump fuser from 0.14.0 to 0.15.1 (14db063)### CI
+- ci: switch snapshot packaging to Debian container (trixie) for distro-native deps (5ffcf39)
+- ci: build snapshot .debs inside Debian Trixie container and upload artifacts (2633bc3)
+- ci: add Debian Trixie build & release workflows with Cargo caching (ea2c3e3)
+- ci: Combine workflows (aed7d0e)
+- ci: Add documentation checks (6dea3b6)
+- ci: fix workflow attaching wrong version (8352cd1)
+- ci: fix regression (7e4115a)
+- ci: fix release process (1fbb182)
 - ci: sync commits and PRs to debian changelog using dch. (2a6bde1)
 - ci: add release notes based on changelog (ed52262)
 - ci: integrate git-cliff + gbp dch for automated changelog generation (ee5cc73)
@@ -110,29 +33,82 @@
 - ci: make cache keys robust when Cargo.lock is absent; keep sccache/caching optimizations (e898215)
 - ci: log sccache dir and ensure it exists; keep rustc version + caching improvements (81b416e)
 - ci: fix YAML quoting for rustc detection; use block run steps (095800b)
-- ci: stop re-resolving deps; enforce Cargo.lock and use --locked/--frozen (ccfb852)### Chore
+- ci: stop re-resolving deps; enforce Cargo.lock and use --locked/--frozen (ccfb852)
+- ci: ensure changelog scripts run in repo; fix “not a git repository” error (b9b29cd)
+- ci: stabilize build inputs for better sccache hits (4cccc0d)
+- ci: always run from repo root; fix “not a git repository” for changelog scripts (0541d8f)
+- ci: remove defaults.working-directory; set repo working dir per step (4bc0fa7)
+- ci: install git before checkout in container to ensure .git exists (df862ed)
+- ci: fix git “dubious ownership” inside container by trusting $GITHUB_WORKSPACE (0538435)
+- ci: set DEBFULLNAME/DEBEMAIL and git identity for dch; fix git-cliff check (35b78df)
+- ci: include debian/changelog in release PR (b76989d)
+- ci/debian: derive debian/changelog version from tag; guard against mismatches (4c9bec5)
+- ci/debian: force changelog version from tag and guard before build (2dd7105)
+- ci/debian: stop “one version behind” assets — force & verify deb version; collect explicitly (16c5430)
+- ci: collect release artifacts by debian version instead of hard-coded names (69c2bb1)
+- ci(release): make tag releases bullet-proof (221376b)
+- ci: fix artifact collection on tag builds (POSIX sh) (0bee93c)
+- ci(release): harden tag builds—pre/post version guards and POSIX-safe artifact collection (b44ab6b)
+- ci(release): fix YAML and finalize post-build version guard (6af91e0)
+- ci(release): build first, PR later — stop changelog from being clobbered mid-run (d6ceb09)
+- ci(cliff): make git-cliff version configurable via GIT_CLIFF_VERSION secret (fallback 2.9.1) (6fdfed9)
+- ci: fix YAML env indentation; read git-cliff version from secret with fallback (3952fa2)
+- ci: enforce Cargo.lock consistency in GitHub Actions (1f6c6fe)
+- ci: sync Cargo.toml version from tags (74a3675)
+- ci: drop cargo-edit and sync Cargo.toml from tag with script (aeb6c28)
+- ci: fix cargo fetch invocation (fda5ab9)
+- ci: add scheduled uscan job to detect newer upstream via debian/watch (7b47bdb)
+- ci: pin Rust toolchain to 1.81.0 and remove apt Rust to fix lockfile drift (dd357cc)
+- ci: pin Rust toolchain to 1.86.0 to match local and fix lockfile drift (ed52b09)
+- ci: make lockfile guard deterministic (prefetch + offline) (aaa1a26)
+- ci: regenerate Cargo.lock offline after tag version bump to satisfy --locked (f08e8fe)
+- ci: commit regenerated Cargo.lock after tag version bump (db8c446)
+- ci: fix workflow parsing and job condition (dde556a)
+- ci: fix YAML indentation in publish-release job (indent run: under step) (36c64a9)
+- ci: fix YAML indentation in publish-release job (indent run: under step) (04a8635)
+- ci: add concurrency + idempotent release publish; keep pinned toolchain and offline lockfile guard (d6b89b3)
+- ci: fix release asset upload and harden publish flow (c64dc24)
+- ci: remove rust-toolchain from dependabot.yml (25205eb)
+- ci: fix release uploads by scanning workspace and using recursive globs (2f1d8b5)
+- ci: normalize release notes path and upload assets reliably (fbb64a2)
+- ci: upload explicit asset list to release and verify post-publish (420ec0b)
+- ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification (bbe422c)
+- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)### Chore
 - chore(debian): update changelog for 0.1.6 release (c017903)
-- chore: add Cargo.lock (enable locked/frozen CI builds) (36cb897)### Docs
+- chore: add Cargo.lock (enable locked/frozen CI builds) (36cb897)
+- chore(cliff): fix TOML inline-table error; use array-of-tables for commit_parsers (20a72ae)
+- chore(cliff): fix template vars and TOML; use commit.message/id (812625e)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.14 (76c4290)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.15 (4e5860e)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.16 (7af875f)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.17 (bbb1795)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.18 (9d01cc1)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.19 (9d90a86)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.20 (7bf19fd)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.22 (9c45c67)
+- chore(release): update CHANGELOG.md and debian/changelog for v0.1.23 (2bb30d6)
+- chore: update readme with license tag (1f381be)
+- chore: Update cargo.lock (a309fe9)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.28 (fd29939)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.30 (14b5733)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.31 (80ba0c7)
+- chore: update dependabot.yml (c0ff9de)
+- chore(deps): bump fuser from 0.14.0 to 0.15.1 (c855b70)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.32 (f1db3bc)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.33 (2c3e42d)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34 (9b1f99e)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35 (2c618a1)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36 (3a0c3ac)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)### Docs
+- docs: add CI/release badges and CI section (GitHub Actions on Debian Trixie) (1f273fa)
 - docs: update cache default (be2768b)
-- docs: clarify allow-other description (be048e0)### Other
-- PR #4: docs: update cache default (318c4bf)
-- Use u64 arithmetic for ISO sector calculations (9fd1dd6)
-- PR #3: Use u64 arithmetic for ISO sector calculations (2732221)
-- PR #2: docs: clarify allow-other description (9d25e32)
-- PR #5: test: cover parse_track_line modes (1bf1644)
-- debian: add manpages for helper scripts (a4a5015)
-- PR #6: chore: add Cargo.lock (enable locked/frozen CI builds) (dd88fce)### Tests
-- test: cover parse_track_line modes (6e24ec9)### CI
-- ci: fix release process (1fbb182)### CI
-- ci: fix regression (7e4115a)### Fixes
-- fix Cargo.toml (f2a175d)### CI
-- ci: Add documentation checks (6dea3b6)
-- ci: fix workflow attaching wrong version (8352cd1)### CI
-- ci: switch snapshot packaging to Debian container (trixie) for distro-native deps (5ffcf39)
-- ci: build snapshot .debs inside Debian Trixie container and upload artifacts (2633bc3)
-- ci: add Debian Trixie build & release workflows with Cargo caching (ea2c3e3)
-- ci: Combine workflows (aed7d0e)### Docs
-- docs: add CI/release badges and CI section (GitHub Actions on Debian Trixie) (1f273fa)### Other
+- docs: clarify allow-other description (be048e0)
+- docs(changelog): update for v0.1.13 (8496cd6)
+- docs: add release & packaging flow guide (c401d73)### Fixes
+- fix Cargo.toml (f2a175d)
+- fix: replace generic URL in debian/control (e7c0b3c)
+- fix: variable didn't need to be mutable (7e6f01f)### Other
+- CI: add GitHub Actions for .deb releases and basic build checks (77372db)
 - CI: install libfuse3-dev and pkg-config so fuser builds (1ddf4b0)
 - style: rustfmt codebase to satisfy CI (b57f1f6)
 - style(clippy): fix lints (unnecessary cast, iterator style, div_ceil, char split) and allow too_many_arguments on helper (089f886)
@@ -140,8 +116,46 @@
 - debian: fix aliased paths; move units to /usr; add lintian overrides; CI: portable artifact copy (55141f7)
 - CI: remove legacy ci.yml to avoid duplicate runs (8baa9fc)
 - Updated CI (bd617b6)
-- debian: add automated changelog generation via gbp dch (cd1fcbd)### Other
-- CI: add GitHub Actions for .deb releases and basic build checks (77372db)### Other
+- debian: add automated changelog generation via gbp dch (cd1fcbd)
+- PR #4: docs: update cache default (318c4bf)
+- Use u64 arithmetic for ISO sector calculations (9fd1dd6)
+- PR #3: Use u64 arithmetic for ISO sector calculations (2732221)
+- PR #2: docs: clarify allow-other description (9d25e32)
+- PR #5: test: cover parse_track_line modes (1bf1644)
+- debian: add manpages for helper scripts (a4a5015)
+- PR #6: chore: add Cargo.lock (enable locked/frozen CI builds) (dd88fce)
+- PR #7: docs(changelog): update for v0.1.13 (cdc2991)
+- PR #8: chore(release): update changelogs for v0.1.14 (d8b1565)
+- PR #9: chore(release): update changelogs for v0.1.15 (761ce5f)
+- PR #10: chore(release): update changelogs for v0.1.16 (16588fc)
+- PR #11: chore(release): update changelogs for v0.1.17 (d9f788d)
+- PR #12: chore(release): update changelogs for v0.1.18 (5e4627a)
+- PR #13: chore(release): update changelogs for v0.1.19 (cfacaea)
+- PR #14: chore(release): update changelogs for v0.1.20 (0915c50)
+- PR #15: chore(release): update changelogs for v0.1.22 (aa508ed)
+- PR #16: chore(release): update changelogs for v0.1.23 (fc71a53)
+- debian: drop build artifacts and staged package tree; keep only source packaging (0b559b8)
+- debian: switch to dh_installsystemd for unit handling; don’t auto-enable units (f9cc93a)
+- debian: point .examples to real example config (47cfc55)
+- debian: let dh_installsystemd autodetect units; remove explicit unit args (1c97ba5)
+- debian: stop referencing non-shipped automount unit in dh_installsystemd (5e385c5)
+- debian: ship only template service; keep mount/automount as examples (140d09d)
+- debian: add README.Debian with usage and configuration guidance (4eb294d)
+- PR #17: chore(release): update changelogs for v0.1.28 (67d53fd)
+- release(ci): support Immutable Releases by uploading assets to a draft first (bd1e3e8)
+- PR #18: chore(release): update changelogs for v0.1.30 (a11693d)
+- PR #19: chore(release): update changelogs for v0.1.31 (0ad6d92)
+- Create dependabot.yml (128a78d)
+- Update dependabot.yml (b937251)
+- Update dependabot.yml (6c134ad)
+- PR #20: Update dependabot.yml (f7ed260)
+- PR #21: chore(release): update changelogs for v0.1.32 (29fca34)
+- PR #22: chore(release): update changelogs for v0.1.33 (e689522)
+- PR #23: chore(release): update changelogs for v0.1.34 (0979c28)
+- PR #24: chore(release): update changelogs for v0.1.35 (d5ea3f8)
+- PR #25: chore(release): update changelogs for v0.1.36 (d4cb934)
+- PR #26: chore(release): update changelogs for v0.1.37 (495d483)### Tests
+- test: cover parse_track_line modes (6e24ec9)### Other
 - Initial import (b9abe6d)
 - Debian packaging: add initial debian/ files for chd2iso-fuse (32eff7a)
 - Debian packaging: fix manpage so dh_installman passes (12fe010)
