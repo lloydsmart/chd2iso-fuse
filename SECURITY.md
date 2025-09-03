@@ -103,9 +103,3 @@ git tag -v vX.Y.Z
 ```
 
 Ensure the tag signature is “Good” and from the same fingerprint as above.
-
----
-
-## Supported versions
-
-(Optionally list which versions receive security fixes.)
