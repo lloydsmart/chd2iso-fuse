@@ -1,3 +1,98 @@
+chd2iso-fuse (0.1.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37
+  * ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification
+  * ci: reliably attach release assets + fix $GITHUB_ENV heredoc
+    - Build explicit newline-separated asset list (*.deb/*.buildinfo/*.changes/CHANGELOG.md)
+      and pass it to softprops via $GITHUB_ENV (unquoted EOF delimiter).
+    - Normalize RELEASE_NOTES.md to repo root and use it as body_path.
+    - Download artifacts to repo root; guard and list assets before upload.
+    - Verify assets after publish via GitHub API; fail fast if missing.
+    - Fix YAML issues (cache `key` under `with`, correct `github-script` `script:` level).
+    - Keep draft → upload → publish flow, pinned Rust 1.86.0, and offline lockfile guard.
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.38 from tag
+  * chore(release): sync Cargo.lock to version 0.1.38
+  * Release 0.1.38
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 16:46:59 +0000
+
+chd2iso-fuse (0.1.37-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36
+  * ci: upload explicit asset list to release and verify post-publish
+    - Build concrete list of *.deb/*.buildinfo/*.changes/CHANGELOG.md in repo root
+    - Pass newline-separated file list to softprops/action-gh-release
+    - Verify the published release contains assets; fail fast if empty
+    - Keep draft->upload->publish, idempotence checks, pinned toolchain, offline lock guard
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.37 from tag
+  * chore(release): sync Cargo.lock to version 0.1.37
+  * Release 0.1.37
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 16:21:37 +0000
+
+chd2iso-fuse (0.1.36-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35
+  * ci: normalize release notes path and upload assets reliably
+    - Ensure RELEASE_NOTES.md exists at repo root (move/copy fallback)
+    - Use recursive globs for .deb/.buildinfo/.changes uploads
+    - Keep draft->upload->publish flow, concurrency, idempotence
+    - Pin Rust 1.86.0; regenerate+commit Cargo.lock; offline lock guard
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.36 from tag
+  * chore(release): sync Cargo.lock to version 0.1.36
+  * Release 0.1.36
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 16:02:12 +0000
+
+chd2iso-fuse (0.1.35-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.35 from tag
+  * chore(release): sync Cargo.lock to version 0.1.35
+  * Release 0.1.35
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 14:55:34 +0000
+
+chd2iso-fuse (0.1.34-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.32
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.33
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.34 from tag
+  * chore(release): sync Cargo.lock to version 0.1.34
+  * Release 0.1.34
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 14:38:39 +0000
+
+chd2iso-fuse (0.1.33-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci: fix release uploads by scanning workspace and using recursive globs
+    - Download artifacts to repo root and guard by searching **/*.deb etc.
+    - Upload with ** globs so we attach regardless of folder structure
+    - (kept) draft->upload->publish, idempotent checks, pinned toolchain, offline lockfile guard
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.1.33 from tag
+  * chore(release): sync Cargo.lock to version 0.1.33
+  * Release 0.1.33
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 02 Sep 2025 14:27:13 +0000
+
 chd2iso-fuse (0.1.31-1) trixie; urgency=medium
 
   [ lloydsmart ]

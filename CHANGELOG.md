@@ -1,7 +1,33 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.1.31 from tag (9ecfaa8)
-- chore(release): sync Cargo.lock to version 0.1.31 (dc526f2)### CI
+- chore(release): set Cargo version to 0.1.38 from tag (39533fd)
+- chore(release): sync Cargo.lock to version 0.1.38 (b4ddfc5)### CI
+- ci: fix multiline env delimiter for release assets (unquoted EOF) and keep explicit upload + verification (bbe422c)
+- ci: reliably attach release assets + fix $GITHUB_ENV heredoc (cf7a7f3)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.37 (384e511)### Other
+- PR #26: chore(release): update changelogs for v0.1.37 (495d483)### CI
+- ci: upload explicit asset list to release and verify post-publish (420ec0b)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.36 (3a0c3ac)### Other
+- PR #25: chore(release): update changelogs for v0.1.36 (d4cb934)### CI
+- ci: normalize release notes path and upload assets reliably (fbb64a2)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.35 (2c618a1)### Other
+- PR #24: chore(release): update changelogs for v0.1.35 (d5ea3f8)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.34 (9b1f99e)### Other
+- PR #23: chore(release): update changelogs for v0.1.34 (0979c28)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.32 (f1db3bc)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.33 (2c3e42d)### Other
+- PR #21: chore(release): update changelogs for v0.1.32 (29fca34)
+- PR #22: chore(release): update changelogs for v0.1.33 (e689522)### CI
+- ci: fix release uploads by scanning workspace and using recursive globs (2f1d8b5)### CI
+- ci: fix release asset upload and harden publish flow (c64dc24)
+- ci: remove rust-toolchain from dependabot.yml (25205eb)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.31 (80ba0c7)
+- chore: update dependabot.yml (c0ff9de)### Other
+- PR #19: chore(release): update changelogs for v0.1.31 (0ad6d92)
+- Create dependabot.yml (128a78d)
+- Update dependabot.yml (b937251)
+- Update dependabot.yml (6c134ad)
+- PR #20: Update dependabot.yml (f7ed260)### CI
 - ci: add concurrency + idempotent release publish; keep pinned toolchain and offline lockfile guard (d6b89b3)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.1.30 (14b5733)### Other
 - PR #18: chore(release): update changelogs for v0.1.30 (a11693d)### CI

@@ -25,7 +25,6 @@ jobs:
   uscan-check:
     name: Watch upstream (uscan)
     runs-on: ubuntu-latest
-    # Only run this job for the schedule/manual triggers to avoid doing it on every push/PR
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout (with tags)
@@ -79,6 +78,9 @@ jobs:
     container:
       image: debian:trixie
       options: --init
+    defaults:
+      run:
+        shell: bash
     env:
       GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
       RUSTC_WRAPPER: sccache
@@ -126,12 +128,12 @@ jobs:
             devscripts debhelper dh-cargo lintian \
             git-buildpackage \
             sccache \
-            curl jq ca-certificates
+            curl jq ca-certificates \
+            gnupg dirmngr
 
       - name: Add ~/.cargo/bin to PATH
         run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # Pin Rust/Cargo toolchain to avoid lockfile format drift
       - name: Install Rust toolchain (pinned)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -196,7 +198,7 @@ jobs:
       - name: Install git-cliff (pinned)
         run: |
           echo "Installing git-cliff ${GIT_CLIFF_VERSION}"
-          if ! command -v git-cliff >/dev/null 21; then
+          if ! command -v git-cliff >/dev/null 2>&1; then
             cargo install git-cliff --version "${GIT_CLIFF_VERSION}"
           fi
 
@@ -222,7 +224,6 @@ jobs:
           git add Cargo.toml Cargo.toml.bak || true
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
-      # IMPORTANT: After bumping Cargo.toml, rewrite and commit Cargo.lock (root version) OFFLINE
       - name: Rewrite Cargo.lock to reflect new package version (offline)
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -262,7 +263,6 @@ jobs:
         run: |
           test -f Cargo.lock || { echo "ERROR: Cargo.lock missing. Commit it to the repo."; exit 1; }
 
-      # Prefetch deps respecting the lock to avoid network during validation
       - name: cargo fetch (locked)
         run: cargo fetch --locked
 
@@ -314,7 +314,6 @@ jobs:
                \( -name "*_${VER_EXPECT}_*.deb" -o -name "*_${VER_EXPECT}_*.buildinfo" -o -name "*_${VER_EXPECT}_*.changes" \) \
                | grep -q .; then
             echo "ERROR: No files for ${VER_EXPECT} were built."
-            echo "Top of debian/changelog at build time:"
             sed -n '1,20p' debian/changelog || true
             exit 1
           fi
@@ -343,6 +342,66 @@ jobs:
           test -f artifacts/RELEASE_NOTES.md || echo "(build from branch/PR – no tagged release notes)" > artifacts/RELEASE_NOTES.md
           ls -l artifacts || true
 
+      - name: Create SHA256SUMS for artifacts
+        run: |
+          set -e
+          shopt -s nullglob
+          if [ -d artifacts ]; then
+            (
+              cd artifacts
+              files=( *.deb *.buildinfo *.changes )
+              if [ ${#files[@]} -gt 0 ]; then
+                sha256sum "${files[@]}" > SHA256SUMS
+                echo "SHA256SUMS created:"
+                sed -n '1,200p' SHA256SUMS
+              else
+                echo "No .deb/.buildinfo/.changes in artifacts/; skipping SHA256SUMS."
+              fi
+            )
+          else
+            echo "artifacts/ directory not found; skipping SHA256SUMS."
+          fi
+
+      - name: Import GPG signing key (if provided)
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+            echo "No GPG_PRIVATE_KEY secret set; skipping import."
+            exit 0
+          fi
+          export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
+          mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          echo -e "5\ny\n" | gpg --command-fd 0 --batch --yes --edit-key "$KEYID" trust quit
+          echo "GPG_KEYID=$KEYID" >> "$GITHUB_ENV"
+
+      - name: Sign SHA256SUMS (armored, detached if key present)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
+          if [ ! -f artifacts/SHA256SUMS ]; then
+            echo "No SHA256SUMS to sign; skipping."
+            exit 0
+          fi
+          if [ ! -s "$GNUPGHOME/pubring.kbx" ]; then
+            echo "No private key imported; skipping signing."
+            exit 0
+          fi
+          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          (
+            cd artifacts
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+                --armor --detach-sign --local-user "$KEYID" \
+                --output SHA256SUMS.asc SHA256SUMS
+            echo "Created artifacts/SHA256SUMS.asc"
+            gpg --verify SHA256SUMS.asc SHA256SUMS
+          )
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -351,7 +410,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Do the PR at the end so nothing clobbers changelog before packaging
       - name: Prepare CHANGELOG update (copy into repo)
         if: startsWith(github.ref, 'refs/tags/')
         run: cp artifacts/CHANGELOG.md CHANGELOG.md
@@ -399,20 +457,65 @@ jobs:
           path: .
 
       - name: List downloaded artifacts & guard
+        shell: bash
         run: |
-          echo "Tree under ./artifacts:"
-          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+          echo "Looking for release assets in workspace:"
+          find . -maxdepth 2 -type f \( -name "*.deb" -o -name "*.buildinfo" -o -name "*.changes" -o -name "CHANGELOG.md" -o -name "SHA256SUMS" -o -name "SHA256SUMS.asc" \) -printf '%P\n' | sort || true
+          shopt -s nullglob globstar
+          deb=(**/*.deb); bi=(**/*.buildinfo); ch=(**/*.changes)
+          if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
+            echo "No .deb/.buildinfo/.changes files found anywhere after download."
+            exit 1
+          fi
+
+      - name: Ensure RELEASE_NOTES.md is present in repo root
+        shell: bash
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            echo "Using RELEASE_NOTES.md from repo root."
+          elif [ -f artifacts/RELEASE_NOTES.md ]; then
+            echo "Moving artifacts/RELEASE_NOTES.md -> RELEASE_NOTES.md"
+            mv artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
+          elif [ -f CHANGELOG.md ]; then
+            echo "No release notes found; copying CHANGELOG.md -> RELEASE_NOTES.md"
+            cp CHANGELOG.md RELEASE_NOTES.md
+          else
+            echo "(no release notes provided)" > RELEASE_NOTES.md
+          fi
+
+      - name: Assemble release asset list
+        id: assets
+        shell: bash
+        run: |
+          set -e
           shopt -s nullglob
-          files=(artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes)
-          (( ${#files[@]} )) || { echo "No .deb/.buildinfo/.changes files found under ./artifacts"; exit 1; }
+          files=()
+          for f in *.deb *.buildinfo *.changes CHANGELOG.md SHA256SUMS SHA256SUMS.asc; do
+            [ -e "$f" ] && files+=("$f")
+          done
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No candidate assets in repo root." >&2
+            ls -la
+            exit 1
+          fi
+          echo "Will upload:"
+          printf '  - %s\n' "${files[@]}"
+          {
+            echo 'ASSET_FILES<<EOF'
+            printf '%s\n' "${files[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
 
       - name: Check if release already exists
         id: check_release
         uses: actions/github-script@v7
+        env:
+          EXPECT_ASC: ${{ env.EXPECT_ASC }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const tag = process.env.GITHUB_REF_NAME || context.ref.replace('refs/tags/','');
+            const expectAsc = (process.env.EXPECT_ASC || 'false') === 'true';
             let exists = false, draft = false, assets_ok = false;
             try {
               const res = await github.rest.repos.getReleaseByTag({
@@ -423,9 +526,13 @@ jobs:
               exists = true;
               draft = !!res.data.draft;
               const assets = res.data.assets || [];
-              const required = ['.deb', '.buildinfo', '.changes'];
-              assets_ok = required.every(ext => assets.some(a => a.name.endsWith(ext)));
-              core.info(`Release exists (draft=${draft}), assets_ok=${assets_ok}, assets=[${assets.map(a=>a.name).join(', ')}]`);
+              const hasDeb = assets.some(a => a.name.endsWith('.deb'));
+              const hasBuildinfo = assets.some(a => a.name.endsWith('.buildinfo'));
+              const hasChanges = assets.some(a => a.name.endsWith('.changes'));
+              const hasSums = assets.some(a => a.name === 'SHA256SUMS');
+              const hasAsc = assets.some(a => a.name === 'SHA256SUMS.asc');
+              assets_ok = hasDeb && hasBuildinfo && hasChanges && hasSums && (!expectAsc || hasAsc);
+              core.info(`Release exists (draft=${draft}); assets_ok=${assets_ok}; expectAsc=${expectAsc}; assets=[${assets.map(a=>a.name).join(', ')}]`);
             } catch (e) {
               if (e.status !== 404) throw e;
               core.info(`No release for tag ${tag}.`);
@@ -434,22 +541,17 @@ jobs:
             core.setOutput('draft', String(draft));
             core.setOutput('assets_ok', String(assets_ok));
 
-      # Create (if needed) as DRAFT and upload assets while editable
       - name: Create draft release & upload assets
         if: ${{ steps.check_release.outputs.exists != 'true' || steps.check_release.outputs.draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: chd2iso-fuse ${{ github.ref_name }}
-          body_path: artifacts/RELEASE_NOTES.md
+          body_path: RELEASE_NOTES.md
           generate_release_notes: false
           draft: true
           fail_on_unmatched_files: false
-          files: |
-            artifacts/CHANGELOG.md
-            artifacts/*.deb
-            artifacts/*.buildinfo
-            artifacts/*.changes
+          files: ${{ env.ASSET_FILES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -462,11 +564,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # If a published release exists but is missing assets, fail loudly with instructions
       - name: Fail if published release is missing assets (immutable blocks uploads)
         if: ${{ steps.check_release.outputs.exists == 'true' && steps.check_release.outputs.draft != 'true' && steps.check_release.outputs.assets_ok != 'true' }}
         run: |
-          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing .deb assets."
-          echo "Because releases are immutable, assets cannot be attached after publish."
-          echo "Fix: Delete the release (keep the tag) and re-run this job, or temporarily disable immutability."
+          echo "A published release already exists for '${GITHUB_REF_NAME}' but is missing required assets (.deb/.buildinfo/.changes/SHA256SUMS and optional SHA256SUMS.asc)."
+          echo "Recreate the release (keep the tag) and re-run this job."
           exit 1
+
+      - name: Verify assets attached to release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = process.env.GITHUB_REF_NAME;
+            const res = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag
+            });
+            const assets = res.data.assets || [];
+            core.info(`Release assets: ${assets.map(a => a.name).join(', ') || '(none)'}`);
+            if (assets.length === 0) {
+              core.setFailed('Release has no assets attached.');
+            }
