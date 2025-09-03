@@ -78,6 +78,9 @@ jobs:
     container:
       image: debian:trixie
       options: --init
+    defaults:
+      run:
+        shell: bash
     env:
       GIT_CLIFF_VERSION: ${{ secrets.GIT_CLIFF_VERSION || '2.9.1' }}
       RUSTC_WRAPPER: sccache
