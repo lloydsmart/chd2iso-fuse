@@ -1,7 +1,18 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.2.2 from tag (bd9b8cc)
-- chore(release): sync Cargo.lock to version 0.2.2 (cf050af)### CI
+- chore(release): set Cargo version to 0.2.3 from tag (4dd43f2)
+- chore(release): sync Cargo.lock to version 0.2.3 (d39af0c)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.2 (2013985)### Other
+- PR #35: chore(release): update changelogs for v0.2.2 (dd699db)
+- Merge remote-tracking branch 'origin/main' into develop (a9e081b)
+- Merge branch 'release/v0.2.3' (aed6ae2)
+- Merge tag 'vv0.2.3' into develop (bb6fedf)### CI
+- ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (4da50f1)
+- ci: quote step names with colons to satisfy YAML parser (12d57fc)
+- ci: verify Cargo.toml bump, recache release build, and fix tag version check (8706448)
+- ci: verify Cargo.toml bump and force fresh compile for packaging (544eed2)
+- ci: relax Debian-upstream version check on non-tag builds (71bc1e4)
+- ci: fix syntax error in github-script release asset check (2434652)
 - ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (836d2d6)
 - ci: quote step names with colons to satisfy YAML parser (303a59f)
 - ci: verify Cargo.toml bump, recache release build, and fix tag version check (46b1dbe)
@@ -9,10 +20,16 @@
 - ci: relax Debian-upstream version check on non-tag builds (7110ef8)
 - ci: fix syntax error in github-script release asset check (08fc8b6)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.0 (935a298)
+- chore(clap): use Cargo name/description in --help; keep version from Cargo (211984b)
+- chore(scripts): harden set-cargo-version.sh and adjust CI backup handling (9f28564)
+- chore(ci): quote-out step name (015f93f)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.1 (095323a)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.2 (616b882)
 - chore(clap): use Cargo name/description in --help; keep version from Cargo (d5678c0)
 - chore(scripts): harden set-cargo-version.sh and adjust CI backup handling (000c3fb)
 - chore(ci): quote-out step name (639270e)
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.1 (6094d32)### Other
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.1 (6094d32)### Docs
+- docs: remove redundant section at the end of SECURITY.md (e7d8c27)### Other
 - PR #30: chore(release): update changelogs for v0.2.0 (5c4e7ac)
 - PR #32: Hotfix/version update (74f5bab)
 - PR #33: Hotfix / version update (3e09728)
