@@ -1,19 +1,23 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.2.1 from tag (4a063a9)
-- chore(release): sync Cargo.lock to version 0.2.1 (0a59df2)### CI
+- chore(release): set Cargo version to 0.2.2 from tag (bd9b8cc)
+- chore(release): sync Cargo.lock to version 0.2.2 (cf050af)### CI
 - ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (836d2d6)
 - ci: quote step names with colons to satisfy YAML parser (303a59f)
 - ci: verify Cargo.toml bump, recache release build, and fix tag version check (46b1dbe)
 - ci: verify Cargo.toml bump and force fresh compile for packaging (eacf820)
-- ci: relax Debian-upstream version check on non-tag builds (7110ef8)### Chore
+- ci: relax Debian-upstream version check on non-tag builds (7110ef8)
+- ci: fix syntax error in github-script release asset check (08fc8b6)### Chore
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.0 (935a298)
 - chore(clap): use Cargo name/description in --help; keep version from Cargo (d5678c0)
 - chore(scripts): harden set-cargo-version.sh and adjust CI backup handling (000c3fb)
-- chore(ci): quote-out step name (639270e)### Other
+- chore(ci): quote-out step name (639270e)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.1 (6094d32)### Other
 - PR #30: chore(release): update changelogs for v0.2.0 (5c4e7ac)
 - PR #32: Hotfix/version update (74f5bab)
-- PR #33: Hotfix / version update (3e09728)### CI
+- PR #33: Hotfix / version update (3e09728)
+- Merge branch 'main' into chore/update-changelogs-v0.2.1 (6c5195a)
+- PR #34: chore(release): update changelogs for v0.2.1 (e942551)### CI
 - ci: switch snapshot packaging to Debian container (trixie) for distro-native deps (5ffcf39)
 - ci: build snapshot .debs inside Debian Trixie container and upload artifacts (2633bc3)
 - ci: add Debian Trixie build & release workflows with Cargo caching (ea2c3e3)
