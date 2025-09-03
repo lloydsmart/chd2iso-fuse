@@ -221,7 +221,8 @@ jobs:
         run: |
           set -euo pipefail
           scripts/set-cargo-version.sh "$VERSION"
-          git add Cargo.toml Cargo.toml.bak || true
+          rm -f Cargo.toml.bak
+          git add Cargo.toml
           git commit -m "chore(release): set Cargo version to $VERSION from tag" || true
 
       - name: Rewrite Cargo.lock to reflect new package version (offline)
