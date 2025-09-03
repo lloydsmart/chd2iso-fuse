@@ -359,40 +359,45 @@ jobs:
             echo "artifacts/ directory not found; skipping SHA256SUMS."
           fi
 
-      - name: Import GPG signing key
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+      - name: Import GPG signing key (if provided)
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+            echo "No GPG_PRIVATE_KEY secret set; skipping import."
+            exit 0
+          fi
           export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
-          mkdir -p "$GNUPGHOME"
-          chmod 700 "$GNUPGHOME"
+          mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          # capture keyid and trust ultimately to avoid prompts
           KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
           echo -e "5\ny\n" | gpg --command-fd 0 --batch --yes --edit-key "$KEYID" trust quit
           echo "GPG_KEYID=$KEYID" >> "$GITHUB_ENV"
 
-      - name: Sign SHA256SUMS (armored, detached)
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+      - name: Sign SHA256SUMS (armored, detached if key present)
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
           export GNUPGHOME="$GITHUB_WORKSPACE/.gnupg"
-          if [ -f artifacts/SHA256SUMS ]; then
-            (
-              cd artifacts
-              gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
-                  --armor --detach-sign --local-user "$GPG_KEYID" \
-                  --output SHA256SUMS.asc SHA256SUMS
-              echo "Created artifacts/SHA256SUMS.asc"
-              gpg --verify SHA256SUMS.asc SHA256SUMS
-            )
-          else
+          if [ ! -f artifacts/SHA256SUMS ]; then
             echo "No SHA256SUMS to sign; skipping."
+            exit 0
           fi
+          if [ ! -s "$GNUPGHOME/pubring.kbx" ]; then
+            echo "No private key imported; skipping signing."
+            exit 0
+          fi
+          KEYID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          (
+            cd artifacts
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+                --armor --detach-sign --local-user "$KEYID" \
+                --output SHA256SUMS.asc SHA256SUMS
+            echo "Created artifacts/SHA256SUMS.asc"
+            gpg --verify SHA256SUMS.asc SHA256SUMS
+          )
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -502,7 +507,7 @@ jobs:
         id: check_release
         uses: actions/github-script@v7
         env:
-          EXPECT_ASC: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+          EXPECT_ASC: ${{ env.EXPECT_ASC }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
