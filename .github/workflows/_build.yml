@@ -36,10 +36,20 @@ jobs:
             curl ca-certificates git build-essential pkg-config \
             libfuse3-dev fuse3 \
             gcc g++ make \
-            rust-all \
+            rust-all rust-clippy rustfmt \
             debhelper devscripts dh-cargo lintian \
-            bats shellcheck
+            bats shellcheck \
+            sccache || true
+
+          # If sccache package wasn’t found or failed, install via cargo as a fallback
+          if ! command -v sccache >/dev/null 2>&1; then
+            cargo install sccache --locked
+            ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
+          fi
+
           rustc -V; cargo -V
+          command -v clippy-driver && clippy-driver -V || echo "clippy-driver not found"
+          sccache --version
 
       - name: Cache sccache
         uses: actions/cache@v4
@@ -81,15 +91,3 @@ jobs:
         with:
           name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
           path: artifacts/
-
-  # Example for chdtool (Bash) — copy to that repo:
-  # shell-tests:
-  #   name: Shell tests (chdtool)
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: sudo apt-get update && sudo apt-get install -y bats shellcheck p7zip-full unzip
-  #     - name: ShellCheck
-  #       run: shellcheck -x chdtool.sh
-  #     - name: Bats tests
-  #       run: make test  # or ./tests/*.sh as appropriate
