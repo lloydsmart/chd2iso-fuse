@@ -68,13 +68,6 @@ jobs:
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
-<<<<<<< HEAD
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
-||||||| ea7e27b
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
-      apt_enabled: false      # <— gate OFF for now; flip to true later per environment
-=======
->>>>>>> feature/ci-path-filters
       apt_enabled: false
     secrets: inherit
     needs: [decide, build]
