@@ -1,0 +1,82 @@
+name: CodeQL (Rust)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: "23 3 * * 1"   # Mondays 03:23 Europe/London
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+# Cancel older runs on the same ref to save minutes
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL / rust (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: default
+            build-args: "--workspace --all-targets --locked"
+          - variant: all-features
+            build-args: "--workspace --all-targets --all-features --locked"
+          - variant: minimal
+            build-args: "--workspace --all-targets --no-default-features --locked"
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # Optional: cache Rust deps to speed up the compile that CodeQL observes
+      - name: Cache cargo registry + build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          build-mode: manual
+          # Run the extended rulesets too (more findings, slightly slower)
+          queries: +security-extended, +security-and-quality
+
+      # Build the project so CodeQL can observe/understand the codebase.
+      # We do NOT run tests; we just compile all targets.
+      - name: Build (observed by CodeQL)
+        run: |
+          set -euxo pipefail
+          # Prefer release to ensure any cfg/feature gates that differ by profile are compiled.
+          cargo build --release ${{ matrix.build-args }}
+
+      - name: Perform CodeQL Analysis (${{ matrix.variant }})
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust;variant=${{ matrix.variant }}"
+          # Upload is automatic; category keeps matrices from clobbering each other.
