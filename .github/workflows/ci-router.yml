@@ -26,9 +26,6 @@ on:
       - "Makefile"
       - "!**/*.md"
       - "!CHANGELOG.md"
-  # Nightly still runs regardless of file changes
-  schedule:
-    - cron: "15 2 * * *"
   workflow_dispatch:
 
 permissions:
