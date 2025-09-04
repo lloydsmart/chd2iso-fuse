@@ -1,10 +1,11 @@
 name: Reusable — Release lane
+
 on:
   workflow_call:
     inputs:
-      lane: { type: string, required: true }
-      nightly: { type: boolean, default: false }
-      apt_enabled: { type: boolean, default: false }
+      lane:       { type: string,  required: true }
+      nightly:    { type: boolean, default: false }
+      apt_enabled:{ type: boolean, default: false }
     secrets: {}
 
 permissions:
@@ -12,45 +13,72 @@ permissions:
 
 jobs:
   prepare-release:
-    name: Prepare release (no-op for now)
+    name: Prepare release (decide channel)
     runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.ch.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
       - name: Determine channel
         id: ch
+        shell: bash
         run: |
+          set -euo pipefail
           lane="${{ inputs.lane }}"
+          nightly="${{ inputs.nightly }}"
           channel="none"
           case "$lane" in
-            develop)  channel="${{ inputs.nightly && 'unstable' || 'none' }}" ;;
+            develop)
+              if [[ "$nightly" == "true" ]]; then
+                channel="unstable"
+              else
+                channel="none"
+              fi
+              ;;
             release*) channel="candidate" ;;
             hotfix*)  channel="candidate" ;;
             main)     channel="stable" ;;
+            *)        channel="none" ;;
           esac
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "Resolved channel: $channel"
 
       - name: Summary
+        shell: bash
         run: |
-          echo "Lane: ${{ inputs.lane }}"
-          echo "Nightly: ${{ inputs.nightly }}"
-          echo "Channel: ${{ steps.ch.outputs.channel }}"
-          echo "APT enabled: ${{ inputs.apt_enabled }}"
+          echo "Lane:     ${{ inputs.lane }}"
+          echo "Nightly:  ${{ inputs.nightly }}"
+          echo "Channel:  ${{ steps.ch.outputs.channel }}"
+          echo "APT:      ${{ inputs.apt_enabled }}"
 
   publish-apt:
-    needs: prepare-release
-    if: ${{ inputs.apt_enabled && steps.ch.outputs.channel != 'none' }}
     name: Publish to APT (gated)
+    needs: prepare-release
+    if: ${{ inputs.apt_enabled && needs.prepare-release.outputs.channel != 'none' }}
     # Route to an environment that matches the channel (enforces approvals if configured)
     environment:
-      name: ${{ steps.ch.outputs.channel }}   # unstable | candidate | stable
+      name: ${{ needs.prepare-release.outputs.channel }}   # unstable | candidate | stable
     permissions:
       contents: read
+    # Reusable workflow call — do not add runs-on/steps here
     uses: ./.github/workflows/_publish-apt.yml
     with:
-      channel:   ${{ steps.ch.outputs.channel }}
+      channel:   ${{ needs.prepare-release.outputs.channel }}
       suite:     trixie
       component: main
       arch:      amd64
     secrets: inherit
+
+  publish-stub:
+    name: Publish stub
+    needs: prepare-release
+    if: ${{ !inputs.apt_enabled || needs.prepare-release.outputs.channel == 'none' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op publish
+        shell: bash
+        run: |
+          echo "No publishing required."
+          echo "channel='${{ needs.prepare-release.outputs.channel }}', apt_enabled='${{ inputs.apt_enabled }}'"

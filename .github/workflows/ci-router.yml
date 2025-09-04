@@ -21,6 +21,9 @@ on:
       - "debian/**"
       - ".github/workflows/**"
       - "Makefile"
+  # Nightly runs (e.g., weekdays 08:15 London) — adjust to taste
+  schedule:
+    - cron: "15 8 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -55,10 +58,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lane: ${{ steps.which.outputs.lane }}
+      nightly: ${{ steps.which.outputs.nightly }}
     steps:
       - id: which
         shell: bash
         run: |
+          set -euo pipefail
           ref="${GITHUB_REF_NAME}"
           lane="feature"
           case "$ref" in
@@ -67,8 +72,16 @@ jobs:
           esac
           [[ "$ref" == release/* ]] && lane="release"
           [[ "$ref" == hotfix/*  ]] && lane="hotfix"
-          echo "lane=$lane" >> "$GITHUB_OUTPUT"
-          
+
+          # Nightly rule: scheduled runs on develop => nightly=true
+          nightly="false"
+          if [[ "${{ github.event_name }}" == "schedule" && "$lane" == "develop" ]]; then
+            nightly="true"
+          fi
+
+          echo "lane=$lane"       >> "$GITHUB_OUTPUT"
+          echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
+
   verify-release:
     if: ${{ startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/') }}
     name: Verify release lane
@@ -93,6 +106,7 @@ jobs:
       contents: write
     uses: ./.github/workflows/_release.yml
     with:
-      lane: ${{ needs.decide.outputs.lane }}
-      apt_enabled: false   # flip to true per environment when APT is ready
+      lane:        ${{ needs.decide.outputs.lane }}
+      nightly:     ${{ needs.decide.outputs.nightly }}
+      apt_enabled: false   # flip to true when APT publishing is ready
     secrets: inherit
