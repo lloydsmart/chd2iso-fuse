@@ -1,10 +1,10 @@
 version: 2
 updates:
-  # Routine dependency updates → develop
+  # Routine Cargo updates → develop
   - package-ecosystem: cargo
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
     target-branch: develop
     labels: [deps, cargo]
     open-pull-requests-limit: 10
@@ -12,20 +12,11 @@ updates:
       routine:
         update-types: [minor, patch]
 
-  # GitHub Actions updates → develop
+  # Routine GitHub Actions updates → develop
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
     target-branch: develop
     labels: [deps, ci]
     open-pull-requests-limit: 10
-
-  # Security-only updates → main
-  - package-ecosystem: cargo
-    directory: "/"
-    schedule:
-      interval: daily
-    target-branch: main
-    security-updates-only: true
-    labels: [security, hotfix]
