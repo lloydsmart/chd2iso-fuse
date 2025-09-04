@@ -38,8 +38,17 @@ jobs:
             gcc g++ make \
             rust-all \
             debhelper devscripts dh-cargo lintian \
-            bats shellcheck
+            bats shellcheck \
+            sccache || true
+
+          # If sccache package wasn’t found or failed, install via cargo as a fallback
+          if ! command -v sccache >/dev/null 2>&1; then
+            cargo install sccache --locked
+            ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
+          fi
+
           rustc -V; cargo -V
+          sccache --version
 
       - name: Cache sccache
         uses: actions/cache@v4
