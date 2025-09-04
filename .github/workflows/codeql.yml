@@ -42,7 +42,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # Optional: cache Rust deps to speed up the compile that CodeQL observes
       - name: Cache cargo registry + build
         uses: actions/cache@v4
         with:
@@ -64,19 +63,17 @@ jobs:
         with:
           languages: rust
           build-mode: manual
-          # Run the extended rulesets too (more findings, slightly slower)
-          queries: +security-extended, +security-and-quality
+          # Use extended + security & quality rulesets (no leading '+')
+          queries: security-extended,security-and-quality
 
       # Build the project so CodeQL can observe/understand the codebase.
       # We do NOT run tests; we just compile all targets.
       - name: Build (observed by CodeQL)
         run: |
           set -euxo pipefail
-          # Prefer release to ensure any cfg/feature gates that differ by profile are compiled.
           cargo build --release ${{ matrix.build-args }}
 
       - name: Perform CodeQL Analysis (${{ matrix.variant }})
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
-          # Upload is automatic; category keeps matrices from clobbering each other.
