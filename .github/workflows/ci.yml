@@ -542,7 +542,7 @@ jobs:
           echo "ref_name=${GITHUB_REF_NAME}"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: chd2iso-fuse-debs
           path: .
