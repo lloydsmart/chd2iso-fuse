@@ -53,6 +53,7 @@ jobs:
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
 
   build:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     name: Build & Test
     uses: ./.github/workflows/_build.yml
     with:
