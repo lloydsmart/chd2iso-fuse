@@ -2,16 +2,29 @@ name: CodeQL (Rust)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ develop, main ]
+    paths:
+      - "src/**"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"         # include if packaging changes should be analyzed
   pull_request:
-    branches: [ main, develop ]
+    branches: [ develop, main ]
+    paths:
+      - "src/**"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
   schedule:
-    - cron: "23 3 * * 1"   # Mondays 03:23 Europe/London
+    - cron: "30 3 * * 1"   # weekly scan
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: read
   security-events: write
 
 concurrency:
@@ -20,46 +33,38 @@ concurrency:
 
 jobs:
   analyze:
-    name: CodeQL / rust (${{ matrix.variant }})
+    name: Analyze (CodeQL)
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - variant: default
-          - variant: all-features
-          - variant: minimal
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout (with submodules)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
 
-      - name: Initialize CodeQL
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Init CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: rust
-          build-mode: none            # <-- Rust requires 'none'
-          queries: security-extended,security-and-quality
+          queries: +security-and-quality
 
-      # (Optional) You can keep a separate compile check, but it won't affect CodeQL.
-      # Uncomment if you still want to ensure the code compiles in CI:
-      # - name: Set up Rust toolchain
-      #   uses: dtolnay/rust-toolchain@stable
-      #
-      # - name: Compile (sanity check only; not used by CodeQL)
-      #   run: |
-      #     set -euxo pipefail
-      #     case "${{ matrix.variant }}" in
-      #       default)   cargo build --workspace --all-targets --locked ;;
-      #       all-features) cargo build --workspace --all-targets --all-features --locked ;;
-      #       minimal)   cargo build --workspace --all-targets --no-default-features --locked ;;
-      #     esac
+      - name: Build (all features & targets)
+        env:
+          CARGO_TERM_COLOR: always
+        run: |
+          cargo fetch --locked
+          cargo build --locked --all-targets --all-features
 
-      - name: Perform CodeQL Analysis (${{ matrix.variant }})
+      - name: Analyze
         uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:rust;variant=${{ matrix.variant }}"
