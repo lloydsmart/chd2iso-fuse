@@ -50,12 +50,24 @@ jobs:
           rustc -V; cargo -V
           sccache --version
 
+      # Compute a stable hash for Cargo.lock (or 'none' if missing)
+      - name: Hash Cargo.lock
+        id: cargo_lock
+        shell: bash
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "val=none" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Cache sccache
         uses: actions/cache@v4
         with:
           path: .sccache
-          key: sccache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.github/workflows/**') }}
+          key: sccache-${{ runner.os }}-${{ steps.cargo_lock.outputs.val }}-${{ github.ref_name }}
           restore-keys: |
+            sccache-${{ runner.os }}-${{ steps.cargo_lock.outputs.val }}-
             sccache-${{ runner.os }}-
 
       - name: Rust fmt & clippy
@@ -90,15 +102,3 @@ jobs:
         with:
           name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
           path: artifacts/
-
-  # Example for chdtool (Bash) — copy to that repo:
-  # shell-tests:
-  #   name: Shell tests (chdtool)
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: sudo apt-get update && sudo apt-get install -y bats shellcheck p7zip-full unzip
-  #     - name: ShellCheck
-  #       run: shellcheck -x chdtool.sh
-  #     - name: Bats tests
-  #       run: make test  # or ./tests/*.sh as appropriate
