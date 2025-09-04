@@ -3,10 +3,24 @@ name: CI Router (git-flow)
 on:
   push:
     branches: [ "**" ]
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
+      - ".github/workflows/**"
+      - "Makefile"
   pull_request:
     branches: [ develop, main ]
-  schedule:
-    - cron: "15 2 * * *"   # Nightly on develop (02:15 Europe/London)
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
+      - ".github/workflows/**"
+      - "Makefile"
   workflow_dispatch:
 
 permissions:
@@ -24,13 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lane: ${{ steps.which.outputs.lane }}
-      nightly: ${{ steps.which.outputs.nightly }}
     steps:
       - id: which
         shell: bash
         run: |
           ref="${GITHUB_REF_NAME}"
-          event="${{ github.event_name }}"
           lane="feature"
           case "$ref" in
             develop) lane="develop" ;;
@@ -39,14 +51,12 @@ jobs:
           [[ "$ref" == release/* ]] && lane="release"
           [[ "$ref" == hotfix/*  ]] && lane="hotfix"
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
-          [[ "$event" == "schedule" && "$lane" == "develop" ]] && echo "nightly=true" >> "$GITHUB_OUTPUT" || echo "nightly=false" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build & Test
     uses: ./.github/workflows/_build.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
     needs: decide
 
@@ -58,7 +68,13 @@ jobs:
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
+<<<<<<< HEAD
       nightly: ${{ needs.decide.outputs.nightly == 'true' }}
+||||||| ea7e27b
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
+      apt_enabled: false      # <— gate OFF for now; flip to true later per environment
+=======
+>>>>>>> feature/ci-path-filters
       apt_enabled: false
     secrets: inherit
     needs: [decide, build]
