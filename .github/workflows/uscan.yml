@@ -1,0 +1,61 @@
+name: uscan (watch upstream)
+
+on:
+  schedule:
+    - cron: "15 8 * * 1-5"   # Weekdays 08:15 Europe/London
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  uscan:
+    name: Watch upstream (dehs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install devscripts (for uscan)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends devscripts ca-certificates
+
+      - name: Run uscan
+        id: scan
+        run: |
+          set -euo pipefail
+          uscan --dehs --verbose --timeout 30 | tee uscan.xml
+          if grep -q '<status>newer</status>' uscan.xml; then
+            ver=$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)
+            echo "newer=true" >> "$GITHUB_OUTPUT"
+            echo "version=$ver" >> "$GITHUB_OUTPUT"
+          else
+            echo "newer=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue if newer upstream
+        if: steps.scan.outputs.newer == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const ver = '${{ steps.scan.outputs.version }}';
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `New upstream release detected: ${ver}`,
+              body: [
+                `uscan detected a newer upstream release **${ver}**.`,
+                ``,
+                `Next steps:`,
+                `1) Update \`debian/changelog\` (e.g. \`dch -v ${ver}-1 "New upstream release"\`).`,
+                `2) Build per suite (sbuild for bookworm/trixie).`,
+                `3) Add to aptly/reprepro repo and publish snapshot.`,
+              ].join('\n'),
+              labels: ['uscan', 'packaging']
+            });
