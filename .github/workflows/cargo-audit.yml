@@ -49,8 +49,5 @@ jobs:
           fi
           cargo-audit --version
 
-      - name: Update advisory DB
-        run: cargo audit --db-update
-
       - name: Run cargo audit
         run: cargo audit
