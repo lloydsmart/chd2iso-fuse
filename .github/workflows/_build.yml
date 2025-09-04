@@ -1,0 +1,95 @@
+name: Reusable — Build & Test
+on:
+  workflow_call:
+    inputs:
+      lane: { type: string, required: true }
+      nightly: { type: boolean, default: false }
+
+permissions:
+  contents: read
+
+jobs:
+  rust-deb:
+    name: Rust build & tests (chd2iso-fuse)
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+      options: --init
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: 2G
+      RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
+      DEBFULLNAME: "Lloyd Smart"
+      DEBEMAIL: "lloydsmart@users.noreply.github.com"
+      EMAIL: "lloydsmart@users.noreply.github.com"
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Install toolchain & deps
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            curl ca-certificates git build-essential pkg-config \
+            libfuse3-dev fuse3 \
+            gcc g++ make \
+            rust-all \
+            debhelper devscripts dh-cargo lintian \
+            bats shellcheck
+          rustc -V; cargo -V
+
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: .sccache
+          key: sccache-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.github/workflows/**') }}
+          restore-keys: |
+            sccache-${{ runner.os }}-
+
+      - name: Rust fmt & clippy
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Rust tests
+        run: cargo test --workspace --locked --all-features
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Debian build
+        run: |
+          # Expect debian/ present already
+          dpkg-buildpackage -us -uc -b
+          mkdir -p artifacts
+          mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
+          (cd artifacts && sha256sum * > SHA256SUMS || true)
+
+      - name: Lintian (non-fatal)
+        continue-on-error: true
+        run: |
+          set -e
+          if compgen -G "artifacts/*.deb" > /dev/null; then
+            lintian artifacts/*.deb || true
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
+          path: artifacts/
+
+  # Example for chdtool (Bash) — copy to that repo:
+  # shell-tests:
+  #   name: Shell tests (chdtool)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: sudo apt-get update && sudo apt-get install -y bats shellcheck p7zip-full unzip
+  #     - name: ShellCheck
+  #       run: shellcheck -x chdtool.sh
+  #     - name: Bats tests
+  #       run: make test  # or ./tests/*.sh as appropriate
