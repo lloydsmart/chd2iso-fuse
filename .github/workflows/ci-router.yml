@@ -42,7 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lane: ${{ steps.which.outputs.lane }}
-      nightly: ${{ steps.which.outputs.nightly }}
     steps:
       - id: which
         shell: bash
@@ -69,8 +68,10 @@ jobs:
     needs: decide
 
   release:
-    if: ${{ needs.decide.outputs.lane != 'feature' && success() }}
+    if: ${{ needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
+    permissions:
+      contents: write
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
