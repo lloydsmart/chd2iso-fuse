@@ -1,12 +1,10 @@
 name: Reusable — Release lane
-
 on:
   workflow_call:
     inputs:
       lane:       { type: string,  required: true }
       nightly:    { type: boolean, default: false }
       apt_enabled:{ type: boolean, default: false }
-    secrets: {}
 
 permissions:
   contents: write   # for GitHub Releases later
