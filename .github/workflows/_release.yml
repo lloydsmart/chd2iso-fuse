@@ -38,11 +38,19 @@ jobs:
           echo "Channel: ${{ steps.ch.outputs.channel }}"
           echo "APT enabled: ${{ inputs.apt_enabled }}"
 
-  # Placeholder for later:
-  # publish-apt:
-  #   needs: prepare-release
-  #   if: ${{ inputs.apt_enabled && steps.ch.outputs.channel != 'none' }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: (Future) Publish to APT
-  #       run: echo "Publishing to ${{ steps.ch.outputs.channel }} is gated off."
+  publish-apt:
+    needs: prepare-release
+    if: ${{ inputs.apt_enabled && steps.ch.outputs.channel != 'none' }}
+    name: Publish to APT (gated)
+    # Route to an environment that matches the channel (enforces approvals if configured)
+    environment:
+      name: ${{ steps.ch.outputs.channel }}   # unstable | candidate | stable
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_publish-apt.yml
+    with:
+      channel:   ${{ steps.ch.outputs.channel }}
+      suite:     trixie
+      component: main
+      arch:      amd64
+    secrets: inherit
