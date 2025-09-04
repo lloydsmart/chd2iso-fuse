@@ -52,23 +52,13 @@ jobs:
             bats shellcheck \
             sccache || true
 
-<<<<<<< HEAD
-          # If sccache package wasn’t found or failed, install via cargo as a fallback
-||||||| ea7e27b
-            bats shellcheck
-=======
->>>>>>> feature/ci-path-filters
           if ! command -v sccache >/dev/null 2>&1; then
             cargo install sccache --locked
             ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
           fi
 
           rustc -V; cargo -V
-<<<<<<< HEAD
-||||||| ea7e27b
-=======
           command -v clippy-driver && clippy-driver -V || echo "clippy-driver not found"
->>>>>>> feature/ci-path-filters
           sccache --version
 
       - name: Cache sccache
