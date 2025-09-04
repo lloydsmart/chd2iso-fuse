@@ -3,10 +3,32 @@ name: CI Router (git-flow)
 on:
   push:
     branches: [ "**" ]
+    # Only run when code/packaging/workflows change (skip docs/changelog-only edits)
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
+      - ".github/workflows/**"
+      - "Makefile"
+      - "!**/*.md"
+      - "!CHANGELOG.md"
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
+      - ".github/workflows/**"
+      - "Makefile"
+      - "!**/*.md"
+      - "!CHANGELOG.md"
+  # Nightly still runs regardless of file changes
   schedule:
-    - cron: "15 2 * * *"   # Nightly on develop (02:15 Europe/London)
+    - cron: "15 2 * * *"
   workflow_dispatch:
 
 permissions:
