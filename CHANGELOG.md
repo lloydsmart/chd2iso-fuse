@@ -1,12 +1,20 @@
 # Changelog
 ### Chore
-- chore(release): set Cargo version to 0.2.3 from tag (4dd43f2)
-- chore(release): sync Cargo.lock to version 0.2.3 (d39af0c)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.2 (2013985)### Other
+- chore(release): set Cargo version to 0.2.4 from tag (0b1cf0a)
+- chore(release): sync Cargo.lock to version 0.2.4 (8b84611)### CI
+- ci(codeql): fix query spec — drop legacy “+” prefix (5ef94c2)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.2 (2013985)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.3 (de102a8)
+- chore(dependabot): retarget updates to develop branch for git-flow (91867f9)
+- chore(dependabot): retarget routine updates to develop for git-flow (0ed0c64)### Other
 - PR #35: chore(release): update changelogs for v0.2.2 (dd699db)
 - Merge remote-tracking branch 'origin/main' into develop (a9e081b)
 - Merge branch 'release/v0.2.3' (aed6ae2)
-- Merge tag 'vv0.2.3' into develop (bb6fedf)### CI
+- PR #36: chore(release): update changelogs for v0.2.3 (1db28b6)
+- PR #39: chore(dependabot): retarget updates to develop branch for git-flow (963de95)
+- PR #40: chore(dependabot): retarget routine updates to develop for git-flow (0d37208)
+- security(codeql): switch to advanced CodeQL with 3 build variants (default/all-features/minimal), extended queries, and per-variant categorization (d8a9c94)
+- Merge branch 'hotfix/v0.2.4' (6495ee7)### CI
 - ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (4da50f1)
 - ci: quote step names with colons to satisfy YAML parser (12d57fc)
 - ci: verify Cargo.toml bump, recache release build, and fix tag version check (8706448)
