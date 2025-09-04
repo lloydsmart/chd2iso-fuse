@@ -3,10 +3,24 @@ name: CodeQL (Rust)
 on:
   push:
     branches: [ develop, main ]
+    paths:
+      - "src/**"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"         # include if packaging changes should be analyzed
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - "src/**"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
   schedule:
-    - cron: "30 3 * * 1" # Mondays 03:30 Europe/London
+    - cron: "30 3 * * 1"   # weekly scan
   workflow_dispatch:
 
 permissions:
@@ -14,7 +28,7 @@ permissions:
   security-events: write
 
 concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  group: codeql-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -45,7 +59,6 @@ jobs:
           languages: rust
           queries: +security-and-quality
 
-      # Single comprehensive build for extraction
       - name: Build (all features & targets)
         env:
           CARGO_TERM_COLOR: always
