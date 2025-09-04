@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      # Optional: comma-separated list of advisories to ignore
+      # Optional: comma-separated advisories to ignore, e.g. "RUSTSEC-2024-0001,RUSTSEC-2023-9999"
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -38,6 +38,7 @@ jobs:
         with:
           toolchain: stable
 
+      # Cache the cargo-audit binary so we don't reinstall each run
       - name: Cache cargo-audit binary
         uses: actions/cache@v4
         with:
@@ -51,13 +52,12 @@ jobs:
           fi
           cargo audit --version
 
-      # NOTE: No explicit fetch; cargo-audit will update the advisory DB automatically.
-
+      # NOTE: Advisory DB is fetched automatically by `cargo audit` unless --no-fetch is used.
       - name: Run cargo-audit
         shell: bash
         run: |
           set -euo pipefail
-          args=( -D warnings )  # fail on warnings/vulns
+          args=( -D warnings )
           if [[ -n "${ACCEPTED}" ]]; then
             IFS=',' read -ra ids <<< "${ACCEPTED}"
             for id in "${ids[@]}"; do
