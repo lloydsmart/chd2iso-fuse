@@ -28,6 +28,8 @@ jobs:
   stub:
     name: Stub publish to ${{ inputs.channel }}
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.channel }}   # approvals per channel, if configured
     steps:
       - name: Explain gating
         run: |

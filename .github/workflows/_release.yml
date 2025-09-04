@@ -63,8 +63,6 @@ jobs:
     name: Publish to APT (gated)
     needs: prepare-release
     if: ${{ inputs.apt_enabled && needs.prepare-release.outputs.channel != 'none' }}
-    environment:
-      name: ${{ needs.prepare-release.outputs.channel }}   # unstable | candidate | stable
     permissions:
       contents: read
     uses: ./.github/workflows/_publish-apt.yml
