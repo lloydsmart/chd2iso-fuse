@@ -73,7 +73,7 @@ jobs:
     needs: decide
 
   release:
-    if: ${{ always() && needs.decide.outputs.lane != 'feature' }}
+    if: ${{ needs.decide.outputs.lane != 'feature' && success() }}
     name: Release lane (gated)
     uses: ./.github/workflows/_release.yml
     with:
