@@ -33,7 +33,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Skip/cancel duplicates between push and pull_request for the same commit/content
+  dedupe:
+    name: De-duplicate cross-event runs
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip.outputs.should_skip }}
+    steps:
+      - id: skip
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: 'true'
+          skip_after_successful_duplicate: 'true'
+          concurrent_skipping: 'same_content'
+          do_not_skip: '["workflow_dispatch", "schedule"]'
+
   decide:
+    if: ${{ needs.dedupe.outputs.should_skip != 'true' }}
+    needs: dedupe
     name: Decide lane
     runs-on: ubuntu-latest
     outputs:
@@ -53,22 +70,22 @@ jobs:
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
 
   build:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ needs.dedupe.outputs.should_skip != 'true' && !startsWith(github.ref, 'refs/tags/') }}
     name: Build & Test
+    needs: [dedupe, decide]
     uses: ./.github/workflows/_build.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
     secrets: inherit
-    needs: decide
 
   release:
-    if: ${{ needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
+    if: ${{ needs.dedupe.outputs.should_skip != 'true' && needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
+    needs: [dedupe, decide, build]
     permissions:
       contents: write
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
-      apt_enabled: false
+      apt_enabled: false   # flip to true per environment when APT is ready
     secrets: inherit
-    needs: [decide, build]
