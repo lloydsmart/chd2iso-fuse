@@ -24,7 +24,6 @@ jobs:
 
     env:
       # Optional: comma-separated list of advisories to ignore
-      # Set in repo "Variables" or "Secrets" as RUSTSEC_ACCEPTED_ADVISORIES (e.g., "RUSTSEC-2024-0001,RUSTSEC-2023-9999")
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -39,7 +38,6 @@ jobs:
         with:
           toolchain: stable
 
-      # Cache the cargo-audit binary so we don't reinstall each run
       - name: Cache cargo-audit binary
         uses: actions/cache@v4
         with:
@@ -51,23 +49,20 @@ jobs:
           if ! command -v cargo-audit >/dev/null 2>&1; then
             cargo install cargo-audit --version 0.20.0
           fi
-          cargo-audit --version
+          cargo audit --version
 
-      # Update advisory DB (network)
-      - name: Fetch advisory DB
-        run: cargo-audit fetch
+      # NOTE: No explicit fetch; cargo-audit will update the advisory DB automatically.
 
       - name: Run cargo-audit
         shell: bash
         run: |
           set -euo pipefail
-          args=(--deny warnings)
-          # Convert ACCEPTED list into --ignore flags
+          args=( -D warnings )  # fail on warnings/vulns
           if [[ -n "${ACCEPTED}" ]]; then
             IFS=',' read -ra ids <<< "${ACCEPTED}"
             for id in "${ids[@]}"; do
               id_trimmed="$(echo "$id" | xargs)"
-              [[ -n "$id_trimmed" ]] && args+=(--ignore "$id_trimmed")
+              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
             done
           fi
           echo "Running: cargo audit ${args[*]}"
