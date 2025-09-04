@@ -51,12 +51,14 @@ jobs:
     needs: decide
 
   release:
-    if: ${{ always() && needs.decide.outputs.lane != 'feature' }}
+    if: ${{ needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
+    permissions:
+      contents: write
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
       nightly: ${{ needs.decide.outputs.nightly == 'true' }}
-      apt_enabled: false      # <— gate OFF for now; flip to true later per environment
+      apt_enabled: false
     secrets: inherit
     needs: [decide, build]
