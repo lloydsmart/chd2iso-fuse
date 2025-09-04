@@ -1,0 +1,62 @@
+name: CI Router (git-flow)
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ develop, main ]
+  schedule:
+    - cron: "15 2 * * *"   # Nightly on develop (02:15 Europe/London)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  decide:
+    name: Decide lane
+    runs-on: ubuntu-latest
+    outputs:
+      lane: ${{ steps.which.outputs.lane }}
+      nightly: ${{ steps.which.outputs.nightly }}
+    steps:
+      - id: which
+        shell: bash
+        run: |
+          ref="${GITHUB_REF_NAME}"
+          event="${{ github.event_name }}"
+          lane="feature"
+          case "$ref" in
+            develop) lane="develop" ;;
+            main)    lane="main" ;;
+          esac
+          [[ "$ref" == release/* ]] && lane="release"
+          [[ "$ref" == hotfix/*  ]] && lane="hotfix"
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+          [[ "$event" == "schedule" && "$lane" == "develop" ]] && echo "nightly=true" >> "$GITHUB_OUTPUT" || echo "nightly=false" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build & Test
+    uses: ./.github/workflows/_build.yml
+    with:
+      lane: ${{ needs.decide.outputs.lane }}
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
+    secrets: inherit
+    needs: decide
+
+  release:
+    if: ${{ always() && needs.decide.outputs.lane != 'feature' }}
+    name: Release lane (gated)
+    uses: ./.github/workflows/_release.yml
+    with:
+      lane: ${{ needs.decide.outputs.lane }}
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
+      apt_enabled: false      # <— gate OFF for now; flip to true later per environment
+    secrets: inherit
+    needs: [decide, build]
