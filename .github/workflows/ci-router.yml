@@ -3,7 +3,6 @@ name: CI Router (git-flow)
 on:
   push:
     branches: [ "**" ]
-    # Only run when code/packaging/workflows change (skip docs/changelog-only edits)
     paths:
       - "src/**"
       - "Cargo.toml"
