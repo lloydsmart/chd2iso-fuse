@@ -78,10 +78,11 @@ jobs:
       - name: Rust tests
         run: cargo test --workspace --locked --all-features
 
-      - name: Build release binary
-        run: cargo build --release --locked
-
       - name: Debian build
+        env:
+          DEB_BUILD_OPTIONS: nocheck
+          RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}   # keep sccache wrapping for dh-cargo
+          SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: |
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
