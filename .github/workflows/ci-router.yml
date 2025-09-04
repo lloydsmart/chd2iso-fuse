@@ -11,8 +11,6 @@ on:
       - "debian/**"
       - ".github/workflows/**"
       - "Makefile"
-      - "!**/*.md"
-      - "!CHANGELOG.md"
   pull_request:
     branches: [ develop, main ]
     paths:
@@ -23,8 +21,6 @@ on:
       - "debian/**"
       - ".github/workflows/**"
       - "Makefile"
-      - "!**/*.md"
-      - "!CHANGELOG.md"
   workflow_dispatch:
 
 permissions:
@@ -47,7 +43,6 @@ jobs:
         shell: bash
         run: |
           ref="${GITHUB_REF_NAME}"
-          event="${{ github.event_name }}"
           lane="feature"
           case "$ref" in
             develop) lane="develop" ;;
@@ -56,14 +51,12 @@ jobs:
           [[ "$ref" == release/* ]] && lane="release"
           [[ "$ref" == hotfix/*  ]] && lane="hotfix"
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
-          [[ "$event" == "schedule" && "$lane" == "develop" ]] && echo "nightly=true" >> "$GITHUB_OUTPUT" || echo "nightly=false" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build & Test
     uses: ./.github/workflows/_build.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
     needs: decide
 
@@ -75,7 +68,6 @@ jobs:
     uses: ./.github/workflows/_release.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
-      apt_enabled: false      # <— gate OFF for now; flip to true later per environment
+      apt_enabled: false
     secrets: inherit
     needs: [decide, build]
