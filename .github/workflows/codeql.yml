@@ -14,7 +14,6 @@ permissions:
   actions: read
   security-events: write
 
-# Cancel older runs on the same ref to save minutes
 concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: true
@@ -29,11 +28,8 @@ jobs:
       matrix:
         include:
           - variant: default
-            build-args: "--workspace --all-targets --locked"
           - variant: all-features
-            build-args: "--workspace --all-targets --all-features --locked"
           - variant: minimal
-            build-args: "--workspace --all-targets --no-default-features --locked"
 
     steps:
       - name: Checkout (with submodules)
@@ -42,36 +38,26 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Cache cargo registry + build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy,rustfmt
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: rust
-          build-mode: manual
-          # Use extended + security & quality rulesets (no leading '+')
+          build-mode: none            # <-- Rust requires 'none'
           queries: security-extended,security-and-quality
 
-      # Build the project so CodeQL can observe/understand the codebase.
-      # We do NOT run tests; we just compile all targets.
-      - name: Build (observed by CodeQL)
-        run: |
-          set -euxo pipefail
-          cargo build --release ${{ matrix.build-args }}
+      # (Optional) You can keep a separate compile check, but it won't affect CodeQL.
+      # Uncomment if you still want to ensure the code compiles in CI:
+      # - name: Set up Rust toolchain
+      #   uses: dtolnay/rust-toolchain@stable
+      #
+      # - name: Compile (sanity check only; not used by CodeQL)
+      #   run: |
+      #     set -euxo pipefail
+      #     case "${{ matrix.variant }}" in
+      #       default)   cargo build --workspace --all-targets --locked ;;
+      #       all-features) cargo build --workspace --all-targets --all-features --locked ;;
+      #       minimal)   cargo build --workspace --all-targets --no-default-features --locked ;;
+      #     esac
 
       - name: Perform CodeQL Analysis (${{ matrix.variant }})
         uses: github/codeql-action/analyze@v3
