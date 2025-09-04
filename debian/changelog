@@ -1,3 +1,27 @@
+chd2iso-fuse (0.2.4-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.3
+  * chore(dependabot): retarget updates to develop branch for git-flow.
+    Ensure routine Cargo and GitHub Actions updates land on `develop`.
+    Add security-only rule targeting `main` for critical hotfixes.
+  * chore(dependabot): retarget routine updates to develop for git-flow.
+    Configure Cargo and GitHub Actions updates to open PRs against `develop`.
+    Security updates will be handled by GitHub’s Dependabot security updates on `main`.
+  * ci(codeql): fix query spec — drop legacy “+” prefix.
+    Replace “+security-extended, +security-and-quality” with
+    “security-extended,security-and-quality” so CodeQL can init the DB
+    under the action’s supported syntax. Also keeps the manual build and
+    matrix variants unchanged.
+
+  [ Lloyd Smart ]
+  * security(codeql): switch to advanced CodeQL with 3 build variants (default/all-features/minimal), extended queries, and per-variant categorization
+  * chore(release): set Cargo version to 0.2.4 from tag
+  * chore(release): sync Cargo.lock to version 0.2.4
+  * Release 0.2.4
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 04 Sep 2025 19:11:46 +0000
+
 chd2iso-fuse (0.2.3-1) trixie; urgency=medium
 
   [ lloydsmart ]
