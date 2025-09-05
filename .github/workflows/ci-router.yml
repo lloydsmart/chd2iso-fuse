@@ -78,8 +78,16 @@ jobs:
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
+<<<<<<< HEAD
   # === PR build: must always run & report on pull_request ===
   build_pr:
+||||||| parent of 587acd4 (ci(router): ensure Build & Test runs on PRs; gate only on verify for release/hotfix)
+  build:
+    build:
+    if: ${{ github.event_name == 'pull_request' || (needs.dedupe.outputs.should_skip != 'true' && !startsWith(github.ref, 'refs/tags/')) }}
+=======
+  build:
+>>>>>>> 587acd4 (ci(router): ensure Build & Test runs on PRs; gate only on verify for release/hotfix)
     name: Build & Test
     if: ${{ github.event_name == 'pull_request' }}
     needs: [dedupe, decide]   # do NOT depend on verify-release (it’s skipped on normal PRs)
