@@ -76,14 +76,30 @@ jobs:
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
-  build:
+  # Runs on PRs only — reports the status your ruleset requires
+  build_pr:
     name: Build & Test
-    needs: [dedupe, decide, verify-release]   # keep verify-release in needs
-    if: ${{ 
-      github.event_name == 'pull_request' ||
-      !(startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) ||
-      needs.verify-release.result == 'success'
-    }}
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [dedupe, decide]              # <-- do NOT include verify-release here
+    uses: ./.github/workflows/_build.yml
+    with:
+      lane: ${{ needs.decide.outputs.lane }}
+    secrets: inherit
+
+  # Runs on pushes to branches — split into two paths:
+  build_push_default:
+    name: Build & Test
+    if: ${{ github.event_name == 'push' && !(startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
+    needs: [dedupe, decide]
+    uses: ./.github/workflows/_build.yml
+    with:
+      lane: ${{ needs.decide.outputs.lane }}
+    secrets: inherit
+
+  build_push_release:
+    name: Build & Test
+    if: ${{ github.event_name == 'push' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
+    needs: [dedupe, decide, verify-release]     # <-- gate behind verify-release for release/hotfix pushes
     uses: ./.github/workflows/_build.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
