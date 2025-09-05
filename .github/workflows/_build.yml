@@ -23,7 +23,16 @@ jobs:
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
       EMAIL: "lloydsmart@users.noreply.github.com"
+
     steps:
+      # must come first in a container job so actions/checkout and paths-filter have git available
+      - name: Install git for checkout & basic tooling
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git ca-certificates
+
       - name: Checkout (with tags)
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -39,7 +48,7 @@ jobs:
             echo "val=none" >> "$GITHUB_OUTPUT"
           fi
 
-      # Detect whether Rust/package files changed on PRs
+      # Detect whether Rust/package files changed on PRs (requires git, already installed)
       - name: Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
@@ -139,7 +148,6 @@ jobs:
             echo "}"
           } > artifacts/manifest.json
 
-      # Nightly naming
       - name: Upload nightly artifacts
         if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         uses: actions/upload-artifact@v4
@@ -147,7 +155,6 @@ jobs:
           name: chd2iso-fuse-nightly-${{ github.run_id }}-${{ github.sha }}
           path: artifacts/
 
-      # Default naming (non-nightly)
       - name: Upload build artifacts
         if: ${{ !inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         uses: actions/upload-artifact@v4
