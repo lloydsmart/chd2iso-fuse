@@ -12,7 +12,7 @@ on:
       - ".github/workflows/**"
       - "Makefile"
   pull_request:
-    branches: [ develop, main ]
+    branches: [ develop, main ]   # run on ALL PRs (no paths filter)
   workflow_dispatch:
 
 permissions:
@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   dedupe:
+    name: De-duplicate cross-event runs
     runs-on: ubuntu-latest
     outputs:
       should_skip: ${{ steps.skip.outputs.should_skip }}
@@ -36,6 +37,7 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
+          # PR runs must not be skipped (or required PR checks never report)
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
   decide:
@@ -60,7 +62,6 @@ jobs:
           [[ "$ref" == release/* ]] && lane="release"
           [[ "$ref" == hotfix/*  ]] && lane="hotfix"
 
-          # Nightly rule: scheduled runs on develop => nightly=true
           nightly="false"
           if [[ "${{ github.event_name }}" == "schedule" && "$lane" == "develop" ]]; then
             nightly="true"
@@ -69,6 +70,7 @@ jobs:
           echo "lane=$lane"       >> "$GITHUB_OUTPUT"
           echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
 
+  # Only for release/* and hotfix/* branches
   verify-release:
     if: ${{ startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/') }}
     name: Verify release lane
@@ -76,44 +78,48 @@ jobs:
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
-  # Runs on PRs only — reports the status your ruleset requires
+  # === PR build: must always run & report on pull_request ===
   build_pr:
     name: Build & Test
     if: ${{ github.event_name == 'pull_request' }}
-    needs: [dedupe, decide]              # <-- do NOT include verify-release here
+    needs: [dedupe, decide]   # do NOT depend on verify-release (it’s skipped on normal PRs)
     uses: ./.github/workflows/_build.yml
     with:
-      lane: ${{ needs.decide.outputs.lane }}
+      lane:    ${{ needs.decide.outputs.lane }}
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
 
-  # Runs on pushes to branches — split into two paths:
+  # === Push builds (split default vs release/hotfix gating) ===
   build_push_default:
     name: Build & Test
     if: ${{ github.event_name == 'push' && !(startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
     needs: [dedupe, decide]
     uses: ./.github/workflows/_build.yml
     with:
-      lane: ${{ needs.decide.outputs.lane }}
+      lane:    ${{ needs.decide.outputs.lane }}
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
 
   build_push_release:
     name: Build & Test
     if: ${{ github.event_name == 'push' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
-    needs: [dedupe, decide, verify-release]     # <-- gate behind verify-release for release/hotfix pushes
+    needs: [dedupe, decide, verify-release]   # gate on verify for release/hotfix pushes
     uses: ./.github/workflows/_build.yml
     with:
-      lane: ${{ needs.decide.outputs.lane }}
+      lane:    ${{ needs.decide.outputs.lane }}
+      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
 
+  # Release lane (still gated; APT disabled)
   release:
     if: ${{ needs.dedupe.outputs.should_skip != 'true' && needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
-    needs: [dedupe, decide, build]
+    needs: [dedupe, decide, build_push_default, build_push_release]
     permissions:
       contents: write
     uses: ./.github/workflows/_release.yml
     with:
       lane:        ${{ needs.decide.outputs.lane }}
       nightly:     ${{ needs.decide.outputs.nightly }}
-      apt_enabled: false   # flip to true when APT publishing is ready
+      apt_enabled: false
     secrets: inherit
