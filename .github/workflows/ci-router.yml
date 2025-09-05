@@ -12,18 +12,7 @@ on:
       - ".github/workflows/**"
       - "Makefile"
   pull_request:
-    branches: [ develop, main ]
-    paths:
-      - "src/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "build.rs"
-      - "debian/**"
-      - ".github/workflows/**"
-      - "Makefile"
-  # Nightly runs (e.g., weekdays 08:15 London) — adjust to taste
-  schedule:
-    - cron: "15 8 * * 1-5"
+    branches: [ develop, main ]   # ← remove any `paths:` block here
   workflow_dispatch:
 
 permissions:
@@ -35,10 +24,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-  # Skip/cancel duplicates between push and pull_request for the same commit/content
 jobs:
   dedupe:
-    name: De-duplicate cross-event runs
     runs-on: ubuntu-latest
     outputs:
       should_skip: ${{ steps.skip.outputs.should_skip }}
@@ -49,7 +36,6 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
-          # IMPORTANT: PR runs must not be skipped, or required checks never report on the PR
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
   decide:
