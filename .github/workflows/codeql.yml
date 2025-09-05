@@ -3,24 +3,10 @@ name: CodeQL (Rust)
 on:
   push:
     branches: [ develop, main ]
-    paths:
-      - "src/**"
-      - "**/*.rs"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "build.rs"
-      - "debian/**"         # include if packaging changes should be analyzed
   pull_request:
     branches: [ develop, main ]
-    paths:
-      - "src/**"
-      - "**/*.rs"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "build.rs"
-      - "debian/**"
   schedule:
-    - cron: "30 3 * * 1"   # weekly scan
+    - cron: "30 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -40,31 +26,54 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
 
+      # NEW: detect whether Rust/package files changed
+      - name: Determine if Rust/package files changed
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            rust:
+              - 'src/**'
+              - '**/*.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'build.rs'
+              - 'debian/**'
+
+      # Quick path: acknowledge non-code PRs and exit fast
+      - name: No-op (non-code PR)
+        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
+        run: echo "No Rust/package changes in this PR; skipping heavy CodeQL steps."
+
+      # Heavy steps only when code changed, or on scheduled/manual runs
       - name: Install system deps
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
       - name: Setup Rust
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
       - name: Init CodeQL
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
 
       - name: Build (all features & targets)
-        env:
-          CARGO_TERM_COLOR: always
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        env: { CARGO_TERM_COLOR: always }
         run: |
           cargo fetch --locked
           cargo build --locked --all-targets --all-features
 
       - name: Analyze
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/analyze@v3

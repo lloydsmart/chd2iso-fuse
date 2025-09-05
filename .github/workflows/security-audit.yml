@@ -29,43 +29,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Determine if Rust/package files changed
+        id: paths
+        uses: dorny/paths-filter@v3
         with:
-          fetch-depth: 0
+          filters: |
+            rust:
+              - 'src/**'
+              - '**/*.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'build.rs'
+              - 'debian/**'
+
+      - name: No-op (non-code PR)
+        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
+        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
 
       - name: Install Rust (stable)
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      # Cache the cargo-audit binary; key includes the resolved version so upgrades invalidate cache
-      - name: Cache cargo-audit binary
-        id: cache_audit
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/cargo-audit
-          key: cargo-audit-bin-${{ runner.os }}-latest
-
       - name: Install latest cargo-audit
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           set -euo pipefail
           if ! command -v cargo-audit >/dev/null 2>&1; then
             cargo install cargo-audit --locked
           fi
-          cargo -V
-          rustc -V
           cargo audit --version
 
-      # Ensure a lockfile exists (needed by cargo-audit)
       - name: Ensure Cargo.lock exists
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           set -euo pipefail
-          if [ ! -f Cargo.lock ]; then
-            echo "Cargo.lock not found; generating…"
-            cargo generate-lockfile
-          fi
+          [ -f Cargo.lock ] || cargo generate-lockfile
 
-      # Run audit (advisory DB auto-updates unless --no-fetch is given)
       - name: Run cargo-audit
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -77,5 +82,4 @@ jobs:
               [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
             done
           fi
-          echo "Running: cargo audit ${args[*]}"
           cargo audit "${args[@]}"
