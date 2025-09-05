@@ -1,0 +1,58 @@
+name: CI Router (git-flow) — pull_request
+
+on:
+  pull_request:
+    branches: [ develop, main ]   # PRs into develop/main
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dedupe:
+    name: De-duplicate PR runs
+    runs-on: ubuntu-latest
+    steps:
+      - id: skip
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: 'true'
+          skip_after_successful_duplicate: 'true'
+          concurrent_skipping: 'same_content'
+          # Never skip PR runs; required checks must report
+          do_not_skip: '["pull_request"]'
+
+  decide:
+    name: Decide lane
+    runs-on: ubuntu-latest
+    outputs:
+      lane: ${{ steps.which.outputs.lane }}
+    steps:
+      - id: which
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="${GITHUB_REF_NAME}"
+          lane="feature"
+          case "$ref" in
+            develop) lane="develop" ;;
+            main)    lane="main" ;;
+          esac
+          [[ "$ref" == release/* ]] && lane="release"
+          [[ "$ref" == hotfix/*  ]] && lane="hotfix"
+          echo "lane=$lane" >> "$GITHUB_OUTPUT"
+
+  # PR Build — must always run & report
+  build_pr:
+    name: Build & Test
+    needs: [dedupe, decide]
+    uses: ./.github/workflows/_build.yml
+    with:
+      lane: ${{ needs.decide.outputs.lane }}
+      nightly: false
+    secrets: inherit
