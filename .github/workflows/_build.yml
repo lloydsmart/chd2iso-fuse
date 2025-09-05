@@ -97,7 +97,35 @@ jobs:
             lintian artifacts/*.deb || true
           fi
 
+      - name: Create nightly manifest
+        if: ${{ inputs.nightly }}
+        run: |
+          set -euo pipefail
+          ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          sha="${GITHUB_SHA}"
+          lane="${{ inputs.lane }}"
+          files=$(ls -1 artifacts 2>/dev/null | sed 's/^/  "/; s/$/"/' | paste -sd, - || true)
+          {
+            echo "{"
+            echo "  \"nightly\": true,"
+            echo "  \"timestamp\": \"${ts}\","
+            echo "  \"sha\": \"${sha}\","
+            echo "  \"lane\": \"${lane}\","
+            echo "  \"files\": [ ${files} ]"
+            echo "}"
+          } > artifacts/manifest.json
+
+      # Nightly naming
+      - name: Upload nightly artifacts
+        if: ${{ inputs.nightly }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd2iso-fuse-nightly-${{ github.run_id }}-${{ github.sha }}
+          path: artifacts/
+
+      # Default naming (non-nightly)
       - name: Upload build artifacts
+        if: ${{ !inputs.nightly }}
         uses: actions/upload-artifact@v4
         with:
           name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
