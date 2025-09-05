@@ -1,4 +1,4 @@
-name: CI Router (git-flow)
+name: CI Router (git-flow) — push
 
 on:
   push:
@@ -11,8 +11,6 @@ on:
       - "debian/**"
       - ".github/workflows/**"
       - "Makefile"
-  pull_request:
-    branches: [ develop, main ]   # run on ALL PRs (no paths filter)
   workflow_dispatch:
 
 permissions:
@@ -37,8 +35,7 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
-          # PR runs must not be skipped (or required PR checks never report)
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+          do_not_skip: '["workflow_dispatch", "schedule"]'
 
   decide:
     if: ${{ needs.dedupe.outputs.should_skip != 'true' }}
@@ -70,7 +67,6 @@ jobs:
           echo "lane=$lane"       >> "$GITHUB_OUTPUT"
           echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
 
-  # Only for release/* and hotfix/* branches
   verify-release:
     if: ${{ startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/') }}
     name: Verify release lane
@@ -78,18 +74,7 @@ jobs:
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
-  # === PR build: must always run & report on pull_request ===
-  build_pr:
-    name: Build & Test
-    if: ${{ github.event_name == 'pull_request' }}
-    needs: [dedupe, decide]   # do NOT depend on verify-release (it’s skipped on normal PRs)
-    uses: ./.github/workflows/_build.yml
-    with:
-      lane:    ${{ needs.decide.outputs.lane }}
-      nightly: ${{ needs.decide.outputs.nightly == 'true' }}
-    secrets: inherit
-
-  # === Push builds (split default vs release/hotfix gating) ===
+  # Push builds (split default vs release/hotfix gating)
   build_push_default:
     name: Build & Test
     if: ${{ github.event_name == 'push' && !(startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
@@ -103,14 +88,13 @@ jobs:
   build_push_release:
     name: Build & Test
     if: ${{ github.event_name == 'push' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
-    needs: [dedupe, decide, verify-release]   # gate on verify for release/hotfix pushes
+    needs: [dedupe, decide, verify-release]
     uses: ./.github/workflows/_build.yml
     with:
       lane:    ${{ needs.decide.outputs.lane }}
       nightly: ${{ needs.decide.outputs.nightly == 'true' }}
     secrets: inherit
 
-  # Release lane (still gated; APT disabled)
   release:
     if: ${{ needs.dedupe.outputs.should_skip != 'true' && needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
