@@ -37,6 +37,7 @@ concurrency:
 
 jobs:
   # Skip/cancel duplicates between push and pull_request for the same commit/content
+jobs:
   dedupe:
     name: De-duplicate cross-event runs
     runs-on: ubuntu-latest
@@ -49,7 +50,7 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
-          # IMPORTANT: don't skip PRs (we need the PR checks to report success)
+          # IMPORTANT: PR runs must not be skipped, or required checks never report on the PR
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
   decide:
