@@ -12,7 +12,7 @@ on:
       - ".github/workflows/**"
       - "Makefile"
   pull_request:
-    branches: [ develop, main ]   # ← remove any `paths:` block here
+    branches: [ develop, main ]
   workflow_dispatch:
 
 permissions:
