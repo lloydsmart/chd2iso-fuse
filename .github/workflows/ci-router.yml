@@ -74,6 +74,7 @@ jobs:
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
+  # Push builds (split default vs release/hotfix gating)
   build_push_default:
     name: Build & Test
     if: ${{ github.event_name == 'push' && !(startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')) }}
@@ -95,7 +96,7 @@ jobs:
     secrets: inherit
 
   release:
-    if: ${{ needs.dedupe.outputs.should_skip != 'true' && needs.decide.outputs.lane != 'feature' && success() }}
+    if: ${{ needs.dedupe.outputs.should_skip != 'true' && needs.decide.outputs.lane != 'feature' && success() && github.event_name != 'pull_request' }}
     name: Release lane (gated)
     needs: [dedupe, decide, build_push_default, build_push_release]
     permissions:
