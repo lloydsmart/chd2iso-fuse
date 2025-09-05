@@ -49,7 +49,8 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
-          do_not_skip: '["workflow_dispatch", "schedule"]'
+          # IMPORTANT: don't skip PRs (we need the PR checks to report success)
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
   decide:
     if: ${{ needs.dedupe.outputs.should_skip != 'true' }}
