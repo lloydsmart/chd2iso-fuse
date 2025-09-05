@@ -77,8 +77,6 @@ jobs:
     secrets: inherit
 
   build:
-    build:
-    if: ${{ github.event_name == 'pull_request' || (needs.dedupe.outputs.should_skip != 'true' && !startsWith(github.ref, 'refs/tags/')) }}
     name: Build & Test
     needs: [dedupe, decide, verify-release]   # keep verify-release in needs
     if: ${{ 
