@@ -35,7 +35,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
   # Skip/cancel duplicates between push and pull_request for the same commit/content
 jobs:
   dedupe:
