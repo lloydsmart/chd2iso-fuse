@@ -28,6 +28,17 @@ jobs:
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
+      # Compute a stable hash for Cargo.lock (or 'none' if missing) — used by cache
+      - name: Hash Cargo.lock
+        id: cargo_lock
+        shell: bash
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "val=none" >> "$GITHUB_OUTPUT"
+          fi
+
       # Detect whether Rust/package files changed on PRs
       - name: Determine if Rust/package files changed
         id: paths
@@ -43,16 +54,32 @@ jobs:
               - 'debian/**'
               - 'Makefile'
 
-      # QUICK EXIT: acknowledge non-code PRs
+      # QUICK EXIT: acknowledge non-code PRs (still reports success)
       - name: No-op (non-code PR)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
 
-      # ↓ Gate the rest of your heavy steps with the same condition:
       - name: Install toolchain & deps
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
-          # ... (unchanged) ...
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            curl ca-certificates git build-essential pkg-config \
+            libfuse3-dev fuse3 \
+            gcc g++ make \
+            rust-all \
+            debhelper devscripts dh-cargo lintian \
+            bats shellcheck \
+            sccache || true
+
+          # Fallback sccache via cargo if package not present
+          if ! command -v sccache >/dev/null 2>&1; then
+            cargo install sccache --locked
+            ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
+          fi
+
+          rustc -V; cargo -V; sccache --version || true
 
       - name: Cache sccache
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
@@ -65,17 +92,20 @@ jobs:
             sccache-${{ runner.os }}-
 
       - name: Rust fmt & clippy
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Rust tests
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: cargo test --workspace --locked --all-features
 
       - name: Debian build
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         env:
           DEB_BUILD_OPTIONS: nocheck
-          RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}   # keep sccache wrapping for dh-cargo
+          RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: |
           dpkg-buildpackage -us -uc -b
@@ -84,15 +114,15 @@ jobs:
           (cd artifacts && sha256sum * > SHA256SUMS || true)
 
       - name: Lintian (non-fatal)
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         continue-on-error: true
         run: |
-          set -e
           if compgen -G "artifacts/*.deb" > /dev/null; then
             lintian artifacts/*.deb || true
           fi
 
       - name: Create nightly manifest
-        if: ${{ inputs.nightly }}
+        if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         run: |
           set -euo pipefail
           ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -110,8 +140,8 @@ jobs:
           } > artifacts/manifest.json
 
       # Nightly naming
-      - name: Upload build artifacts
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: Upload nightly artifacts
+        if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         uses: actions/upload-artifact@v4
         with:
           name: chd2iso-fuse-nightly-${{ github.run_id }}-${{ github.sha }}
@@ -119,7 +149,7 @@ jobs:
 
       # Default naming (non-nightly)
       - name: Upload build artifacts
-        if: ${{ !inputs.nightly }}
+        if: ${{ !inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         uses: actions/upload-artifact@v4
         with:
           name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
