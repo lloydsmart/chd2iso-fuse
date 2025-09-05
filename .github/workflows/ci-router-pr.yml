@@ -2,7 +2,7 @@ name: CI Router (git-flow) — pull_request
 
 on:
   pull_request:
-    branches: [ develop, main ]   # PRs into develop/main
+    branches: [ develop, main ]
 
 permissions:
   contents: read
@@ -24,7 +24,6 @@ jobs:
           cancel_others: 'true'
           skip_after_successful_duplicate: 'true'
           concurrent_skipping: 'same_content'
-          # Never skip PR runs; required checks must report
           do_not_skip: '["pull_request"]'
 
   decide:
@@ -47,7 +46,6 @@ jobs:
           [[ "$ref" == hotfix/*  ]] && lane="hotfix"
           echo "lane=$lane" >> "$GITHUB_OUTPUT"
 
-  # PR Build — must always run & report
   build_pr:
     name: Build & Test
     needs: [dedupe, decide]
