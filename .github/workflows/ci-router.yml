@@ -92,7 +92,7 @@ jobs:
   build:
     if: ${{ needs.dedupe.outputs.should_skip != 'true' && !startsWith(github.ref, 'refs/tags/') }}
     name: Build & Test
-    needs: [dedupe, decide]
+    needs: [dedupe, decide, verify-release]
     uses: ./.github/workflows/_build.yml
     with:
       lane: ${{ needs.decide.outputs.lane }}
