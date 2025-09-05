@@ -28,7 +28,6 @@ jobs:
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      # NEW: detect whether Rust/package files changed
       - name: Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
@@ -42,12 +41,10 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      # Quick path: acknowledge non-code PRs and exit fast
       - name: No-op (non-code PR)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust/package changes in this PR; skipping heavy CodeQL steps."
 
-      # Heavy steps only when code changed, or on scheduled/manual runs
       - name: Install system deps
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
@@ -60,7 +57,7 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Init CodeQL
+      - name: Initialize CodeQL
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/init@v3
         with:
