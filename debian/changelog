@@ -1,8 +1,17 @@
-chd2iso-fuse (0.2.7-1) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.6-1) trixie; urgency=medium
 
-  * Release v0.2.7
+  [ lloydsmart ]
+  * ci(codeql): switch Rust to build-mode=none and drop manual build.
+    Rust extractor doesn’t support manual build mode. Use build-mode=none and
+    run the standard security-extended + security-and-quality queries.
+    Removed the ‘observed’ cargo build (not used by Rust CodeQL).
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 07 Sep 2025 19:28:40 +0100
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.2.6 from tag
+  * chore(release): sync Cargo.lock to version 0.2.6
+  * Release 0.2.6
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 07 Sep 2025 21:14:31 +0000
 
 chd2iso-fuse (0.2.4-1) trixie; urgency=medium
 
