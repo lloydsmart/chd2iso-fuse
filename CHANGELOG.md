@@ -1,5 +1,12 @@
 # Changelog
 ### Chore
+- chore(release): set Cargo version to 0.2.6 from tag (dda5a06)
+- chore(release): sync Cargo.lock to version 0.2.6 (a7cc018)### CI
+- ci(cargo-audit): install tool, update RustSec DB, and run audit (with caching) (cd6a28c)
+- ci(codeql): switch Rust to build-mode=none and drop manual build (be37788)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.4 (4b49420)### Other
+- PR #53: chore(release): update changelogs for v0.2.4 (c294306)
+- Merge branch 'hotfix/0.2.6' (cafdee6)### CI
 - chore(release): set Cargo version to 0.2.5 from tag (867a62b)
 - chore(release): sync Cargo.lock to version 0.2.5 (53f4f71)### CI
 - ci(cargo-audit): install tool, update RustSec DB, and run audit (with caching) (cd6a28c)### Chore
