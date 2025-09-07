@@ -1,0 +1,42 @@
+name: Reusable — Publish APT (stub)
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Target channel: unstable|candidate|stable"
+        type: string
+        required: true
+      suite:
+        description: "Debian suite (e.g., trixie)"
+        type: string
+        default: "trixie"
+      component:
+        description: "Component (e.g., main)"
+        type: string
+        default: "main"
+      arch:
+        description: "Architecture"
+        type: string
+        default: "amd64"
+    secrets: {}
+
+permissions:
+  contents: read
+
+jobs:
+  stub:
+    name: Stub publish to ${{ inputs.channel }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.channel }}   # approvals per channel, if configured
+    steps:
+      - name: Explain gating
+        run: |
+          echo "🔒 APT publishing is currently gated (no-op)."
+          echo "Requested channel: ${{ inputs.channel }}"
+          echo "Suite:             ${{ inputs.suite }}"
+          echo "Component:         ${{ inputs.component }}"
+          echo "Arch:              ${{ inputs.arch }}"
+          echo
+          echo "When ready to go live, implement reprepro/aptly steps here."

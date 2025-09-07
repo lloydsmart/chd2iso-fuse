@@ -1,4 +1,4 @@
-name: CodeQL (Rust)
+name: Security audit (cargo-audit)
 
 on:
   push:
@@ -6,22 +6,25 @@ on:
   pull_request:
     branches: [ develop, main ]
   schedule:
-    - cron: "30 3 * * 1"
+    - cron: "45 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: sec-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze (CodeQL)
+  cargo-audit:
+    name: cargo-audit
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
+
+    env:
+      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
+      CARGO_TERM_COLOR: always
 
     steps:
       - name: Checkout
@@ -43,34 +46,40 @@ jobs:
 
       - name: No-op (non-code PR)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping heavy CodeQL steps."
+        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
 
-      - name: Install system deps
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
-
-      - name: Setup Rust
+      - name: Install Rust (stable)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Initialize CodeQL
+      - name: Install latest cargo-audit
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        uses: github/codeql-action/init@v3
-        with:
-          languages: rust
-          queries: +security-and-quality
-
-      - name: Build (all features & targets)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        env: { CARGO_TERM_COLOR: always }
         run: |
-          cargo fetch --locked
-          cargo build --locked --all-targets --all-features
+          set -euo pipefail
+          if ! command -v cargo-audit >/dev/null 2>&1; then
+            cargo install cargo-audit --locked
+          fi
+          cargo audit --version
 
-      - name: Analyze
+      - name: Ensure Cargo.lock exists
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        uses: github/codeql-action/analyze@v3
+        run: |
+          set -euo pipefail
+          [ -f Cargo.lock ] || cargo generate-lockfile
+
+      - name: Run cargo-audit
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=( -D warnings )
+          if [[ -n "${ACCEPTED}" ]]; then
+            IFS=',' read -ra ids <<< "${ACCEPTED}"
+            for id in "${ids[@]}"; do
+              id_trimmed="$(echo "$id" | xargs)"
+              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
+            done
+          fi
+          cargo audit "${args[@]}"
