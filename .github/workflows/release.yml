@@ -64,7 +64,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: chd2iso-fuse-*
+          pattern: "chd2iso-fuse-*"
           path: artifacts
           merge-multiple: true
 
