@@ -20,8 +20,8 @@ jobs:
       contents: read
     outputs:
       is_release: ${{ steps.out.outputs.is_release }}
-      head_ref: ${{ steps.out.outputs.head_ref }}
-      pr_number: ${{ steps.out.outputs.pr_number }}
+      head_ref:   ${{ steps.out.outputs.head_ref }}
+      pr_number:  ${{ steps.out.outputs.pr_number }}
     steps:
       - id: out
         uses: actions/github-script@v7
@@ -108,17 +108,27 @@ jobs:
             const res = await github.rest.repos.compareCommits({
               owner, repo, base: 'develop', head: 'main'
             });
-            core.setOutput('status', res.data.status);
+            core.setOutput('status', res.data.status); // ahead | behind | diverged | identical
             core.setOutput('ahead_by', String(res.data.ahead_by));
             core.setOutput('behind_by', String(res.data.behind_by));
 
-      - name: Stop if develop is not behind/diverged
-        if: ${{ steps.compare.outputs.status != 'behind' && steps.compare.outputs.status != 'diverged' }}
-        run: echo "develop is not behind main (status: ${{ steps.compare.outputs.status }}). Skipping."
+      - name: Decide if back-merge is needed
+        id: gate
+        env:
+          STATUS: ${{ steps.compare.outputs.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$STATUS" == "behind" || "$STATUS" == "diverged" ]]; then
+            echo "should_backmerge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_backmerge=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Status: $STATUS; should_backmerge=$(grep -o 'true\|false' <<< "$(<$GITHUB_OUTPUT)")"
 
       - name: Check for existing open PR main -> develop
         id: existing
-        if: ${{ steps.compare.outputs.status == 'behind' || steps.compare.outputs.status == 'diverged' }}
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -130,7 +140,7 @@ jobs:
             core.setOutput('exists', String(exists));
 
       - name: Open PR main -> develop
-        if: ${{ steps.existing.outputs.exists == 'false' }}
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.existing.outputs.exists == 'false' }}
         uses: actions/github-script@v7
         with:
           script: |
