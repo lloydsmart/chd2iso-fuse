@@ -1,0 +1,81 @@
+name: Release prep (auto-bump & changelog)
+
+on:
+  push:
+    branches:
+      - 'release/**'
+      - 'hotfix/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-prep-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prep:
+    name: Prepare (version & changelog)
+    # Don’t act on our own prep commits
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Derive version from branch
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          br="${GITHUB_REF_NAME}"   # release/0.2.8 or release/0.2.8-rc1
+          case "$br" in
+            release/*) v="${br#release/}" ;;
+            hotfix/*)  v="${br#hotfix/}"  ;;
+            *) echo "Not a release/hotfix branch: $br"; exit 1 ;;
+          esac
+          [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}(-rc[0-9]+)?$ ]] || { echo "Bad version: $v"; exit 1; }
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+          echo "Version: $v"
+
+      - name: Read current Cargo.toml version
+        id: cur
+        shell: bash
+        run: |
+          cur="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' Cargo.toml | head -n1 || true)"
+          echo "value=$cur" >> "$GITHUB_OUTPUT"
+          echo "Cargo.toml version: ${cur:-<none>}"
+
+      - name: Install tools used by scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends devscripts ca-certificates
+          # git-cliff is invoked by your script; install if missing (best via cargo in your dev env).
+          if ! command -v git-cliff >/dev/null 2>&1; then
+            echo "git-cliff not found; ensure scripts/gen-release-notes.sh can find it."
+          fi
+
+      - name: Bump version & regenerate notes (idempotent)
+        shell: bash
+        run: |
+          set -euo pipefail
+          v='${{ steps.ver.outputs.value }}'
+          cur='${{ steps.cur.outputs.value }}'
+
+          if [[ "$cur" != "$v" ]]; then
+            scripts/set-cargo-version.sh "$v"
+          fi
+          scripts/gen-debian-changelog.sh "v${v}" trixie
+          scripts/gen-release-notes.sh
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes; nothing to commit."
+            exit 0
+          fi
+          git config user.name  github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git commit -m "chore(release): prepare v${v} [skip ci]"
+          git push

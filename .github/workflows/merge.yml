@@ -1,0 +1,169 @@
+name: On merge to main (release/hotfix)
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  # Ensure one run per ref; avoid racing tag/backmerge for the same merge
+  group: on-merge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect merged PR
+    # Ignore housekeeping commits that used [skip ci]
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      is_release: ${{ steps.out.outputs.is_release }}
+      head_ref:   ${{ steps.out.outputs.head_ref }}
+      pr_number:  ${{ steps.out.outputs.pr_number }}
+    steps:
+      - id: out
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const headSha = context.payload.head_commit.id;
+
+            // Find the PR whose merge_commit_sha == this push's head commit
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'closed', per_page: 100
+            });
+            const pr = prs.find(p => p.merged_at && p.merge_commit_sha === headSha);
+
+            const headRef = pr?.head?.ref || '';
+            const isRelease = Boolean(pr && (headRef.startsWith('release/') || headRef.startsWith('hotfix/')));
+
+            core.setOutput('is_release', String(isRelease));
+            core.setOutput('head_ref', headRef);
+            core.setOutput('pr_number', pr?.number ?? '');
+
+            core.info(pr
+              ? `Found merged PR #${pr.number} from '${headRef}'`
+              : 'No merged PR found for this commit');
+
+  verify:
+    name: Verify versions (Cargo / Debian / binary)
+    needs: detect
+    if: needs.detect.outputs.is_release == 'true'
+    permissions:
+      contents: read
+    # Reuse your existing containerized guard workflow
+    uses: ./.github/workflows/_verify-release.yml
+
+  tag:
+    name: Create annotated tag vX.Y.Z
+    needs: [detect, verify]
+    if: needs.detect.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push tag
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from Cargo.toml
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' Cargo.toml | head -n1)"
+          [[ -n "$ver" ]] || { echo "No version in Cargo.toml"; exit 1; }
+          [[ "$ver" != *-dev* ]] || { echo "Version has -dev suffix; refusing to tag"; exit 1; }
+          echo "val=$ver" >> "$GITHUB_OUTPUT"
+          echo "Version: $ver"
+
+      - name: Create & push tag
+        env:
+          VER: ${{ steps.ver.outputs.val }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${VER}"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          git tag -a "${tag}" -m "chd2iso-fuse ${tag}"
+          git push origin "${tag}"
+          echo "Pushed ${tag}"
+
+  backmerge:
+    name: Open back-merge PR (main → develop)
+    needs: [detect, tag]
+    if: needs.detect.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Compare branches (is develop behind main?)
+        id: compare
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const res = await github.rest.repos.compareCommits({
+              owner, repo, base: 'develop', head: 'main'
+            });
+            return { status: res.data.status, ahead_by: res.data.ahead_by, behind_by: res.data.behind_by };
+
+      - name: Stop if develop is not behind/diverged
+        if: ${{ fromJSON(steps.compare.outputs.result).status != 'behind' && fromJSON(steps.compare.outputs.result).status != 'diverged' }}
+        run: echo "develop is not behind main (status: ${{ fromJSON(steps.compare.outputs.result).status }}). Skipping."
+
+      - name: Check for existing open PR main → develop
+        id: existing
+        if: ${{ fromJSON(steps.compare.outputs.result).status == 'behind' || fromJSON(steps.compare.outputs.result).status == 'diverged' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const open = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', base: 'develop', per_page: 100
+            });
+            const exists = open.some(p => p.head.ref === 'main' || p.head.label.endsWith(':main'));
+            return { exists: String(exists) };
+
+      - name: Open PR main → develop
+        if: ${{ steps.existing.outputs.result && fromJSON(steps.existing.outputs.result).exists == 'false' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const title = 'Back-merge main → develop (post-release)';
+            const body  = [
+              'Automated back-merge after release/hotfix merge into **main**.',
+              '',
+              '- Source: `main`',
+              '- Target: `develop`',
+              '',
+              'Resolve any conflicts in this PR if present.'
+            ].join('\n');
+
+            const pr = await github.rest.pulls.create({
+              owner, repo,
+              head: 'main',
+              base: 'develop',
+              title, body,
+              draft: false,
+              maintainer_can_modify: true
+            });
+
+            try {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: pr.data.number,
+                labels: ['back-merge']
+              });
+            } catch (e) {
+              core.info('Label add skipped (label may not exist).');
+            }
+
+            core.info(`Opened PR #${pr.data.number} main → develop`);
