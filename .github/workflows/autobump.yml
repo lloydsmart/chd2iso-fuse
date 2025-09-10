@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - 'release/**'
-      # - 'hotfix/**'   # uncomment if you want the same behavior for hotfixes
+      - 'hotfix/**'
 
 permissions:
   contents: write
