@@ -20,8 +20,8 @@ jobs:
       contents: read
     outputs:
       is_release: ${{ steps.out.outputs.is_release }}
-      head_ref:   ${{ steps.out.outputs.head_ref }}
-      pr_number:  ${{ steps.out.outputs.pr_number }}
+      head_ref: ${{ steps.out.outputs.head_ref }}
+      pr_number: ${{ steps.out.outputs.pr_number }}
     steps:
       - id: out
         uses: actions/github-script@v7
@@ -49,7 +49,6 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     permissions:
       contents: read
-    # Reuse your existing containerized guard workflow
     uses: ./.github/workflows/_verify-release.yml
 
   tag:
@@ -58,7 +57,7 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to push tag
+      contents: write
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -127,7 +126,7 @@ jobs:
             const open = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: 'open', base: 'develop', per_page: 100
             });
-            const exists = open.some(p => p.head.ref === 'main' || p.head.label.endsWith(':main'));
+            const exists = open.some(p => p.head.ref === 'main' || (p.head.label && p.head.label.endsWith(':main')));
             core.setOutput('exists', String(exists));
 
       - name: Open PR main -> develop
@@ -137,7 +136,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const title = 'Back-merge main -> develop (post-release)';
-            const body  = [
+            const body = [
               'Automated back-merge after release/hotfix merge into **main**.',
               '',
               '- Source: `main`',
@@ -149,7 +148,8 @@ jobs:
               owner, repo,
               head: 'main',
               base: 'develop',
-              title, body,
+              title,
+              body,
               draft: false,
               maintainer_can_modify: true
             });
