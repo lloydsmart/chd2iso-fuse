@@ -14,15 +14,15 @@ concurrency:
 
 jobs:
   guard_tag_on_main:
-    name: "Guard: tag must point to commit on main"
+    name: Guard - tag must point to commit on main
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout (full history)"
+      - name: Checkout full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Ensure tag commit is contained in origin/main"
+      - name: Ensure tag commit is contained in origin/main
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,7 @@ jobs:
           fi
 
   build:
-    name: "Build (tag)"
+    name: Build (tag)
     needs: guard_tag_on_main
     uses: lloydsmart/chd2iso-fuse/.github/workflows/_build.yml@bugfix/release-workflow
     with:
@@ -48,27 +48,27 @@ jobs:
     secrets: inherit
 
   verify_versions:
-    name: "Verify versions"
+    name: Verify versions
     needs: build
     uses: lloydsmart/chd2iso-fuse/.github/workflows/_verify-release.yml@bugfix/release-workflow
     secrets: inherit
 
   publish_release:
-    name: "Publish GitHub Release"
+    name: Publish GitHub Release
     needs: [build, verify_versions]
     runs-on: ubuntu-latest
     steps:
-      - name: "Debug"
+      - name: Debug
         run: echo "tag: $GITHUB_REF_NAME"
 
-      - name: "Download artifacts from build"
+      - name: Download artifacts from build
         uses: actions/download-artifact@v4
         with:
-          pattern: chd2iso-fuse-*
-          path: ./artifacts
+          pattern: "chd2iso-fuse-*"
+          path: artifacts
           merge-multiple: true
 
-      - name: "Guard: have .deb/.buildinfo/.changes?"
+      - name: Guard have deb buildinfo changes
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +82,7 @@ jobs:
           fi
           find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
-      - name: "Ensure RELEASE_NOTES.md"
+      - name: Ensure RELEASE_NOTES.md
         shell: bash
         run: |
           set -euo pipefail
@@ -95,7 +95,7 @@ jobs:
           fi
           sed -n '1,120p' RELEASE_NOTES.md || true
 
-      - name: "Assemble asset list"
+      - name: Assemble asset list
         id: assets
         shell: bash
         run: |
@@ -113,7 +113,7 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_ENV"
 
-      - name: "Create draft release & upload assets"
+      - name: Create draft release and upload assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -126,7 +126,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Publish (flip draft -> published)"
+      - name: Publish draft
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -135,7 +135,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release_lane:
-    name: "Release lane & (optional) APT"
+    name: Release lane and optional APT
     needs: [build, verify_versions, publish_release]
     uses: lloydsmart/chd2iso-fuse/.github/workflows/_release.yml@bugfix/release-workflow
     with:
