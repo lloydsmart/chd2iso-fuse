@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   guard_tag_on_main:
-    name: Guard - tag must point to commit on main
+    name: Guard - tag must be on main
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ensure tag commit is contained in origin/main
+      - name: Verify tag commit is reachable from origin main
         shell: bash
         run: |
           set -euo pipefail
@@ -34,12 +34,12 @@ jobs:
             echo "Tag commit is contained in origin/main"
           else
             echo "Tag ${TAG_NAME} (${TAG_SHA}) is NOT contained in origin/main"
-            echo "Aborting release. Create the tag on the main branch tip (or a commit reachable from main)."
+            echo "Aborting release. Create the tag on main or a commit reachable from main."
             exit 1
           fi
 
   build:
-    name: Build (tag)
+    name: Build for tag
     needs: guard_tag_on_main
     uses: lloydsmart/chd2iso-fuse/.github/workflows/_build.yml@bugfix/release-workflow
     with:
@@ -58,17 +58,17 @@ jobs:
     needs: [build, verify_versions]
     runs-on: ubuntu-latest
     steps:
-      - name: Debug
+      - name: Debug tag
         run: echo "tag: $GITHUB_REF_NAME"
 
-      - name: Download artifacts from build
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: "chd2iso-fuse-*"
+          pattern: chd2iso-fuse-*
           path: artifacts
           merge-multiple: true
 
-      - name: Guard have deb buildinfo changes
+      - name: Guard artifacts exist
         shell: bash
         run: |
           set -euo pipefail
@@ -113,7 +113,7 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_ENV"
 
-      - name: Create draft release and upload assets
+      - name: Create draft release and upload
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
