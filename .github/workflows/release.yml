@@ -65,10 +65,10 @@ jobs:
       - name: Debug tag
         run: echo "tag: $GITHUB_REF_NAME"
 
+      # Download all artifacts produced by previous jobs in this workflow run
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: "chd2iso-fuse-*"
           path: artifacts
           merge-multiple: true
 
