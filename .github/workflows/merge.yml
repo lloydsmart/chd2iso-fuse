@@ -49,7 +49,8 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     permissions:
       contents: read
-    uses: .github/workflows/_verify-release.yml
+    uses: lloydsmart/chd2iso-fuse/.github/workflows/_verify-release.yml@bugfix/release-workflow
+    secrets: inherit
 
   tag:
     name: Create annotated tag vX.Y.Z
@@ -66,7 +67,6 @@ jobs:
 
       - name: Read version from Cargo.toml
         id: ver
-        shell: bash
         run: |
           set -euo pipefail
           ver="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' Cargo.toml | head -n1)"
@@ -78,7 +78,6 @@ jobs:
       - name: Create & push tag
         env:
           VER: ${{ steps.ver.outputs.val }}
-        shell: bash
         run: |
           set -euo pipefail
           tag="v${VER}"
@@ -116,7 +115,6 @@ jobs:
         id: gate
         env:
           STATUS: ${{ steps.compare.outputs.status }}
-        shell: bash
         run: |
           set -euo pipefail
           if [[ "$STATUS" == "behind" || "$STATUS" == "diverged" ]]; then
