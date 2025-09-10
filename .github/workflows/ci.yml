@@ -1,0 +1,139 @@
+name: CI (Build & Test)
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+  push:
+    branches: [ "**" ]
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "debian/**"
+      - ".github/workflows/ci.yml"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_test:
+    name: Build & Test (Linux)
+    # Don’t rerun for the bot’s prep commits
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Hash Cargo.lock
+        id: lock
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "val=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ runner.os }}-${{ steps.lock.outputs.val }}
+
+      - name: Cache cargo git
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: cargo-git-${{ runner.os }}-${{ steps.lock.outputs.val }}
+
+      - name: Install system deps (minimal)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        env: { CARGO_TERM_COLOR: always }
+        run: cargo test --workspace --locked --all-features
+
+  package_deb:
+    name: Debian package (push only)
+    needs: build_test
+    if: >
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]') &&
+      (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+      options: --init
+
+    env:
+      RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
+      DEBFULLNAME: "Lloyd Smart"
+      DEBEMAIL: "lloydsmart@users.noreply.github.com"
+
+    steps:
+      - name: Install git for checkout
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Configure git trust
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install build deps
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libfuse3-dev fuse3 \
+            rust-all \
+            debhelper devscripts dh-cargo lintian
+
+      - name: Build .deb (nocheck)
+        env:
+          DEB_BUILD_OPTIONS: nocheck
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p artifacts
+          mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
+          (cd artifacts && sha256sum * > SHA256SUMS || true)
+
+      - name: Lintian (non-fatal)
+        continue-on-error: true
+        run: |
+          if compgen -G "artifacts/*.deb" > /dev/null; then
+            lintian artifacts/*.deb || true
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd2iso-fuse-${{ github.sha }}
+          path: artifacts/
