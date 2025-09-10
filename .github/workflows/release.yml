@@ -1,0 +1,112 @@
+name: Release (on tag)
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  security-events: read
+
+jobs:
+  build:
+    name: Build (tag)
+    uses: ./.github/workflows/_build.yml
+    with:
+      lane: main
+    secrets: inherit
+
+  verify_versions:
+    name: Verify versions
+    needs: build
+    uses: ./.github/workflows/_verify-release.yml
+    secrets: inherit
+
+  publish_release:
+    name: Publish GitHub Release
+    needs: [build, verify_versions]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug
+        run: |
+          echo "tag: $GITHUB_REF_NAME"
+
+      - name: Download artifacts from build
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chd2iso-fuse-*
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Guard: have .deb/.buildinfo/.changes?
+        shell: bash
+        run: |
+          shopt -s nullglob
+          deb=(artifacts/*.deb) bi=(artifacts/*.buildinfo) ch=(artifacts/*.changes)
+          if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
+            echo "No artifacts found in ./artifacts"
+            exit 1
+          fi
+          find ./artifacts -type f -maxdepth 2 -printf '%P\n' | sort || true
+
+      - name: Ensure RELEASE_NOTES.md
+        shell: bash
+        run: |
+          if [ -f artifacts/RELEASE_NOTES.md ]; then
+            cp artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
+          elif [ -f artifacts/CHANGELOG.md ]; then
+            cp artifacts/CHANGELOG.md RELEASE_NOTES.md
+          else
+            echo "(no release notes provided)" > RELEASE_NOTES.md
+          fi
+          sed -n '1,120p' RELEASE_NOTES.md || true
+
+      - name: Assemble asset list
+        id: assets
+        shell: bash
+        run: |
+          set -e
+          shopt -s nullglob
+          files=()
+          for f in artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes artifacts/SHA256SUMS artifacts/SHA256SUMS.asc; do
+            [ -e "$f" ] || continue
+            cp "$f" .
+            files+=("$(basename "$f")")
+          done
+          {
+            echo 'ASSET_FILES<<EOF'
+            printf '%s\n' "${files[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Create draft release & upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: chd2iso-fuse ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false
+          draft: true
+          fail_on_unmatched_files: false
+          files: ${{ env.ASSET_FILES }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (flip draft -> published)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: channel/APT orchestration (stubbed)
+  release_lane:
+    name: Release lane & (optional) APT
+    needs: [build, verify_versions, publish_release]
+    uses: ./.github/workflows/_release.yml
+    with:
+      lane: main
+      nightly: false
+      apt_enabled: false
+    secrets: inherit
