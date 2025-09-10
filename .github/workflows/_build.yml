@@ -35,7 +35,7 @@ jobs:
 
       # 1) Checkout the repo into $GITHUB_WORKSPACE (owned by container user)
       - name: Checkout (with tags)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
       # 2) Mark the workspace as safe for git (fixes "dubious ownership" in containers)
