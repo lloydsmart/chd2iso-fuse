@@ -27,7 +27,6 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          # Resolve tag to its commit SHA (handles annotated & lightweight)
           TAG_NAME="${GITHUB_REF_NAME}"
           TAG_SHA="$(git rev-parse "${TAG_NAME}^{commit}")"
           echo "Tag ${TAG_NAME} -> ${TAG_SHA}"
@@ -72,17 +71,21 @@ jobs:
       - name: "Guard: have .deb/.buildinfo/.changes?"
         shell: bash
         run: |
+          set -euo pipefail
           shopt -s nullglob
-          deb=(artifacts/*.deb) bi=(artifacts/*.buildinfo) ch=(artifacts/*.changes)
+          deb=(artifacts/*.deb)
+          bi=(artifacts/*.buildinfo)
+          ch=(artifacts/*.changes)
           if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
             echo "No artifacts found in ./artifacts"
             exit 1
           fi
-          find ./artifacts -type f -maxdepth 2 -printf '%P\n' | sort || true
+          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       - name: "Ensure RELEASE_NOTES.md"
         shell: bash
         run: |
+          set -euo pipefail
           if [ -f artifacts/RELEASE_NOTES.md ]; then
             cp artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
           elif [ -f artifacts/CHANGELOG.md ]; then
@@ -96,7 +99,7 @@ jobs:
         id: assets
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           shopt -s nullglob
           files=()
           for f in artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes artifacts/SHA256SUMS artifacts/SHA256SUMS.asc; do
