@@ -49,7 +49,7 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     permissions:
       contents: read
-    uses: ./.github/workflows/_verify-release.yml
+    uses: .github/workflows/_verify-release.yml
 
   tag:
     name: Create annotated tag vX.Y.Z
