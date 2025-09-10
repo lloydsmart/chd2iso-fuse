@@ -8,9 +8,40 @@ permissions:
   contents: write
   security-events: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  guard_tag_on_main:
+    name: Guard: tag must point to commit on main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tag commit is contained in origin/main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          # Resolve tag to its commit SHA (handles annotated & lightweight)
+          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_SHA="$(git rev-parse "${TAG_NAME}^{commit}")"
+          echo "Tag ${TAG_NAME} -> ${TAG_SHA}"
+          if git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
+            echo "✅ Tag commit is contained in origin/main"
+          else
+            echo "❌ Tag ${TAG_NAME} (${TAG_SHA}) is NOT contained in origin/main"
+            echo "Aborting release. Create the tag on the main branch tip (or a commit reachable from main)."
+            exit 1
+          fi
+
   build:
     name: Build (tag)
+    needs: guard_tag_on_main
     uses: ./.github/workflows/_build.yml
     with:
       lane: main
