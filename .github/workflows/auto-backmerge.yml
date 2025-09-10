@@ -1,0 +1,114 @@
+name: Auto back-merge PR (main → develop)
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-backmerge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  open_backmerge_pr:
+    # Ignore bot prep commits with [skip ci]
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find merged PR for this commit
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const headSha = context.payload.head_commit.id;
+
+            // Find the PR where merge_commit_sha == headSha
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'closed', per_page: 100
+            });
+            const match = prs.find(p => p.merged_at && p.merge_commit_sha === headSha);
+            if (!match) return null;
+
+            return {
+              number: match.number,
+              headRef: match.head.ref,   // e.g. "release/0.2.8"
+              baseRef: match.base.ref    // usually "main"
+            };
+
+      - name: Stop if not a release/hotfix merge
+        if: ${{ steps.pr.outputs.result == 'null' || !(startsWith(fromJSON(steps.pr.outputs.result).headRef, 'release/') || startsWith(fromJSON(steps.pr.outputs.result).headRef, 'hotfix/')) }}
+        run: echo "No release/hotfix PR merged; nothing to back-merge."
+
+      - name: Compare branches (is develop behind main?)
+        id: compare
+        if: ${{ steps.pr.outputs.result != 'null' && (startsWith(fromJSON(steps.pr.outputs.result).headRef, 'release/') || startsWith(fromJSON(steps.pr.outputs.result).headRef, 'hotfix/')) }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const res = await github.rest.repos.compareCommits({
+              owner, repo,
+              base: 'develop',
+              head: 'main'
+            });
+            // statuses: 'ahead', 'behind', 'diverged', 'identical'
+            return { status: res.data.status, ahead_by: res.data.ahead_by, behind_by: res.data.behind_by };
+
+      - name: Skip if develop is not behind
+        if: ${{ fromJSON(steps.compare.outputs.result).status != 'behind' && fromJSON(steps.compare.outputs.result).status != 'diverged' }}
+        run: echo "develop is not behind main (status: ${{ fromJSON(steps.compare.outputs.result).status }}). Skipping."
+
+      - name: Check for existing open PR main → develop
+        id: existing
+        if: ${{ fromJSON(steps.compare.outputs.result).status == 'behind' || fromJSON(steps.compare.outputs.result).status == 'diverged' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', base: 'develop', head: owner + ':main', per_page: 100
+            });
+            return { count: prs.length };
+
+      - name: Open PR main → develop
+        if: ${{ steps.existing.outputs.result && fromJSON(steps.existing.outputs.result).count == 0 }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const title = `Back-merge main → develop (post-release)`;
+            const body  = [
+              'Automated back-merge after release/hotfix merge into **main**.',
+              '',
+              '- Source: `main`',
+              '- Target: `develop`',
+              '',
+              'Resolve any conflicts in this PR if present.'
+            ].join('\n');
+
+            const pr = await github.rest.pulls.create({
+              owner, repo,
+              title, body,
+              head: 'main',
+              base: 'develop',
+              draft: false,
+              maintainer_can_modify: true
+            });
+
+            // Optionally add labels
+            try {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: pr.data.number,
+                labels: ['back-merge']
+              });
+            } catch (e) { /* labels may not exist; ignore */ }
+
+            core.info(`Opened PR #${pr.data.number} main → develop`);
+
+      - name: Found existing PR — no action
+        if: ${{ steps.existing.outputs.result && fromJSON(steps.existing.outputs.result).count > 0 }}
+        run: echo "An open PR main → develop already exists."
