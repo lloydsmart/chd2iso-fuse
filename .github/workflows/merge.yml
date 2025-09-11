@@ -28,7 +28,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const headSha = context.payload.head_commit.id;
+            const headSha = context.payload?.head_commit?.id || context.sha;
             // Find the PR whose merge_commit_sha == this push's head commit
             const prs = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: 'closed', per_page: 100
@@ -49,7 +49,7 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     permissions:
       contents: read
-    uses: lloydsmart/chd2iso-fuse/.github/workflows/_verify-release.yml@bugfix/release-workflow
+    uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
   tag:
@@ -122,7 +122,7 @@ jobs:
           else
             echo "should_backmerge=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "Status: $STATUS; should_backmerge=$(grep -o 'true\|false' <<< "$(<$GITHUB_OUTPUT)")"
+          echo "Status: $STATUS"
 
       - name: Check for existing open PR main -> develop
         id: existing
@@ -169,4 +169,4 @@ jobs:
             } catch (e) {
               core.info('Label add skipped (label may not exist).');
             }
-            core.info(`Opened PR #${pr.data.number} main -> develop`);
+            core.info(`Opened PR #${pr.data.number} main -> develop`)
