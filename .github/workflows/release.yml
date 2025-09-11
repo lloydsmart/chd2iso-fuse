@@ -42,7 +42,8 @@ jobs:
 
   build:
     name: Build for tag
-    needs: [guard_tag_on_main]
+    needs:
+      - guard_tag_on_main
     uses: ./.github/workflows/_build.yml
     with:
       lane: main
@@ -51,29 +52,37 @@ jobs:
 
   verify_versions:
     name: Verify versions
-    needs: [build]
+    needs:
+      - build
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
   publish_release:
     name: Publish GitHub Release
-    needs: [build, verify_versions]
+    needs:
+      - build
+      - verify_versions
     runs-on: ubuntu-latest
     steps:
-      - name: Preflight check (vars + secrets present)
+      - name: Preflight check (identity variables present)
+        env:
+          HAS_AUTHOR_NAME: ${{ vars.GIT_AUTHOR_NAME != '' }}
+          HAS_AUTHOR_EMAIL: ${{ vars.GIT_AUTHOR_EMAIL != '' }}
         run: |
           set -euo pipefail
-          for var in GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL; do
-            if [ -z "${{ vars[$var] || '' }}" ]; then
-              echo "::warning::Variable $var is not set (will use default)."
-            fi
-          done
+          if [ "${HAS_AUTHOR_NAME}" != "true" ]; then
+            echo "::warning::Variable GIT_AUTHOR_NAME is not set (will use default)."
+          fi
+          if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then
+            echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."
+          fi
 
       - name: Debug tag
         run: echo "tag=${GITHUB_REF_NAME}"
 
       - name: Configure git identity (from Actions Variables)
         run: |
+          set -euo pipefail
           NAME="${{ vars.GIT_AUTHOR_NAME }}"
           EMAIL="${{ vars.GIT_AUTHOR_EMAIL }}"
           : "${NAME:=Release Bot}"
