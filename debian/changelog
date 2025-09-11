@@ -1,5 +1,52 @@
 chd2iso-fuse (0.2.8-1) trixie; urgency=medium
 
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+  * chore(deps): bump actions/github-script from 7 to 8
+  * chore(deps): bump actions/download-artifact from 4 to 5
+
+  [ lloydsmart ]
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+  * ci: add release workflow triggered by tags
+  * ci: auto-bump version and changelogs on release/* pushes
+  * ci: rename release prep workflow to autobump.yml
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+  * docs: add developer runbook for release process
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+  * fix(workflows): sanitize release.yml around artifact download block
+  * fix(workflows): harden release.yml around artifact download block
+  * fix(workflows): quote wildcard pattern in release.yml
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness
+  * ci: install gbp & Debian helpers for changelog step
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): make changelog & notes deterministic (prev..HEAD)
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 10:08:55 +0000
+
+chd2iso-fuse (0.2.8-1) trixie; urgency=medium
+
   [ Lloyd Smart ]
   * Release v0.2.7
 
