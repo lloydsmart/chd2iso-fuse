@@ -60,6 +60,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Preflight check (vars + secrets present)
+        env:
+          HAS_GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+          HAS_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE != '' }}
+          HAS_AUTHOR_NAME: ${{ vars.GIT_AUTHOR_NAME != '' }}
+          HAS_AUTHOR_EMAIL: ${{ vars.GIT_AUTHOR_EMAIL != '' }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ "${HAS_GPG_PRIVATE_KEY}" != "true" ]; then
+            echo "::error::Secret GPG_PRIVATE_KEY is missing!"; missing=1
+          fi
+          if [ "${HAS_GPG_PASSPHRASE}" != "true" ]; then
+            echo "::error::Secret GPG_PASSPHRASE is missing!"; missing=1
+          fi
+          if [ "${HAS_AUTHOR_NAME}" != "true" ]; then
+            echo "::warning::Variable GIT_AUTHOR_NAME is not set (will use default)."
+          fi
+          if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then
+            echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."
+          fi
+          if [ $missing -eq 1 ]; then
+            echo "Required secrets missing; cannot proceed."
+            exit 1
+          fi
+
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -69,12 +95,19 @@ jobs:
       - name: Ensure safe git dir (for newer Git)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Configure git identity for tagging
+      - name: Configure git identity for tagging (from Actions Variables)
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
+          NAME="${{ vars.GIT_AUTHOR_NAME }}"
+          EMAIL="${{ vars.GIT_AUTHOR_EMAIL }}"
+          : "${NAME:=Release Bot}"
+          : "${EMAIL:=release-bot@users.noreply.github.com}"
+          git config user.name  "${NAME}"
+          git config user.email "${EMAIL}"
           git config commit.gpgsign true
           git config tag.gpgSign true
+          echo "Using git identity: ${NAME} <${EMAIL}>"
 
       - name: Import GPG private key
         env:
@@ -110,9 +143,7 @@ jobs:
       - name: GPG sanity check (non-interactive)
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          set -euo pipefail
-          echo "ok" | gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --clearsign >/dev/null
+        run: echo "ok" | gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --clearsign >/dev/null
 
       - name: Read version from Cargo.toml
         id: ver
