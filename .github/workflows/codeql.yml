@@ -64,6 +64,22 @@ jobs:
           languages: rust
           queries: +security-and-quality
 
+      # 🔒 Guard: fail early if Cargo.lock is stale (since we build with --locked)
+      - name: Ensure Cargo.lock is up to date
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        env:
+          CARGO_TERM_COLOR: always
+        run: |
+          set -euo pipefail
+          # Generate (in-place) what Cargo believes the lockfile should be
+          cargo generate-lockfile
+          if ! git diff --quiet -- Cargo.lock; then
+            echo "::error file=Cargo.lock::Cargo.lock is out of date. Run 'cargo generate-lockfile' locally and commit the result."
+            echo "---- Diff (for visibility) ----"
+            git --no-pager diff -- Cargo.lock || true
+            exit 1
+          fi
+
       - name: Build (all features & targets)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         env: { CARGO_TERM_COLOR: always }
