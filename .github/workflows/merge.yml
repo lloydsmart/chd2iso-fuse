@@ -75,7 +75,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config commit.gpgsign true
           git config tag.gpgSign true
-          git config gpg.program gpg
 
       - name: Import GPG private key
         env:
@@ -84,6 +83,7 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
+          # Allow loopback pinentry for CI
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           gpgconf --kill gpg-agent
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
@@ -93,6 +93,19 @@ jobs:
           fi
           echo "FPR=$FPR" >> "$GITHUB_ENV"
           git config user.signingkey "$FPR"
+
+      - name: Install GPG wrapper for non-interactive signing
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          cat > "$GITHUB_WORKSPACE/gpg-wrapper.sh" <<'EOF'
+          #!/usr/bin/env bash
+          # Pass CI flags to gpg so Git signing works non-interactively.
+          exec gpg --batch --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" "$@"
+          EOF
+          chmod +x "$GITHUB_WORKSPACE/gpg-wrapper.sh"
+          git config gpg.program "$GITHUB_WORKSPACE/gpg-wrapper.sh"
 
       - name: Read version from Cargo.toml
         id: ver
@@ -107,7 +120,6 @@ jobs:
       - name: Create & push signed tag
         env:
           VER: ${{ steps.ver.outputs.val }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,15 +131,10 @@ jobs:
             exit 0
           fi
 
-          # Create signed annotated tag using loopback pinentry
-          export GPG_TTY=$(tty || true)
-          git -c gpg.program=gpg tag -s "${tag}" -m "chd2iso-fuse ${tag}" \
-            --local-user "$FPR" \
-            --batch \
-            --pinentry-mode loopback \
-            --passphrase "$GPG_PASSPHRASE"
+          # Create signed annotated tag (wrapper supplies GPG flags & passphrase)
+          git tag -s "${tag}" -m "chd2iso-fuse ${tag}"
 
-          # Verify signature (recommended hard gate)
+          # Verify signature (hard gate)
           git tag -v "${tag}"
 
           # Push tag
