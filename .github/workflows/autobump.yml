@@ -48,14 +48,28 @@ jobs:
           echo "value=$cur" >> "$GITHUB_OUTPUT"
           echo "Cargo.toml version: ${cur:-<none>}"
 
-      - name: Install tools used by scripts
+      - name: Install Debian packaging tools required by scripts
+        shell: bash
         run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends devscripts ca-certificates
-          # git-cliff is invoked by your script; install if missing (best via cargo in your dev env).
+          # gbp is provided by git-buildpackage. python3-debian used by many Debian helpers.
+          # devscripts provides dch and other helpers. debhelper/fakeroot harmless if present.
+          sudo apt-get install -y --no-install-recommends \
+            git-buildpackage \
+            devscripts \
+            python3-debian \
+            debhelper \
+            fakeroot \
+            ca-certificates
+          # Optional: warn if git-cliff is missing (your script may call it)
           if ! command -v git-cliff >/dev/null 2>&1; then
-            echo "git-cliff not found; ensure scripts/gen-release-notes.sh can find it."
+            echo "WARNING: git-cliff not found; scripts/gen-release-notes.sh should handle this or install it."
           fi
+          # Show versions for debugging
+          gbp --version || true
+          dch --version || true
 
       - name: Bump version & regenerate notes (idempotent)
         shell: bash
@@ -67,7 +81,11 @@ jobs:
           if [[ "$cur" != "$v" ]]; then
             scripts/set-cargo-version.sh "$v"
           fi
+
+          # Requires gbp (git-buildpackage); now installed above
           scripts/gen-debian-changelog.sh "v${v}" trixie
+
+          # May require git-cliff depending on your script logic
           scripts/gen-release-notes.sh
 
           git add -A
