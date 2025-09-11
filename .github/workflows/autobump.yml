@@ -20,6 +20,12 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
 
+    # Export maintainer identity for dch/gbp
+    env:
+      DEBEMAIL: lloydsmart@users.noreply.github.com
+      DEBFULLNAME: Lloyd Smart
+      EMAIL: lloydsmart@users.noreply.github.com
+
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
@@ -54,8 +60,6 @@ jobs:
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          # gbp is provided by git-buildpackage. python3-debian used by many Debian helpers.
-          # devscripts provides dch and other helpers. debhelper/fakeroot harmless if present.
           sudo apt-get install -y --no-install-recommends \
             git-buildpackage \
             devscripts \
@@ -63,11 +67,10 @@ jobs:
             debhelper \
             fakeroot \
             ca-certificates
-          # Optional: warn if git-cliff is missing (your script may call it)
+          # Optional: warn if git-cliff is absent (your notes script may call it)
           if ! command -v git-cliff >/dev/null 2>&1; then
             echo "WARNING: git-cliff not found; scripts/gen-release-notes.sh should handle this or install it."
           fi
-          # Show versions for debugging
           gbp --version || true
           dch --version || true
 
@@ -82,10 +85,10 @@ jobs:
             scripts/set-cargo-version.sh "$v"
           fi
 
-          # Requires gbp (git-buildpackage); now installed above
+          # Requires gbp (git-buildpackage)
           scripts/gen-debian-changelog.sh "v${v}" trixie
 
-          # May require git-cliff depending on your script logic
+          # Release notes (may use git-cliff)
           scripts/gen-release-notes.sh
 
           git add -A
@@ -93,7 +96,8 @@ jobs:
             echo "No changes; nothing to commit."
             exit 0
           fi
-          git config user.name  github-actions
-          git config user.email github-actions@users.noreply.github.com
+          # Configure git identity for the commit
+          git config user.name  "Lloyd Smart"
+          git config user.email "lloydsmart@users.noreply.github.com"
           git commit -m "chore(release): prepare v${v} [skip ci]"
           git push
