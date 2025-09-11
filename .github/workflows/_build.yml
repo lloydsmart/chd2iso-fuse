@@ -176,7 +176,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chd2iso-fuse-nightly-${{ github.run_id }}-${{ github.sha }}
-        path: artifacts/
+          path: artifacts/
 
       - name: Upload build artifacts
         if: ${{ !inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
