@@ -5,14 +5,12 @@ on:
     branches: [ main ]
 
 concurrency:
-  # Ensure one run per ref; avoid racing tag/backmerge for the same merge
   group: on-merge-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   detect:
     name: Detect merged PR
-    # Ignore housekeeping commits that used [skip ci]
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
@@ -29,7 +27,6 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const headSha = context.payload?.head_commit?.id || context.sha;
-            // Find the PR whose merge_commit_sha == this push's head commit
             const prs = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: 'closed', per_page: 100
             });
@@ -96,7 +93,6 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Configure git identity for tagging (from Actions Variables)
-        shell: bash
         run: |
           set -euo pipefail
           NAME="${{ vars.GIT_AUTHOR_NAME }}"
@@ -116,7 +112,6 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
-          # Allow loopback pinentry for CI
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           gpgconf --kill gpg-agent
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
@@ -134,7 +129,6 @@ jobs:
           set -euo pipefail
           cat > "$GITHUB_WORKSPACE/gpg-wrapper.sh" <<'EOF'
           #!/usr/bin/env bash
-          # Pass CI flags to gpg so Git signing works non-interactively.
           exec gpg --batch --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" "$@"
           EOF
           chmod +x "$GITHUB_WORKSPACE/gpg-wrapper.sh"
@@ -158,34 +152,23 @@ jobs:
       - name: Create & push signed tag
         env:
           VER: ${{ steps.ver.outputs.val }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}   # ensure wrapper has the passphrase
-        shell: bash
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
           tag="v${VER}"
-
-          # No-op if the tag already exists on origin
           if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
             echo "Tag ${tag} already exists on origin; nothing to do."
             exit 0
           fi
-
-          # Make GPG happy in some environments
           export GPG_TTY=$(tty || true)
-
-          # Create signed annotated tag (wrapper supplies GPG flags & passphrase)
           git tag -s "${tag}" -m "chd2iso-fuse ${tag}"
-
-          # Verify signature (hard gate)
           git tag -v "${tag}"
-
-          # Push tag
           git push origin "refs/tags/${tag}"
           echo "Pushed signed tag ${tag}"
 
   backmerge:
     name: Open back-merge PR (main -> develop)
-    needs: [detect, tag]
+    needs: [detect]  # decoupled from tag
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -201,7 +184,7 @@ jobs:
             const res = await github.rest.repos.compareCommits({
               owner, repo, base: 'develop', head: 'main'
             });
-            core.setOutput('status', res.data.status); // ahead | behind | diverged | identical
+            core.setOutput('status', res.data.status);
             core.setOutput('ahead_by', String(res.data.ahead_by));
             core.setOutput('behind_by', String(res.data.behind_by));
 
