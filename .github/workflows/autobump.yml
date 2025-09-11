@@ -16,43 +16,20 @@ concurrency:
 jobs:
   prep:
     name: Prepare (version & changelog)
-    # Don’t act on our own prep commits
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
 
-    # Maintainer identity for dch/gbp and git
     env:
       DEBEMAIL: lloydsmart@users.noreply.github.com
       DEBFULLNAME: Lloyd Smart
       EMAIL: lloydsmart@users.noreply.github.com
 
     steps:
-      - name: Checkout branch
+      - name: Checkout branch (full history + tags)
         uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
-      - name: Derive version from branch
-        id: ver
-        shell: bash
-        run: |
-          set -euo pipefail
-          br="${GITHUB_REF_NAME}"   # release/0.2.8 or release/0.2.8-rc1
-          case "$br" in
-            release/*) v="${br#release/}" ;;
-            hotfix/*)  v="${br#hotfix/}"  ;;
-            *) echo "Not a release/hotfix branch: $br"; exit 1 ;;
-          esac
-          [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}(-rc[0-9]+)?$ ]] || { echo "Bad version: $v"; exit 1; }
-          echo "value=$v" >> "$GITHUB_OUTPUT"
-          echo "Version: $v"
-
-      - name: Read current Cargo.toml version
-        id: cur
-        shell: bash
-        run: |
-          cur="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' Cargo.toml | head -n1 || true)"
-          echo "value=$cur" >> "$GITHUB_OUTPUT"
-          echo "Cargo.toml version: ${cur:-<none>}"
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Install Debian packaging tools & git-cliff
         shell: bash
@@ -68,40 +45,94 @@ jobs:
             fakeroot \
             libdistro-info-perl \
             ca-certificates
-          # Try to get git-cliff from apt first (available on current ubuntu-latest)
           if ! sudo apt-get install -y --no-install-recommends git-cliff; then
             echo "APT git-cliff not available; falling back to cargo install..."
             sudo apt-get install -y --no-install-recommends cargo pkg-config libssl-dev
             cargo install git-cliff --locked
             echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
           fi
-          # Show versions for debugging
           gbp --version || true
           dch --version || true
           git-cliff --version || true
 
-      - name: Bump version & regenerate notes (idempotent)
+      - name: Derive version from branch
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          br="${GITHUB_REF_NAME}"   # e.g. release/0.2.8 or hotfix/0.2.8-rc1
+          case "$br" in
+            release/*) v="${br#release/}" ;;
+            hotfix/*)  v="${br#hotfix/}" ;;
+            *) echo "Not a release/hotfix branch: $br"; exit 1 ;;
+          esac
+          [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}(-rc[0-9]+)?$ ]] || { echo "Bad version: $v"; exit 1; }
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+          echo "Version: $v"
+
+      - name: Read current Cargo.toml version
+        id: cur
+        shell: bash
+        run: |
+          set -euo pipefail
+          cur="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' Cargo.toml | head -n1 || true)"
+          echo "value=$cur" >> "$GITHUB_OUTPUT"
+          echo "Cargo.toml version: ${cur:-<none>}"
+
+      - name: Determine previous tag
+        id: prev
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --prune --tags
+          this="v${{ steps.ver.outputs.value }}"
+          # latest tag matching v* that is not the current release tag
+          prev="$(git tag --list 'v*' --sort=-v:refname | grep -vx "$this" | head -n1 || true)"
+          echo "value=$prev" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${prev:-<none>}"
+
+      - name: Bump version, changelog, and release notes
         shell: bash
         run: |
           set -euo pipefail
           v='${{ steps.ver.outputs.value }}'
           cur='${{ steps.cur.outputs.value }}'
+          prev='${{ steps.prev.outputs.value }}'
 
+          # 1) Bump Cargo.toml if needed
           if [[ "$cur" != "$v" ]]; then
             scripts/set-cargo-version.sh "$v"
           fi
 
-          # Generate Debian changelog (needs gbp/dch and DEB* env)
-          scripts/gen-debian-changelog.sh "v${v}" trixie
+          # 2) Debian changelog from prev..HEAD with a fixed version & distro
+          #    Use gbp directly so we control the range deterministically.
+          #    If no previous tag, let gbp scan full history.
+          if [[ -n "$prev" ]]; then
+            gbp dch --since "$prev" \
+                    --new-version "${v}-1" \
+                    --distribution trixie \
+                    --meta \
+                    --ignore-branch \
+                    --verbose
+          else
+            gbp dch \
+              --new-version "${v}-1" \
+              --distribution trixie \
+              --meta \
+              --ignore-branch \
+              --verbose
+          fi
 
-          # Generate release notes (uses git-cliff)
-          scripts/gen-release-notes.sh
+          # 3) Release notes using git-cliff, cutting at tag v$v
+          #    This generates notes for prev..HEAD and annotates them as v$v.
+          git-cliff --tag "v${v}" -o RELEASE_NOTES.md
 
           git add -A
           if git diff --cached --quiet; then
             echo "No changes; nothing to commit."
             exit 0
           fi
+
           git config user.name  "Lloyd Smart"
           git config user.email "lloydsmart@users.noreply.github.com"
           git commit -m "chore(release): prepare v${v} [skip ci]"
