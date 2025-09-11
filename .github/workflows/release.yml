@@ -45,7 +45,7 @@ jobs:
     name: Build for tag
     needs:
       - guard_tag_on_main
-    uses: lloydsmart/chd2iso-fuse/.github/workflows/_build.yml@bugfix/release-workflow
+    uses: ./.github/workflows/_build.yml
     with:
       lane: main
       nightly: false
@@ -55,7 +55,7 @@ jobs:
     name: Verify versions
     needs:
       - build
-    uses: lloydsmart/chd2iso-fuse/.github/workflows/_verify-release.yml@bugfix/release-workflow
+    uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
   publish_release:
@@ -144,11 +144,9 @@ jobs:
       - build
       - verify_versions
       - publish_release
-    uses: lloydsmart/chd2iso-fuse/.github/workflows/_release.yml@bugfix/release-workflow
+    uses: ./.github/workflows/_release.yml
     with:
       lane: main
       nightly: false
       apt_enabled: false
     secrets: inherit
-
-
