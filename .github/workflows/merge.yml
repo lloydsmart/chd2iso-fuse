@@ -28,13 +28,12 @@ jobs:
             const { owner, repo } = context.repo;
             const commitSha = context.payload?.head_commit?.id || context.sha;
 
-            // Robust: find PRs associated with this commit (works for merge/squash/rebase)
+            // Robust: works for merge/squash/rebase
             const prs = await github.paginate(
               github.rest.repos.listPullRequestsAssociatedWithCommit,
               { owner, repo, commit_sha: commitSha, per_page: 100 }
             );
 
-            // Prefer a merged PR into main, and classify release/hotfix by head ref
             const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
             const headRef = pr?.head?.ref || '';
             const isRelease = Boolean(pr && (headRef.startsWith('release/') || headRef.startsWith('hotfix/')));
@@ -75,7 +74,7 @@ jobs:
           missing=0
           if [ "${HAS_GPG_PRIVATE_KEY}" != "true" ]; then echo "::error::Secret GPG_PRIVATE_KEY is missing!"; missing=1; fi
           if [ "${HAS_GPG_PASSPHRASE}" != "true" ]; then echo "::error::Secret GPG_PASSPHRASE is missing!"; missing=1; fi
-          if [ "${HAS_RELEASE_PAT}" != "true" ]; then echo "::error::Secret RELEASE_PAT is missing (required to push tag and trigger release)!"; missing=1; fi
+          if [ "${HAS_RELEASE_PAT}" != "true" ]; then echo "::error::Secret RELEASE_PAT is missing (required to trigger release)!"; missing=1; fi
           if [ "${HAS_AUTHOR_NAME}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_NAME is not set (will use default)."; fi
           if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."; fi
           if [ $missing -eq 1 ]; then echo "Required secrets missing; cannot proceed."; exit 1; fi
@@ -168,6 +167,26 @@ jobs:
           git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${REPO}.git"
           git push origin "refs/tags/${tag}"
           echo "Pushed signed tag ${tag} with PAT (should trigger Release workflow)"
+
+      - name: Dispatch Release workflow for this tag (fallback)
+        env:
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          REPO: ${{ github.repository }}
+          TAG: v${{ steps.ver.outputs.val }}
+        run: |
+          set -euo pipefail
+          echo "Dispatching release.yml for TAG=${TAG}"
+          resp=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${RELEASE_PAT}" \
+            "https://api.github.com/repos/${REPO}/actions/workflows/release.yml/dispatches" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"tag\":\"${TAG}\"}}")
+          if [ "$resp" != "204" ]; then
+            echo "::warning::Release dispatch returned HTTP ${resp}"
+            sed -n '1,200p' /tmp/resp.txt || true
+          else
+            echo "Dispatched release.yml for ${TAG}"
+          fi
 
   backmerge:
     name: Open back-merge PR (main -> develop)
