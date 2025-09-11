@@ -1,4 +1,4 @@
-chd2iso-fuse (0.2.9-1ubuntu1~2.gbp45b3e7) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.10-1) trixie; urgency=medium
 
   ** SNAPSHOT build @45b3e7e82bd8f33daf863677e339bb70685b1ee8 **
 
@@ -21,8 +21,105 @@ chd2iso-fuse (0.2.9-1ubuntu1~2.gbp45b3e7) UNRELEASED; urgency=medium
 
   [ lloydsmart ]
   * ci(merge): ensure non-interactive GPG signing for tags
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.6
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 14:27:52 +0000
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 4 to 5
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+  * ci: add release workflow triggered by tags
+  * ci: auto-bump version and changelogs on release/* pushes
+  * ci: rename release prep workflow to autobump.yml
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+  * docs: add developer runbook for release process
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+  * fix(workflows): sanitize release.yml around artifact download block
+  * fix(workflows): harden release.yml around artifact download block
+  * fix(workflows): quote wildcard pattern in release.yml
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness
+  * ci: install gbp & Debian helpers for changelog step
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): make changelog & notes deterministic (prev..HEAD)
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): fail early when Cargo.lock is stale
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): use local reusable workflow paths so release runs at the same commit
+  * chore(ci): auto-refresh Cargo.lock in autobump workflow
+  * chore(ci): allow hotfix branches without semver to update notes/changelog/lockfile
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): call _verify-release.yml via local path in merge workflow
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): configure git identity for tagging and guard against existing remote tag
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * codeql: fix “Neutral” status by aligning categories; add Rust variant matrix
+  * codeql: fix Neutral runs by aligning categories; add variant matrix
+  * ci(merge): create GPG-signed release tags in CI
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.9 [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): fix signed tag creation via GPG wrapper
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): ensure non-interactive GPG signing for tags
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 16:28:19 +0000
 
 chd2iso-fuse (0.2.9-1) trixie; urgency=medium
 
