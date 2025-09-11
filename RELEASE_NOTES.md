@@ -36,7 +36,10 @@
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (f7e23fd)
 - chore(release): prepare v0.2.9 [skip ci] (cd050d3)
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (97b428e)
-- chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (0bab393)### Docs
+- chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (0bab393)
+- chore(release): prepare v0.2.10 [skip ci] (d7d7916)
+- chore(ci): use Actions Variables for git identity; preserve full release pipeline (5c2ccbf)
+- chore(ci): add preflight checks for vars/secrets in release workflows (9f3a39a)### Docs
 - docs: add developer runbook for release process (5bf543f)### Fixes
 - fix(workflows): clean up release.yml to resolve YAML parse error (14452e6)
 - fix(workflows): repair merge.yml syntax and simplify outputs (06e9b54)
@@ -53,7 +56,10 @@
 - fix(workflows): make release.yml parser-proof and pin reusable refs (8724885)
 - fix(workflows): simplify artifact download in release.yml to avoid YAML issues (11ca86f)
 - fix(ci): use local reusable workflow paths so release runs at the same commit (ed1c4aa)
-- fix(ci): call _verify-release.yml via local path in merge workflow (3e937b6)### Other
+- fix(ci): call _verify-release.yml via local path in merge workflow (3e937b6)
+- fix(ci): correct preflight checks to avoid dynamic vars/secrets indexing (96a37eb)
+- fix(ci): ensure back-merge PR runs even if tagging is skipped (8cd12f2)
+- fix(ci): correct YAML structure so backmerge is a separate job (b7dd032)### Other
 - Merge tag 'v0.2.7' into develop (8cc9f55)
 - PR #76: chore(deps): bump actions/download-artifact from 4 to 5 (513192b)
 - PR #75: chore(deps): bump actions/github-script from 7 to 8 (e65d796)
@@ -80,7 +86,11 @@
 - PR #87: Release/0.2.9 (f3a39d4)
 - PR #88: Hotfix/gpg fix (3a971ec)
 - PR #89: Hotfix/gpg fix (fb355d1)
-- PR #90: Back-merge (12dba46)### CI
+- PR #90: Back-merge (12dba46)
+- PR #91: Release/0.2.10 (c2f789e)
+- PR #92: Back-merge (104aa24)
+- PR #93: Bugfix/better ci (f12cfe2)
+- PR #94: Bugfix/backmerge fix (9c818f5)### CI
 - ci(cargo-audit): drop obsolete --db-update flag (3418c33)
 - ci(audit): remove duplicate cargo-audit.yml (use security-audit.yml only) (cc9c6c2)
 - ci(release): add version/changelog guard for release/* and hotfix/* (a67a4a4)
