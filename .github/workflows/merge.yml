@@ -183,14 +183,14 @@ jobs:
           git push origin "refs/tags/${tag}"
           echo "Pushed signed tag ${tag}"
 
-  backmerge:
-    name: Open back-merge PR (main -> develop)
-    needs: [detect, tag]
-    if: needs.detect.outputs.is_release == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
+backmerge:
+  name: Open back-merge PR (main -> develop)
+  needs: [detect]  # was [detect, tag]
+  if: needs.detect.outputs.is_release == 'true'
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read
+    pull-requests: write
     steps:
       - name: Compare branches (is develop behind main?)
         id: compare
