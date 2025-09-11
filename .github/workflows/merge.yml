@@ -69,12 +69,19 @@ jobs:
       - name: Ensure safe git dir (for newer Git)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Configure git identity for tagging
+      - name: Configure git identity for tagging (from Actions Variables)
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
+          NAME="${{ vars.GIT_AUTHOR_NAME }}"
+          EMAIL="${{ vars.GIT_AUTHOR_EMAIL }}"
+          : "${NAME:=Release Bot}"
+          : "${EMAIL:=release-bot@users.noreply.github.com}"
+          git config user.name  "${NAME}"
+          git config user.email "${EMAIL}"
           git config commit.gpgsign true
           git config tag.gpgSign true
+          echo "Using git identity: ${NAME} <${EMAIL}>"
 
       - name: Import GPG private key
         env:
