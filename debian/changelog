@@ -259,6 +259,38 @@ chd2iso-fuse (0.2.8-1) trixie; urgency=medium
   * Release 0.2.8
 
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 09:56:00 +0000
+=======
+chd2iso-fuse (0.2.6-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): switch Rust to build-mode=none and drop manual build.
+    Rust extractor doesn’t support manual build mode. Use build-mode=none and
+    run the standard security-extended + security-and-quality queries.
+    Removed the ‘observed’ cargo build (not used by Rust CodeQL).
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.2.6 from tag
+  * chore(release): sync Cargo.lock to version 0.2.6
+  * Release 0.2.6
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 07 Sep 2025 21:14:31 +0000
+ 
+chd2iso-fuse (0.2.5-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.4
+  * ci(cargo-audit): install tool, update RustSec DB, and run audit (with caching)
+    Replaces invalid `cargo-audit fetch` with:
+    - `cargo audit --db-update`
+    - `cargo audit`
+    Also caches Cargo registry/git, cargo bin installs, and advisory DB to speed runs.
+
+  [ Lloyd Smart ]
+  * chore(release): set Cargo version to 0.2.5 from tag
+  * chore(release): sync Cargo.lock to version 0.2.5
+  * Release 0.2.5
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 07 Sep 2025 21:14:28 +0000
 
 chd2iso-fuse (0.2.4-1) trixie; urgency=medium
 
