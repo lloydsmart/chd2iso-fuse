@@ -1,3 +1,23 @@
+chd2iso-fuse (0.2.9-1ubuntu1~1.gbp0054df) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @0054df423c2f34d58dc50ff6bd613b2111612578 **
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * codeql: fix “Neutral” status by aligning categories; add Rust variant matrix
+  * codeql: fix Neutral runs by aligning categories; add variant matrix
+  * ci(merge): create GPG-signed release tags in CI
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.9 [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): fix signed tag creation via GPG wrapper
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 14:14:22 +0000
+
 chd2iso-fuse (0.2.9-1) trixie; urgency=medium
 
   ** SNAPSHOT build @673df73658eb43f3cf55765b525f9b1b7b37b30a **
