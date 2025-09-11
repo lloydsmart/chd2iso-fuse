@@ -18,7 +18,10 @@
 - chore(deps): bump actions/download-artifact from 4 to 5 (5d117fc)
 - chore(deps): bump actions/github-script from 7 to 8 (39018ba)
 - chore(deps): bump actions/checkout from 4 to 5 (6b8da76)
-- chore(release): prepare v0.2.8 [skip ci] (5e9ff7d)### Docs
+- chore(release): prepare v0.2.8 [skip ci] (5e9ff7d)
+- chore(release): prepare v0.2.8 [skip ci] (c84eac3)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.6 (fdf86a9)
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5 (f365706)### Docs
 - docs: add developer runbook for release process (5bf543f)### Fixes
 - fix(workflows): clean up release.yml to resolve YAML parse error (14452e6)
 - fix(workflows): repair merge.yml syntax and simplify outputs (06e9b54)
@@ -41,7 +44,12 @@
 - PR #77: Feature/unified ci (7836036)
 - PR #78: Bugfix/release workflow (00b5e3b)
 - debian/watch: switch to git refs backend for robustness (73c9f32)
-- PR #79: debian/watch: switch to git refs backend for robustness (e984ff5)### CI
+- PR #79: debian/watch: switch to git refs backend for robustness (e984ff5)
+- PR #71: Merge tag 'v0.2.7' into develop (3bfa481)
+- PR #72: chore(release): update changelogs for v0.2.5 (f04ad6b)
+- Merge branch 'main' into chore/update-changelogs-v0.2.6 (4b9bb21)
+- PR #73: chore(release): update changelogs for v0.2.6 (6db01a4)
+- Merge branch 'main' into release/0.2.8 (c119888)### CI
 - ci(cargo-audit): drop obsolete --db-update flag (3418c33)
 - ci(audit): remove duplicate cargo-audit.yml (use security-audit.yml only) (cc9c6c2)
 - ci(release): add version/changelog guard for release/* and hotfix/* (a67a4a4)
