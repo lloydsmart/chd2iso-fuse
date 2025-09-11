@@ -14,14 +14,16 @@
 - ci: install gbp & Debian helpers for changelog step (f7fd064)
 - ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install (2b8e8e4)
 - ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl (6ef1bb2)
-- ci(autobump): make changelog & notes deterministic (prev..HEAD) (6f42953)### Chore
+- ci(autobump): make changelog & notes deterministic (prev..HEAD) (6f42953)
+- ci(codeql): fail early when Cargo.lock is stale (d549c7a)### Chore
 - chore(deps): bump actions/download-artifact from 4 to 5 (5d117fc)
 - chore(deps): bump actions/github-script from 7 to 8 (39018ba)
 - chore(deps): bump actions/checkout from 4 to 5 (6b8da76)
 - chore(release): prepare v0.2.8 [skip ci] (5e9ff7d)
 - chore(release): prepare v0.2.8 [skip ci] (c84eac3)
 - chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.6 (fdf86a9)
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5 (f365706)### Docs
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5 (f365706)
+- chore(release): prepare v0.2.8 [skip ci] (4887b5c)### Docs
 - docs: add developer runbook for release process (5bf543f)### Fixes
 - fix(workflows): clean up release.yml to resolve YAML parse error (14452e6)
 - fix(workflows): repair merge.yml syntax and simplify outputs (06e9b54)
