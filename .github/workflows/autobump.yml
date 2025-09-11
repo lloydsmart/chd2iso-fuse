@@ -30,6 +30,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: true
 
       - name: Install Debian packaging tools & git-cliff
         shell: bash
@@ -91,7 +92,8 @@ jobs:
           echo "value=$prev" >> "$GITHUB_OUTPUT"
           echo "Previous tag: ${prev:-<none>}"
 
-      - name: Bump version, changelog, and release notes
+      - name: Bump version, Debian changelog, and release notes (stage only)
+        id: bump
         shell: bash
         run: |
           set -euo pipefail
@@ -100,13 +102,13 @@ jobs:
           prev='${{ steps.prev.outputs.value }}'
 
           # 1) Bump Cargo.toml if needed
+          changed=0
           if [[ "$cur" != "$v" ]]; then
             scripts/set-cargo-version.sh "$v"
+            changed=1
           fi
 
           # 2) Debian changelog from prev..HEAD with a fixed version & distro
-          #    Use gbp directly so we control the range deterministically.
-          #    If no previous tag, let gbp scan full history.
           if [[ -n "$prev" ]]; then
             gbp dch --since "$prev" \
                     --new-version "${v}-1" \
@@ -122,18 +124,62 @@ jobs:
               --ignore-branch \
               --verbose
           fi
+          changed=1
 
           # 3) Release notes using git-cliff, cutting at tag v$v
-          #    This generates notes for prev..HEAD and annotates them as v$v.
           git-cliff --tag "v${v}" -o RELEASE_NOTES.md
+          changed=1
 
+          # Stage changes, but do not commit yet (Cargo.lock may still need regeneration)
           git add -A
-          if git diff --cached --quiet; then
-            echo "No changes; nothing to commit."
-            exit 0
+
+          if [[ "$changed" -eq 0 ]]; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Detect if Cargo.toml changed in this run
+        id: cargo_changed
+        if: steps.bump.outputs.no_changes == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --name-only --staged | grep -q '^Cargo\.toml$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            # Cargo.toml might have been unchanged, but ensure we also catch direct edits outside this job
+            if git diff --name-only HEAD.. | grep -q '^Cargo\.toml$'; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Install Rust (stable) if Cargo.toml changed
+        if: steps.bump.outputs.no_changes == 'false' && steps.cargo_changed.outputs.changed == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Regenerate Cargo.lock after version bump
+        if: steps.bump.outputs.no_changes == 'false' && steps.cargo_changed.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo generate-lockfile
+          test -f Cargo.lock
+          # Stage the lockfile if it changed
+          git add Cargo.lock || true
+
+      - name: Commit and push changes
+        if: steps.bump.outputs.no_changes == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --cached --quiet; then
+            echo "No staged changes; nothing to commit."
+            exit 0
+          fi
           git config user.name  "Lloyd Smart"
           git config user.email "lloydsmart@users.noreply.github.com"
-          git commit -m "chore(release): prepare v${v} [skip ci]"
+          git commit -m "chore(release): prepare v${{ steps.ver.outputs.value }} [skip ci]"
           git push
