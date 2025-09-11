@@ -20,7 +20,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
 
-    # Export maintainer identity for dch/gbp
+    # Maintainer identity for dch/gbp and git
     env:
       DEBEMAIL: lloydsmart@users.noreply.github.com
       DEBFULLNAME: Lloyd Smart
@@ -54,7 +54,7 @@ jobs:
           echo "value=$cur" >> "$GITHUB_OUTPUT"
           echo "Cargo.toml version: ${cur:-<none>}"
 
-      - name: Install Debian packaging tools required by scripts
+      - name: Install Debian packaging tools & git-cliff
         shell: bash
         run: |
           set -euo pipefail
@@ -66,13 +66,19 @@ jobs:
             python3-debian \
             debhelper \
             fakeroot \
+            libdistro-info-perl \
             ca-certificates
-          # Optional: warn if git-cliff is absent (your notes script may call it)
-          if ! command -v git-cliff >/dev/null 2>&1; then
-            echo "WARNING: git-cliff not found; scripts/gen-release-notes.sh should handle this or install it."
+          # Try to get git-cliff from apt first (available on current ubuntu-latest)
+          if ! sudo apt-get install -y --no-install-recommends git-cliff; then
+            echo "APT git-cliff not available; falling back to cargo install..."
+            sudo apt-get install -y --no-install-recommends cargo pkg-config libssl-dev
+            cargo install git-cliff --locked
+            echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
           fi
+          # Show versions for debugging
           gbp --version || true
           dch --version || true
+          git-cliff --version || true
 
       - name: Bump version & regenerate notes (idempotent)
         shell: bash
@@ -85,10 +91,10 @@ jobs:
             scripts/set-cargo-version.sh "$v"
           fi
 
-          # Requires gbp (git-buildpackage)
+          # Generate Debian changelog (needs gbp/dch and DEB* env)
           scripts/gen-debian-changelog.sh "v${v}" trixie
 
-          # Release notes (may use git-cliff)
+          # Generate release notes (uses git-cliff)
           scripts/gen-release-notes.sh
 
           git add -A
@@ -96,7 +102,6 @@ jobs:
             echo "No changes; nothing to commit."
             exit 0
           fi
-          # Configure git identity for the commit
           git config user.name  "Lloyd Smart"
           git config user.email "lloydsmart@users.noreply.github.com"
           git commit -m "chore(release): prepare v${v} [skip ci]"
