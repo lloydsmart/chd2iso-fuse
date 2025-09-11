@@ -1,12 +1,15 @@
-name: Reusable — Build & Test
+name: Reusable - Build
+
 on:
   workflow_call:
     inputs:
-      lane: { type: string, required: true }
-      nightly: { type: boolean, default: false }
-
-permissions:
-  contents: read
+      lane:
+        type: string
+        required: true
+      nightly:
+        type: boolean
+        default: false
+    secrets: {}
 
 jobs:
   rust-deb:
@@ -25,7 +28,6 @@ jobs:
       EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
-      # 0) Ensure git exists inside the container so actions can use it
       - name: Install git for checkout & basic tooling
         run: |
           set -euo pipefail
@@ -33,22 +35,19 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             git ca-certificates
 
-      # 1) Checkout the repo into $GITHUB_WORKSPACE (owned by container user)
       - name: Checkout (with tags)
         uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
-      # 2) Mark the workspace as safe for git (fixes "dubious ownership" in containers)
       - name: Configure git trust and identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name  "Lloyd Smart"
           git config --global user.email "lloydsmart@users.noreply.github.com"
 
-      # Compute a stable hash for Cargo.lock (or 'none' if missing) — used by cache
       - name: Hash Cargo.lock
         id: cargo_lock
-        shell: bash
         run: |
           if [ -f Cargo.lock ]; then
             echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
@@ -56,7 +55,6 @@ jobs:
             echo "val=none" >> "$GITHUB_OUTPUT"
           fi
 
-      # Detect whether Rust/package files changed on PRs
       - name: Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
@@ -71,7 +69,6 @@ jobs:
               - 'debian/**'
               - 'Makefile'
 
-      # QUICK EXIT: acknowledge non-code PRs (still reports success)
       - name: No-op (non-code PR)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
@@ -90,7 +87,6 @@ jobs:
             bats shellcheck \
             sccache || true
 
-          # Fallback sccache via cargo if package not present
           if ! command -v sccache >/dev/null 2>&1; then
             cargo install sccache --locked
             ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache

@@ -1,14 +1,14 @@
-name: Reusable — Verify release lane versions
-
-defaults:
-  run:
-    shell: bash
+name: Reusable - Verify release
 
 on:
   workflow_call: {}
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   verify:
@@ -20,7 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - name: Install minimal deps
         run: |
@@ -34,7 +35,6 @@ jobs:
 
       - name: Read Cargo.toml version
         id: cargo
-        shell: bash
         run: |
           set -euo pipefail
           CARGO_VER="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' Cargo.toml | head -n1)"
@@ -52,15 +52,12 @@ jobs:
 
       - name: Read Debian upstream version
         id: deb
-        shell: bash
         run: |
           set -euo pipefail
-          # dpkg-parsechangelog is provided by dpkg-dev
           DEB_FULL="$(dpkg-parsechangelog -SVersion || true)"
           if [[ -z "${DEB_FULL}" ]]; then
             echo "ERROR: Could not parse debian/changelog. Did you update it for this release lane?"; exit 1
           fi
-          # upstream is part before the first dash
           UPSTREAM="${DEB_FULL%%-*}"
           echo "full=${DEB_FULL}"     >> "$GITHUB_OUTPUT"
           echo "upstream=${UPSTREAM}" >> "$GITHUB_OUTPUT"
@@ -73,7 +70,6 @@ jobs:
           DEB_UP:    ${{ steps.deb.outputs.upstream }}
         run: |
           set -euo pipefail
-          # Map Cargo RC (X.Y.Z-rcN) to Debian upstream (X.Y.Z~rcN)
           if [[ "${CARGO_VER}" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-rc([0-9]+)$ ]]; then
             EXPECT="${BASH_REMATCH[1]}~rc${BASH_REMATCH[2]}"
           else

@@ -1,4 +1,4 @@
-name: Reusable — Release lane
+name: Reusable - Release lane
 
 on:
   workflow_call:
@@ -14,7 +14,7 @@ on:
         default: false
 
 permissions:
-  contents: write   # for GitHub Releases later
+  contents: write
 
 jobs:
   prepare-release:
@@ -23,7 +23,7 @@ jobs:
     outputs:
       channel: ${{ steps.ch.outputs.channel }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 

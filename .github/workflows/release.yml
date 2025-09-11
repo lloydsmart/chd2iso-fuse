@@ -1,0 +1,154 @@
+name: Release (on tag)
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  security-events: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard_tag_on_main:
+    name: Guard - tag must be on main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is reachable from origin main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_SHA="$(git rev-parse "${TAG_NAME}^{commit}")"
+          echo "Tag ${TAG_NAME} -> ${TAG_SHA}"
+          if git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
+            echo "Tag commit is contained in origin/main"
+          else
+            echo "Tag ${TAG_NAME} (${TAG_SHA}) is NOT contained in origin/main"
+            echo "Aborting release. Create the tag on main or a commit reachable from main."
+            exit 1
+          fi
+
+  build:
+    name: Build for tag
+    needs:
+      - guard_tag_on_main
+    uses: lloydsmart/chd2iso-fuse/.github/workflows/_build.yml@bugfix/release-workflow
+    with:
+      lane: main
+      nightly: false
+    secrets: inherit
+
+  verify_versions:
+    name: Verify versions
+    needs:
+      - build
+    uses: lloydsmart/chd2iso-fuse/.github/workflows/_verify-release.yml@bugfix/release-workflow
+    secrets: inherit
+
+  publish_release:
+    name: Publish GitHub Release
+    needs:
+      - build
+      - verify_versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug tag
+        run: |
+          echo "tag=${GITHUB_REF_NAME}"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: "artifacts"
+          merge-multiple: true
+
+      - name: Guard artifacts exist
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          deb=(artifacts/*.deb)
+          bi=(artifacts/*.buildinfo)
+          ch=(artifacts/*.changes)
+          if [ ${#deb[@]} -eq 0 ] && [ ${#bi[@]} -eq 0 ] && [ ${#ch[@]} -eq 0 ]; then
+            echo "No artifacts found in ./artifacts"
+            exit 1
+          fi
+          find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
+
+      - name: Ensure RELEASE_NOTES.md
+        run: |
+          set -euo pipefail
+          if [ -f artifacts/RELEASE_NOTES.md ]; then
+            cp artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
+          elif [ -f artifacts/CHANGELOG.md ]; then
+            cp artifacts/CHANGELOG.md RELEASE_NOTES.md
+          else
+            echo "(no release notes provided)" > RELEASE_NOTES.md
+          fi
+          sed -n '1,120p' RELEASE_NOTES.md || true
+
+      - name: Assemble asset list
+        id: assets
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=()
+          for f in artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes artifacts/SHA256SUMS artifacts/SHA256SUMS.asc; do
+            [ -e "$f" ] || continue
+            cp "$f" .
+            files+=("$(basename "$f")")
+          done
+          {
+            echo 'ASSET_FILES<<EOF'
+            printf '%s\n' "${files[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Create draft release and upload
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "chd2iso-fuse ${{ github.ref_name }}"
+          body_path: "RELEASE_NOTES.md"
+          generate_release_notes: false
+          draft: true
+          fail_on_unmatched_files: false
+          files: ${{ env.ASSET_FILES }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release_lane:
+    name: Release lane and optional APT
+    needs:
+      - build
+      - verify_versions
+      - publish_release
+    uses: lloydsmart/chd2iso-fuse/.github/workflows/_release.yml@bugfix/release-workflow
+    with:
+      lane: main
+      nightly: false
+      apt_enabled: false
+    secrets: inherit
+
+

@@ -1,3 +1,381 @@
+chd2iso-fuse (0.2.8-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 4 to 5
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+  * ci: add release workflow triggered by tags
+  * ci: auto-bump version and changelogs on release/* pushes
+  * ci: rename release prep workflow to autobump.yml
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+  * docs: add developer runbook for release process
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+  * fix(workflows): sanitize release.yml around artifact download block
+  * fix(workflows): harden release.yml around artifact download block
+  * fix(workflows): quote wildcard pattern in release.yml
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness
+  * ci: install gbp & Debian helpers for changelog step
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): make changelog & notes deterministic (prev..HEAD)
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): fail early when Cargo.lock is stale
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 10:23:07 +0000
+
+chd2iso-fuse (0.2.8-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.5
+  * chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 4 to 5
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+  * ci: add release workflow triggered by tags
+  * ci: auto-bump version and changelogs on release/* pushes
+  * ci: rename release prep workflow to autobump.yml
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+  * docs: add developer runbook for release process
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+  * fix(workflows): sanitize release.yml around artifact download block
+  * fix(workflows): harden release.yml around artifact download block
+  * fix(workflows): quote wildcard pattern in release.yml
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness
+  * ci: install gbp & Debian helpers for changelog step
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): make changelog & notes deterministic (prev..HEAD)
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 10:17:07 +0000
+
+chd2iso-fuse (0.2.8-1) trixie; urgency=medium
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+  * chore(deps): bump actions/github-script from 7 to 8
+  * chore(deps): bump actions/download-artifact from 4 to 5
+
+  [ lloydsmart ]
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+  * ci: add release workflow triggered by tags
+  * ci: auto-bump version and changelogs on release/* pushes
+  * ci: rename release prep workflow to autobump.yml
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+  * docs: add developer runbook for release process
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+  * fix(workflows): sanitize release.yml around artifact download block
+  * fix(workflows): harden release.yml around artifact download block
+  * fix(workflows): quote wildcard pattern in release.yml
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness
+  * ci: install gbp & Debian helpers for changelog step
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.8 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): make changelog & notes deterministic (prev..HEAD)
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 10:08:55 +0000
+
+chd2iso-fuse (0.2.8-1) trixie; urgency=medium
+
+  [ Lloyd Smart ]
+  * Release v0.2.7
+
+  [ lloydsmart ]
+  * ci: run Bash for version check (fix [[ and BASH_REMATCH under sh)
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5.
+    Bumps [actions/checkout](https://github.com/actions/checkout) from 4 to 5.
+    - [Release notes](https://github.com/actions/checkout/releases)
+    - [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)
+    - [Commits](https://github.com/actions/checkout/compare/v4...v5)
+    ---
+    updated-dependencies:
+    - dependency-name: actions/checkout
+      dependency-version: '5'
+      dependency-type: direct:production
+      update-type: version-update:semver-major
+    ...
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8.
+    Bumps [actions/github-script](https://github.com/actions/github-script) from 7 to 8.
+    - [Release notes](https://github.com/actions/github-script/releases)
+    - [Commits](https://github.com/actions/github-script/compare/v7...v8)
+    ---
+    updated-dependencies:
+    - dependency-name: actions/github-script
+      dependency-version: '8'
+      dependency-type: direct:production
+      update-type: version-update:semver-major
+    ...
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 4 to 5.
+    Bumps [actions/download-artifact](https://github.com/actions/download-artifact) from 4 to 5.
+    - [Release notes](https://github.com/actions/download-artifact/releases)
+    - [Commits](https://github.com/actions/download-artifact/compare/v4...v5)
+    ---
+    updated-dependencies:
+    - dependency-name: actions/download-artifact
+      dependency-version: '5'
+      dependency-type: direct:production
+      update-type: version-update:semver-major
+    ...
+    Signed-off-by: dependabot[bot] <support@github.com>
+  * ci: removed old workflows
+  * ci: add unified CI workflow for PRs and pushes
+    - Run fmt, clippy, and tests on PRs (Linux)
+    - Cache cargo registry/git for speed
+    - Package Debian .deb artifacts on push to main/release branches
+    - Skip runs for [skip ci] commits
+  * ci: add release workflow triggered by tags
+    - On tag v*, build and package using _build.yml
+    - Verify versions with _verify-release.yml
+    - Draft + publish GitHub Release with .deb artifacts and notes
+    - Call reusable _release.yml for channel/APT (currently stubbed)
+  * ci: auto-bump version and changelogs on release/* pushes
+    - Derive version from branch name (release/* or hotfix/*)
+    - Update Cargo.toml, debian/changelog, and release notes
+    - Commit with [skip ci] to avoid workflow loops
+    - Keeps release branches in sync before tagging
+  * ci: rename release prep workflow to autobump.yml
+    - Keeps file naming concise
+    - Also enable on hotfix merges
+  * ci: auto-create annotated tag on release/hotfix PR merge to main
+    - Detect the merged PR for the push-to-main commit
+    - Only proceed for release/* or hotfix/* source branches
+    - Read version from Cargo.toml and verify via _verify-release.yml
+    - Create and push annotated tag vX.Y.Z (no mutations to main)
+  * ci: guard releases — only run when tag target is contained in main
+  * ci: auto-open back-merge PR (main → develop) after release/hotfix merge
+    - Trigger on push to main
+    - Detect merged PR from release/* or hotfix/*
+    - If develop is behind/diverged, open PR main → develop
+    - No mutations to branches; conflicts handled in PR
+  * ci: combine auto-tag and back-merge into single on-merge workflow
+    - Trigger on push to main
+    - Detect merged PR from release/* or hotfix/*
+    - Verify versions via reusable _verify-release.yml
+    - Create annotated tag vX.Y.Z (no mutations to main)
+    - Open PR main → develop if develop is behind/diverged
+    - Concurrency & [skip ci] guards included
+  * docs: add developer runbook for release process
+    - Document release and hotfix workflows (autobump, on-merge, release, nightly)
+    - Provide TL;DR quick reference and detailed step-by-step guide
+    - Include conventions, safeguards, manual overrides, and troubleshooting
+  * fix(workflows): clean up release.yml to resolve YAML parse error
+    - Removed stray/non-ASCII whitespace on `permissions: contents: write` line
+    - Normalized indentation and ensured UTF-8 encoding
+    - Replaced em dash in workflow name with a plain hyphen to avoid encoding issues
+    This fixes the "Invalid workflow file" error reported on line 17 of
+    `.github/workflows/release.yml` by GitHub Actions.
+  * fix(workflows): repair merge.yml syntax and simplify outputs
+    - Replaced non-ASCII arrow (→) with ASCII-safe `->` in step names and logs
+    - Set outputs explicitly with `core.setOutput` instead of returning JSON
+    - Updated conditions to read outputs directly (`steps.compare.outputs.status`, `steps.existing.outputs.exists`)
+    - Ensures GitHub Actions parser accepts the workflow without YAML errors
+    This resolves the "Invalid workflow file" error at line 120 in
+    `.github/workflows/merge.yml`.
+  * fix(workflows): sanitize merge.yml to resolve YAML parse error
+    - Normalized indentation and whitespace (removed any stray tabs/non-ASCII)
+    - Ensured only ASCII characters are used in step names and logs
+    - Explicitly set step outputs with `core.setOutput` for clarity
+    - Simplified `if:` conditions to read outputs directly
+    This resolves the "Invalid workflow file" error reported at line 118 of
+    `.github/workflows/merge.yml`.
+  * fix(workflows): clean up merge.yml to resolve YAML parse error
+    - Normalized indentation and spacing across all steps
+    - Removed any potential hidden tabs or non-ASCII characters
+    - Added explicit blank lines between steps for clarity
+    - Ensured outputs are set with `core.setOutput` and conditions reference them directly
+    This resolves the "Invalid workflow file" error flagged at line 117 of
+    `.github/workflows/merge.yml`.
+  * fix(workflows): harden merge.yml back-merge logic and resolve YAML error
+    - Replaced inline complex `if:` expressions with a dedicated `gate` step
+    - Added `should_backmerge` output to simplify conditions
+    - Normalized spacing/indentation and ensured ASCII-only characters
+    - Ensured outputs are set with `core.setOutput` for reliable parsing
+    This change addresses repeated "Invalid workflow file" errors around the
+    `Check for existing open PR` step in `.github/workflows/merge.yml`.
+  * fix(workflows): quote job/step names in release.yml to resolve YAML error
+    - Quoted all job and step names containing colons to avoid YAML parse issues
+    - Removed non-ASCII symbols (emojis) for maximum portability
+    - Normalized indentation and whitespace
+    - No logic changes; only syntax/formatting adjustments
+    This resolves the "Invalid workflow file" error flagged at line 17 of
+    `.github/workflows/release.yml`.
+  * fix(workflows): repair reusable build/verify workflows for merge/release
+    - Removed duplicate `on:` blocks from `_verify-release.yml`
+    - Added missing `nightly` input to `_build.yml` so conditions can reference it
+    - Quoted workflow names consistently and normalized indentation
+    - Aligned both files with proper `on: workflow_call` structure for reuse
+    - Downgraded checkout action to `@v4` (current stable)
+    These changes resolve the “invalid value workflow reference: no version specified”
+    error when calling `_build.yml` and `_verify-release.yml` from merge/release workflows.
+  * fix(workflows): pin reusable workflow calls in release/merge to branch ref
+    - Updated release.yml to call reusables via
+      lloydsmart/chd2iso-fuse/.github/workflows/*.yml@bugfix/release-workflow
+    - Kept secrets inheritance and existing inputs (lane/nightly) intact
+    - Quoted job/step names with colons for YAML safety
+    This eliminates “invalid value workflow reference: no version specified”
+    errors and ensures the caller resolves the correct reusable workflow versions.
+  * fix(workflows): sanitize release.yml artifact/download block and pin reusables
+    - Rewrote publish_release steps with clean two-space indents and ASCII-only chars
+    - Ensured actions/download-artifact@v4 inputs (pattern, merge-multiple, path) are well-formed
+    - Normalized all run scripts and simplified find usage
+    - Continued to pin reusable workflow calls to @bugfix/release-workflow
+    Fixes YAML parse errors around the “Download artifacts from build” step.
+  * fix(workflows): sanitize release.yml around artifact download block
+    - Simplified step names (removed colons/emojis), quoted artifact pattern
+    - Reflowed block with ASCII-only, two-space indentation
+    - Kept reusable workflow calls pinned to @bugfix/release-workflow
+    - No behavioral changes; YAML-only hardening to appease the parser
+  * fix(workflows): harden release.yml around artifact download block
+    - Simplified and de-punctuated step names to avoid editor-introduced weird chars
+    - Kept actions/download-artifact@v4 usage but ensured plain ASCII and clean indents
+    - Normalized run scripts and paths in the publish_release job
+    - Continued to pin reusable workflow calls to @bugfix/release-workflow
+    Addresses YAML parse errors around the "Download artifacts from build" step.
+  * fix(workflows): quote wildcard pattern in release.yml.
+    YAML treats `*` as an alias, so the artifact download pattern must be quoted.
+    - pattern: "chd2iso-fuse-*"
+    This resolves the YAML parse error reported near the download-artifact step.
+  * fix(workflows): make release.yml parser-proof and pin reusable refs
+    - Expanded `needs:` to multi-line lists
+    - Kept ASCII-only names and two-space indentation
+    - Quoted the artifact wildcard pattern
+    - Left pinned reusable workflow refs intact
+    This addresses YAML syntax errors flagged around the artifact download step.
+  * fix(workflows): simplify artifact download in release.yml to avoid YAML issues
+    - Remove `pattern` from actions/download-artifact@v4 and download all artifacts
+    - Keep clean ASCII, two-space indentation and simple step names
+    - Leave reusable workflow refs pinned to @bugfix/release-workflow
+    This addresses the YAML parse error reported around the artifact download step.
+  * ci(workflows): another fix?
+  * ci(workflows): force-normalize line endings, remove non-UTF8 bytes, replace tabs with spaces
+  * debian/watch: switch to git refs backend for robustness.
+    The previous watch file scraped GitHub tag pages for tarballs under
+    `/archive/refs/tags/`, which is brittle and can break if GitHub changes
+    its HTML layout or URL structure.
+    Update to use the `mode=git` backend instead, so uscan inspects the
+    remote git repository directly:
+      * Match tags `vX.Y.Z` and `X.Y.Z` via `refs/tags/v?@ANY_VERSION@`.
+      * Add `filenamemangle` to normalise tarball names to
+        `chd2iso-fuse-$version.tar.gz`.
+      * Add `dversionmangle` to strip epochs if ever present.
+      * Use `debian uupdate` for smoother packaging updates.
+    This makes `uscan` more reliable and future-proof while preserving
+    expected orig.tar.gz naming.
+  * ci: install gbp & Debian helpers for changelog step
+    - Add git-buildpackage (gbp), devscripts, and python3-debian to runner
+      so scripts/gen-debian-changelog.sh can run on CI.
+    - Keep debhelper/fakeroot available (harmless here, useful if we build).
+    - Echo tool versions for easier debugging.
+  * ci(autobump): set DEBEMAIL/DEBFULLNAME for dch; keep gbp install
+    - Export DEBEMAIL/DEBFULLNAME (and EMAIL) so gbp/dch can write debian/changelog.
+    - Ensure git-buildpackage/devscripts/python3-debian installed on runner.
+    - Leave git identity configured for the final commit.
+  * ci(autobump): install git-cliff (with cargo fallback) and libdistro-info-perl
+    - Ensure git-cliff is present for scripts/gen-release-notes.sh:
+      * Prefer APT install; fall back to `cargo install` if needed and add cargo bin to PATH.
+    - Add libdistro-info-perl to remove dch/gbp release-name warnings.
+    - Keep git-buildpackage/devscripts/python3-debian in place.
+    - Use Lloyd Smart <lloydsmart@users.noreply.github.com> for DEBEMAIL/DEBFULLNAME and git commit.
+
+  [ Lloyd Smart ]
+  * Release 0.2.8
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 09:56:00 +0000
+=======
 chd2iso-fuse (0.2.6-1) trixie; urgency=medium
 
   [ lloydsmart ]
