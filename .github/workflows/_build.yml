@@ -121,12 +121,16 @@ jobs:
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: |
+          set -euo pipefail
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
-          (cd artifacts && sha256sum * > SHA256SUMS || true)
+          shopt -s nullglob
+          if compgen -G "artifacts/*" > /dev/null; then
+            (cd artifacts && sha256sum * > SHA256SUMS)
+          fi
 
-      # NEW: Generate release notes on tag builds so release.yml can attach them
+      # Generate release notes on tag builds so release.yml can attach them
       - name: Generate release notes (git-cliff) for tag builds
         if: ${{ github.ref_type == 'tag' && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         run: |
