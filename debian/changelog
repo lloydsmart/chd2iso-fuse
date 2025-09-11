@@ -1,13 +1,19 @@
-chd2iso-fuse (0.2.8-1ubuntu1~1.gbpdfd3e4) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.8-1ubuntu1~2.gbp3e937b) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @dfd3e4bcaa3fd4fdcbce64b372946e2554e1a83d **
+  ** SNAPSHOT build @3e937b628917e304d670d470491e87c3351640a0 **
 
   [ lloydsmart ]
   * fix(ci): use local reusable workflow paths so release runs at the same commit
   * chore(ci): auto-refresh Cargo.lock in autobump workflow
   * chore(ci): allow hotfix branches without semver to update notes/changelog/lockfile
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 11:08:30 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): call _verify-release.yml via local path in merge workflow
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 12:35:10 +0000
 
 chd2iso-fuse (0.2.8-1) trixie; urgency=medium
 
