@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze (CodeQL: ${{ matrix.variant }})
+    name: "Analyze (CodeQL: ${{ matrix.variant }})"
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -30,7 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - name: Determine if Rust/package files changed
         id: paths
@@ -68,7 +69,7 @@ jobs:
           languages: rust
           queries: +security-and-quality
 
-      # 🔒 Guard: fail early if Cargo.lock is stale (since we build with --locked)
+      # Guard: fail early if Cargo.lock is stale (since we build with --locked)
       - name: Ensure Cargo.lock is up to date
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         env:
