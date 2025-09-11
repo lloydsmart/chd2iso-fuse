@@ -1,3 +1,12 @@
+chd2iso-fuse (0.2.12-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(ci): trigger release on tag push by using PAT for tag push
+  * chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds
+  * feat(ci): sign SHA256SUMS in release workflow
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 21:43:24 +0000
+
 chd2iso-fuse (0.2.11-1) trixie; urgency=medium
 
   [ lloydsmart ]
