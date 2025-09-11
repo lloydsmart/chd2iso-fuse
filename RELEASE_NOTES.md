@@ -1,5 +1,10 @@
 # Changelog
-### CI
+### Chore
+- chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds (c1fb8c7)### Features
+- feat(ci): sign SHA256SUMS in release workflow (8d06c0e)### Fixes
+- fix(ci): trigger release on tag push by using PAT for tag push (99b2b17)### Other
+- PR #96: Back-merge (c3a62fb)
+- PR #97: Bugfix/ci pat (5961ec3)### CI
 - ci: removed old workflows (bdb5ac3)
 - ci: add unified CI workflow for PRs and pushes (4412c3d)
 - ci: add release workflow triggered by tags (6739960)
@@ -39,7 +44,8 @@
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (0bab393)
 - chore(release): prepare v0.2.10 [skip ci] (d7d7916)
 - chore(ci): use Actions Variables for git identity; preserve full release pipeline (5c2ccbf)
-- chore(ci): add preflight checks for vars/secrets in release workflows (9f3a39a)### Docs
+- chore(ci): add preflight checks for vars/secrets in release workflows (9f3a39a)
+- chore(release): prepare v0.2.11 [skip ci] (cfda2c1)### Docs
 - docs: add developer runbook for release process (5bf543f)### Fixes
 - fix(workflows): clean up release.yml to resolve YAML parse error (14452e6)
 - fix(workflows): repair merge.yml syntax and simplify outputs (06e9b54)
@@ -90,7 +96,8 @@
 - PR #91: Release/0.2.10 (c2f789e)
 - PR #92: Back-merge (104aa24)
 - PR #93: Bugfix/better ci (f12cfe2)
-- PR #94: Bugfix/backmerge fix (9c818f5)### CI
+- PR #94: Bugfix/backmerge fix (9c818f5)
+- PR #95: Release/0.2.11 (a30775d)### CI
 - ci(cargo-audit): drop obsolete --db-update flag (3418c33)
 - ci(audit): remove duplicate cargo-audit.yml (use security-audit.yml only) (cc9c6c2)
 - ci(release): add version/changelog guard for release/* and hotfix/* (a67a4a4)
