@@ -131,6 +131,22 @@ jobs:
           fi
           sed -n '1,120p' RELEASE_NOTES.md || true
 
+      # 🔐 SIGN BEFORE ASSEMBLING THE UPLOAD LIST
+      - name: Import GPG (for checksums signing)
+        if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Sign SHA256SUMS (detached, into artifacts/)
+        if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --detach-sign --armor \
+              -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
+          gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
+
       - name: Assemble asset list
         id: assets
         run: |
@@ -139,7 +155,7 @@ jobs:
           files=()
           for f in artifacts/*.deb artifacts/*.buildinfo artifacts/*.changes artifacts/SHA256SUMS artifacts/SHA256SUMS.asc; do
             [ -e "$f" ] || continue
-            cp "$f" .
+            cp -v "$f" .
             files+=("$(basename "$f")")
           done
           {
@@ -147,23 +163,6 @@ jobs:
             printf '%s\n' "${files[@]}"
             echo 'EOF'
           } >> "$GITHUB_ENV"
-
-      # NEW: Sign checksums so releases ship SHA256SUMS.asc too
-      - name: Import GPG (for checksums signing)
-        if: ${{ hashFiles('SHA256SUMS') != '' || hashFiles('artifacts/SHA256SUMS') != '' }}
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Sign SHA256SUMS (detached)
-        if: ${{ hashFiles('SHA256SUMS') != '' || hashFiles('artifacts/SHA256SUMS') != '' }}
-        run: |
-          set -euo pipefail
-          test -f SHA256SUMS || { echo "No SHA256SUMS at repo root; skipping sign."; exit 0; }
-          gpg --batch --yes --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
-          gpg --verify SHA256SUMS.asc SHA256SUMS
-          # ensure asc is included in upload list (already copied next to SHA256SUMS)
 
       - name: Create draft release and upload
         uses: softprops/action-gh-release@v2
