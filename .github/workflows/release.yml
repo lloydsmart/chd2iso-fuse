@@ -12,6 +12,10 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   guard_tag_on_main:
     name: Guard - tag must be on main
@@ -23,7 +27,6 @@ jobs:
           fetch-depth: 0
 
       - name: Verify tag commit is reachable from origin main
-        shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
@@ -63,17 +66,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Debug tag
-        run: echo "tag: $GITHUB_REF_NAME"
+        run: |
+          echo "tag=${GITHUB_REF_NAME}"
 
-      # Download all artifacts produced by previous jobs in this workflow run
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: "artifacts"
           merge-multiple: true
 
       - name: Guard artifacts exist
-        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -84,10 +86,9 @@ jobs:
             echo "No artifacts found in ./artifacts"
             exit 1
           fi
-          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+          find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       - name: Ensure RELEASE_NOTES.md
-        shell: bash
         run: |
           set -euo pipefail
           if [ -f artifacts/RELEASE_NOTES.md ]; then
@@ -101,7 +102,6 @@ jobs:
 
       - name: Assemble asset list
         id: assets
-        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -121,8 +121,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: chd2iso-fuse ${{ github.ref_name }}
-          body_path: RELEASE_NOTES.md
+          name: "chd2iso-fuse ${{ github.ref_name }}"
+          body_path: "RELEASE_NOTES.md"
           generate_release_notes: false
           draft: true
           fail_on_unmatched_files: false
@@ -150,3 +150,4 @@ jobs:
       nightly: false
       apt_enabled: false
     secrets: inherit
+
