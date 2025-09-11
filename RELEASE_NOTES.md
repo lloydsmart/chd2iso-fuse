@@ -1,10 +1,20 @@
 # Changelog
-### Chore
-- chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds (c1fb8c7)### Features
+### Fixes
+- fix(ci): always kick off release after tagging; keep back-merge independent (138f093)
+- fix(ci): include signed checksums in releases and ensure SHA256SUMS is generated (11d0ebf)
+- fix(ci): correct artifact upload syntax in _build.yml (2971d21)
+- fix(ci/release): lock release title to resolved tag to prevent “-1” drift (04c27a8)### Other
+- PR #99: Back-merge (0b48333)
+- PR #103: fix(ci): always kick off release after tagging; keep back-merge independent (66d6c43)
+- PR #104: Bugfix/sha256 sum gpg (e562780)
+- PR #105: fix(ci/release): lock release title to resolved tag to prevent “-1” drift (17b4086)### Chore
+- chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds (c1fb8c7)
+- chore(release): prepare v0.2.12 [skip ci] (fb28aec)### Features
 - feat(ci): sign SHA256SUMS in release workflow (8d06c0e)### Fixes
 - fix(ci): trigger release on tag push by using PAT for tag push (99b2b17)### Other
 - PR #96: Back-merge (c3a62fb)
-- PR #97: Bugfix/ci pat (5961ec3)### CI
+- PR #97: Bugfix/ci pat (5961ec3)
+- PR #98: Release/0.2.12 (e89a425)### CI
 - ci: removed old workflows (bdb5ac3)
 - ci: add unified CI workflow for PRs and pushes (4412c3d)
 - ci: add release workflow triggered by tags (6739960)
