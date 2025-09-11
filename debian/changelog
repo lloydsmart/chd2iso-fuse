@@ -1,6 +1,6 @@
-chd2iso-fuse (0.2.9-1ubuntu1~1.gbp0054df) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.9-1ubuntu1~2.gbp45b3e7) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @0054df423c2f34d58dc50ff6bd613b2111612578 **
+  ** SNAPSHOT build @45b3e7e82bd8f33daf863677e339bb70685b1ee8 **
 
   [ Lloyd Smart ]
   * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
@@ -16,7 +16,13 @@ chd2iso-fuse (0.2.9-1ubuntu1~1.gbp0054df) UNRELEASED; urgency=medium
   [ lloydsmart ]
   * ci(merge): fix signed tag creation via GPG wrapper
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 14:14:22 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): ensure non-interactive GPG signing for tags
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 14:27:52 +0000
 
 chd2iso-fuse (0.2.9-1) trixie; urgency=medium
 
