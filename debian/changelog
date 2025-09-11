@@ -1,6 +1,6 @@
-chd2iso-fuse (0.2.8-1ubuntu1~2.gbp3e937b) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.8-1ubuntu1~3.gbp673df7) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @3e937b628917e304d670d470491e87c3351640a0 **
+  ** SNAPSHOT build @673df73658eb43f3cf55765b525f9b1b7b37b30a **
 
   [ lloydsmart ]
   * fix(ci): use local reusable workflow paths so release runs at the same commit
@@ -13,7 +13,13 @@ chd2iso-fuse (0.2.8-1ubuntu1~2.gbp3e937b) UNRELEASED; urgency=medium
   [ lloydsmart ]
   * fix(ci): call _verify-release.yml via local path in merge workflow
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 12:35:10 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(merge): configure git identity for tagging and guard against existing remote tag
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Thu, 11 Sep 2025 12:58:24 +0000
 
 chd2iso-fuse (0.2.8-1) trixie; urgency=medium
 

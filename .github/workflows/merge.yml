@@ -64,6 +64,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity for tagging
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Read version from Cargo.toml
         id: ver
@@ -78,15 +84,20 @@ jobs:
       - name: Create & push tag
         env:
           VER: ${{ steps.ver.outputs.val }}
+        shell: bash
         run: |
           set -euo pipefail
           tag="v${VER}"
-          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-            echo "Tag ${tag} already exists; nothing to do."
+
+          # No-op if the tag already exists on origin
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+            echo "Tag ${tag} already exists on origin; nothing to do."
             exit 0
           fi
+
+          # Create and push annotated tag
           git tag -a "${tag}" -m "chd2iso-fuse ${tag}"
-          git push origin "${tag}"
+          git push origin "refs/tags/${tag}"
           echo "Pushed ${tag}"
 
   backmerge:
