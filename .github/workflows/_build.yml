@@ -126,6 +126,21 @@ jobs:
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
           (cd artifacts && sha256sum * > SHA256SUMS || true)
 
+      # NEW: Generate release notes on tag builds so release.yml can attach them
+      - name: Generate release notes (git-cliff) for tag builds
+        if: ${{ github.ref_type == 'tag' && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
+        run: |
+          set -euo pipefail
+          apt-get update && apt-get install -y --no-install-recommends cargo
+          cargo install git-cliff --locked || true
+          mkdir -p artifacts
+          if [ -n "${GITHUB_REF_NAME:-}" ]; then
+            git-cliff --tag "${GITHUB_REF_NAME}" -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
+          else
+            git-cliff -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
+          fi
+          sed -n '1,80p' artifacts/RELEASE_NOTES.md || true
+
       - name: Lintian (non-fatal)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         continue-on-error: true
