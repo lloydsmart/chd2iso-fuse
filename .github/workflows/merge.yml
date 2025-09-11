@@ -107,6 +107,13 @@ jobs:
           chmod +x "$GITHUB_WORKSPACE/gpg-wrapper.sh"
           git config gpg.program "$GITHUB_WORKSPACE/gpg-wrapper.sh"
 
+      - name: GPG sanity check (non-interactive)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          echo "ok" | gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --clearsign >/dev/null
+
       - name: Read version from Cargo.toml
         id: ver
         run: |
@@ -120,6 +127,7 @@ jobs:
       - name: Create & push signed tag
         env:
           VER: ${{ steps.ver.outputs.val }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}   # ensure wrapper has the passphrase
         shell: bash
         run: |
           set -euo pipefail
@@ -130,6 +138,9 @@ jobs:
             echo "Tag ${tag} already exists on origin; nothing to do."
             exit 0
           fi
+
+          # Make GPG happy in some environments
+          export GPG_TTY=$(tty || true)
 
           # Create signed annotated tag (wrapper supplies GPG flags & passphrase)
           git tag -s "${tag}" -m "chd2iso-fuse ${tag}"
