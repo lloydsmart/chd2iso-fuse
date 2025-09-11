@@ -53,7 +53,7 @@ jobs:
     secrets: inherit
 
   tag:
-    name: Create annotated tag vX.Y.Z
+    name: Create signed annotated tag vX.Y.Z
     needs: [detect, verify]
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
@@ -66,10 +66,33 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Ensure safe git dir (for newer Git)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Configure git identity for tagging
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config commit.gpgsign true
+          git config tag.gpgSign true
+          git config gpg.program gpg
+
+      - name: Import GPG private key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          FPR="$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')"
+          if [ -z "$FPR" ]; then
+            echo "No secret key fingerprint found after import"; exit 1
+          fi
+          echo "FPR=$FPR" >> "$GITHUB_ENV"
+          git config user.signingkey "$FPR"
 
       - name: Read version from Cargo.toml
         id: ver
@@ -81,9 +104,10 @@ jobs:
           echo "val=$ver" >> "$GITHUB_OUTPUT"
           echo "Version: $ver"
 
-      - name: Create & push tag
+      - name: Create & push signed tag
         env:
           VER: ${{ steps.ver.outputs.val }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         shell: bash
         run: |
           set -euo pipefail
@@ -95,10 +119,20 @@ jobs:
             exit 0
           fi
 
-          # Create and push annotated tag
-          git tag -a "${tag}" -m "chd2iso-fuse ${tag}"
+          # Create signed annotated tag using loopback pinentry
+          export GPG_TTY=$(tty || true)
+          git -c gpg.program=gpg tag -s "${tag}" -m "chd2iso-fuse ${tag}" \
+            --local-user "$FPR" \
+            --batch \
+            --pinentry-mode loopback \
+            --passphrase "$GPG_PASSPHRASE"
+
+          # Verify signature (recommended hard gate)
+          git tag -v "${tag}"
+
+          # Push tag
           git push origin "refs/tags/${tag}"
-          echo "Pushed ${tag}"
+          echo "Pushed signed tag ${tag}"
 
   backmerge:
     name: Open back-merge PR (main -> develop)

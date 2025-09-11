@@ -19,14 +19,19 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze (CodeQL)
+    name: "Analyze (CodeQL: ${{ matrix.variant }})"
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ minimal, default, all-features ]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - name: Determine if Rust/package files changed
         id: paths
@@ -82,11 +87,41 @@ jobs:
 
       - name: Build (all features & targets)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        env: { CARGO_TERM_COLOR: always }
+        env:
+          CARGO_TERM_COLOR: always
         run: |
+          set -euo pipefail
+          cargo generate-lockfile
+          if ! git diff --quiet -- Cargo.lock; then
+            echo "::error file=Cargo.lock::Cargo.lock is out of date. Run 'cargo generate-lockfile' locally and commit the result."
+            echo "---- Diff (for visibility) ----"
+            git --no-pager diff -- Cargo.lock || true
+            exit 1
+          fi
+
+      - name: Build (${{ matrix.variant }})
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        env:
+          CARGO_TERM_COLOR: always
+        shell: bash
+        run: |
+          set -euo pipefail
           cargo fetch --locked
-          cargo build --locked --all-targets --all-features
+          case "${{ matrix.variant }}" in
+            minimal)
+              cargo build --locked --all-targets --no-default-features
+              ;;
+            default)
+              cargo build --locked --all-targets
+              ;;
+            all-features)
+              cargo build --locked --all-targets --all-features
+              ;;
+          esac
 
       - name: Analyze
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/analyze@v3
+        with:
+          # Must match base branch categories exactly to avoid "Neutral"
+          category: "/language:rust;variant=${{ matrix.variant }}"
