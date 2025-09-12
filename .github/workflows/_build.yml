@@ -11,11 +11,6 @@ on:
         default: false
     secrets: {}
 
-# Ensure every run step uses Bash (avoids /bin/sh executing bashisms like `shopt`)
-defaults:
-  run:
-    shell: bash
-
 jobs:
   rust-deb:
     name: Rust build & tests (chd2iso-fuse)
