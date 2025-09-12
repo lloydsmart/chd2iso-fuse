@@ -321,34 +321,26 @@ jobs:
             }
 
       # Gate for the fallback to avoid YAML if expression problems
-      - name: Fallback gate
-        id: fallback_gate
-        if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
+      - name: Fallback: wait until clean & merge (10 min max)
+        # No step-level if: — compute the gate inside the script
         env:
           SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
           PRNUM: ${{ steps.prnum.outputs.number }}
           AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
-        run: |
-          set -euo pipefail
-          if [[ "${SHOULD_BACKMERGE}" == "true" && -n "${PRNUM}" && "${AUTO_ENABLED}" != "true" ]]; then
-            echo "do_fallback=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "do_fallback=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Fallback: wait until clean & merge (10 min max)
-        env:
-          DO_FALLBACK: ${{ steps.fallback_gate.outputs.do_fallback }}
         uses: actions/github-script@v7
         with:
           script: |
-            if (process.env.DO_FALLBACK !== 'true') {
-              core.info('Fallback not required; skipping.');
+            // Gate logic inline
+            const shouldBackmerge = process.env.SHOULD_BACKMERGE === 'true';
+            const prnum = process.env.PRNUM || '';
+            const autoEnabled = process.env.AUTO_ENABLED === 'true';
+            if (!shouldBackmerge || !prnum || autoEnabled) {
+              core.info(`Fallback not required (shouldBackmerge=${shouldBackmerge}, prnum=${!!prnum}, autoEnabled=${autoEnabled}). Skipping.`);
               return;
             }
 
             const { owner, repo } = context.repo;
-            const prNumber = parseInt('${{ steps.prnum.outputs.number }}', 10);
+            const prNumber = parseInt(prnum, 10);
             const sleep = ms => new Promise(r => setTimeout(r, ms));
 
             for (let i = 1; i <= 30; i++) {
