@@ -27,17 +27,14 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const commitSha = context.payload?.head_commit?.id || context.sha;
-
             // Robust: works for merge/squash/rebase
             const prs = await github.paginate(
               github.rest.repos.listPullRequestsAssociatedWithCommit,
               { owner, repo, commit_sha: commitSha, per_page: 100 }
             );
-
             const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
             const headRef = pr?.head?.ref || '';
             const isRelease = Boolean(pr && (headRef.startsWith('release/') || headRef.startsWith('hotfix/')));
-
             core.setOutput('is_release', String(isRelease));
             core.setOutput('head_ref', headRef);
             core.setOutput('pr_number', pr?.number ?? '');
@@ -194,8 +191,9 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
+      checks: read
     steps:
       - name: Compare branches (is develop behind main?)
         id: compare
@@ -239,14 +237,21 @@ jobs:
             const open = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: 'open', base: 'develop', per_page: 100
             });
-            const exists = open.some(p => p.head.ref === 'main' || (p.head.label && p.head.label.endsWith(':main')));
-            core.setOutput('exists', String(exists));
+            const existing = open.find(p => p.head.ref === 'main' || (p.head.label && p.head.label.endsWith(':main')));
+            core.setOutput('exists', String(Boolean(existing)));
+            if (existing) {
+              core.setOutput('number', existing.number.toString());
+              core.info(`Existing PR #${existing.number} main -> develop`);
+            } else {
+              core.info('No existing PR main -> develop');
+            }
 
       - name: No back-merge needed
         if: ${{ steps.gate.outputs.should_backmerge != 'true' }}
         run: echo "Develop is not behind; skipping PR."
 
       - name: Open PR main -> develop
+        id: create_pr
         if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.existing.outputs.exists == 'false' }}
         uses: actions/github-script@v7
         with:
@@ -270,4 +275,109 @@ jobs:
             } catch (e) {
               core.info('Label add skipped (label may not exist).');
             }
-            core.info(`Opened PR #${pr.data.number} main -> develop`)
+            core.setOutput('number', pr.data.number.toString());
+            core.setOutput('node_id', pr.data.node_id);
+            core.info(`Opened PR #${pr.data.number} main -> develop`);
+
+      - name: Select PR number
+        id: prnum
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.existing.outputs.exists }}" == "true" && -n "${{ steps.existing.outputs.number }}" ]]; then
+            echo "number=${{ steps.existing.outputs.number }}" >> "$GITHUB_OUTPUT"
+            echo "Using existing PR #${{ steps.existing.outputs.number }}"
+          else
+            echo "number=${{ steps.create_pr.outputs.number }}" >> "$GITHUB_OUTPUT"
+            echo "Using newly created PR #${{ steps.create_pr.outputs.number }}"
+          fi
+
+      - name: Enable native Auto-merge (merge commit)
+        id: enable_auto_merge
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number }}
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = parseInt('${{ steps.prnum.outputs.number }}', 10);
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            const prId = pr.node_id;
+
+            try {
+              await github.graphql(`
+                mutation($prId: ID!, $method: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $prId,
+                    mergeMethod: MERGE
+                  }) { clientMutationId }
+                }
+              `, { prId, method: "MERGE" });
+              core.info(`Auto-merge enabled on PR #${prNumber}.`);
+              core.setOutput('auto_merge_enabled', 'true');
+            } catch (e) {
+              core.warning(`Could not enable native Auto-merge (is it enabled in repo settings?): ${e.message}`);
+              core.setOutput('auto_merge_enabled', 'false');
+            }
+
+      - name: "Fallback: wait until clean & merge (10 min max)"
+        uses: actions/github-script@v7
+        env:
+          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
+          PRNUM: ${{ steps.prnum.outputs.number }}
+          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
+        with:
+          script: |
+            const shouldBackmerge = process.env.SHOULD_BACKMERGE === 'true';
+            const prnumStr = process.env.PRNUM || '';
+            const autoEnabled = process.env.AUTO_ENABLED === 'true';
+
+            if (!shouldBackmerge || !prnumStr || autoEnabled) {
+              core.info('Fallback not required '
+                + `(shouldBackmerge=${shouldBackmerge}, prnum=${!!prnumStr}, autoEnabled=${autoEnabled}). Skipping.`);
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const prNumber = parseInt(prnumStr, 10);
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+            for (let i = 1; i <= 30; i++) {
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+              core.info('Attempt ' + i
+                + ': mergeable=' + pr.mergeable
+                + ' state=' + pr.mergeable_state
+                + ' draft=' + pr.draft);
+
+              if (pr.draft) { core.setFailed('PR is draft; not merging.'); return; }
+              if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
+                core.setFailed('PR has conflicts; not merging.'); return;
+              }
+
+              const sha = pr.head.sha;
+
+              // Checks v3 API
+              const checks = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
+              const allCheckRunsOK = checks.data.check_runs.every(cr =>
+                ['success','neutral','skipped'].includes(cr.conclusion || '')
+              );
+
+              // Combined statuses (legacy)
+              const statuses = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
+              const statusesOK = statuses.data.state === 'success' || statuses.data.state === 'none';
+
+              const isClean = (pr.mergeable === true || pr.mergeable_state === 'clean');
+              if (isClean && allCheckRunsOK && statusesOK) {
+                await github.rest.pulls.merge({
+                  owner, repo, pull_number: prNumber, merge_method: 'merge',
+                  commit_title: pr.title,
+                  commit_message: 'Auto-merged clean back-merge PR #' + prNumber + ' (main -> develop)'
+                });
+                core.info('Merged PR #' + prNumber + '.');
+                return;
+              }
+
+              await sleep(20000);
+            }
+
+            core.setFailed('Timed out waiting for PR to become clean & mergeable.');
