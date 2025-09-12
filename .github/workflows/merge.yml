@@ -27,17 +27,14 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const commitSha = context.payload?.head_commit?.id || context.sha;
-
             // Robust: works for merge/squash/rebase
             const prs = await github.paginate(
               github.rest.repos.listPullRequestsAssociatedWithCommit,
               { owner, repo, commit_sha: commitSha, per_page: 100 }
             );
-
             const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
             const headRef = pr?.head?.ref || '';
             const isRelease = Boolean(pr && (headRef.startsWith('release/') || headRef.startsWith('hotfix/')));
-
             core.setOutput('is_release', String(isRelease));
             core.setOutput('head_ref', headRef);
             core.setOutput('pr_number', pr?.number ?? '');
@@ -194,7 +191,7 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # write needed for merge fallback
+      contents: write
       pull-requests: write
       checks: read
     steps:
@@ -282,7 +279,6 @@ jobs:
             core.setOutput('node_id', pr.data.node_id);
             core.info(`Opened PR #${pr.data.number} main -> develop`);
 
-      # --- Choose a PR number to operate on (existing or newly created) ---
       - name: Select PR number
         id: prnum
         if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
@@ -296,10 +292,9 @@ jobs:
             echo "Using newly created PR #${{ steps.create_pr.outputs.number }}"
           fi
 
-      # --- Enable GitHub Auto-merge (preferred) ---
       - name: Enable native Auto-merge (merge commit)
         id: enable_auto_merge
-        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number != '' }}
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number }}
         uses: actions/github-script@v7
         continue-on-error: true
         with:
@@ -325,19 +320,34 @@ jobs:
               core.setOutput('auto_merge_enabled', 'false');
             }
 
-      # --- Fallback: poll until clean & mergeable, then merge with GITHUB_TOKEN ---
-      - name: Fallback: wait until clean & merge (10 min max)
-        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number != '' && steps.enable_auto_merge.outputs.auto_merge_enabled != 'true' }}
+      - name: "Fallback: wait until clean & merge (10 min max)"
         uses: actions/github-script@v7
+        env:
+          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
+          PRNUM: ${{ steps.prnum.outputs.number }}
+          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
         with:
           script: |
+            const shouldBackmerge = process.env.SHOULD_BACKMERGE === 'true';
+            const prnumStr = process.env.PRNUM || '';
+            const autoEnabled = process.env.AUTO_ENABLED === 'true';
+
+            if (!shouldBackmerge || !prnumStr || autoEnabled) {
+              core.info('Fallback not required '
+                + `(shouldBackmerge=${shouldBackmerge}, prnum=${!!prnumStr}, autoEnabled=${autoEnabled}). Skipping.`);
+              return;
+            }
+
             const { owner, repo } = context.repo;
-            const prNumber = parseInt('${{ steps.prnum.outputs.number }}', 10);
-            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const prNumber = parseInt(prnumStr, 10);
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
             for (let i = 1; i <= 30; i++) {
               const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
-              core.info(`Attempt ${i}: mergeable=${pr.mergeable} state=${pr.mergeable_state} draft=${pr.draft}`);
+              core.info('Attempt ' + i
+                + ': mergeable=' + pr.mergeable
+                + ' state=' + pr.mergeable_state
+                + ' draft=' + pr.draft);
 
               if (pr.draft) { core.setFailed('PR is draft; not merging.'); return; }
               if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
@@ -356,15 +366,18 @@ jobs:
               const statuses = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
               const statusesOK = statuses.data.state === 'success' || statuses.data.state === 'none';
 
-              if ((pr.mergeable === true || pr.mergeable_state === 'clean') && allCheckRunsOK && statusesOK) {
+              const isClean = (pr.mergeable === true || pr.mergeable_state === 'clean');
+              if (isClean && allCheckRunsOK && statusesOK) {
                 await github.rest.pulls.merge({
                   owner, repo, pull_number: prNumber, merge_method: 'merge',
                   commit_title: pr.title,
-                  commit_message: `Auto-merged clean back-merge PR #${prNumber} (main → develop)`
+                  commit_message: 'Auto-merged clean back-merge PR #' + prNumber + ' (main -> develop)'
                 });
-                core.info(`Merged PR #${prNumber}.`);
+                core.info('Merged PR #' + prNumber + '.');
                 return;
               }
+
               await sleep(20000);
             }
+
             core.setFailed('Timed out waiting for PR to become clean & mergeable.');
