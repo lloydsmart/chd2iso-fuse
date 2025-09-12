@@ -320,25 +320,34 @@ jobs:
               core.setOutput('auto_merge_enabled', 'false');
             }
 
-      - name: Fallback: wait until clean & merge (10 min max)
+      - name: "Fallback: wait until clean & merge (10 min max)"
         uses: actions/github-script@v7
+        env:
+          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
+          PRNUM: ${{ steps.prnum.outputs.number }}
+          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
         with:
           script: |
             const shouldBackmerge = process.env.SHOULD_BACKMERGE === 'true';
-            const prnum = process.env.PRNUM || '';
+            const prnumStr = process.env.PRNUM || '';
             const autoEnabled = process.env.AUTO_ENABLED === 'true';
-            if (!shouldBackmerge || !prnum || autoEnabled) {
-              core.info(`Fallback not required (shouldBackmerge=${shouldBackmerge}, prnum=${!!prnum}, autoEnabled=${autoEnabled}). Skipping.`);
+
+            if (!shouldBackmerge || !prnumStr || autoEnabled) {
+              core.info('Fallback not required '
+                + `(shouldBackmerge=${shouldBackmerge}, prnum=${!!prnumStr}, autoEnabled=${autoEnabled}). Skipping.`);
               return;
             }
 
             const { owner, repo } = context.repo;
-            const prNumber = parseInt(prnum, 10);
-            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const prNumber = parseInt(prnumStr, 10);
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
             for (let i = 1; i <= 30; i++) {
               const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
-              core.info(`Attempt ${i}: mergeable=${pr.mergeable} state=${pr.mergeable_state} draft=${pr.draft}`);
+              core.info('Attempt ' + i
+                + ': mergeable=' + pr.mergeable
+                + ' state=' + pr.mergeable_state
+                + ' draft=' + pr.draft);
 
               if (pr.draft) { core.setFailed('PR is draft; not merging.'); return; }
               if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
@@ -347,21 +356,24 @@ jobs:
 
               const sha = pr.head.sha;
 
+              // Checks v3 API
               const checks = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
               const allCheckRunsOK = checks.data.check_runs.every(cr =>
                 ['success','neutral','skipped'].includes(cr.conclusion || '')
               );
 
+              // Combined statuses (legacy)
               const statuses = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
               const statusesOK = statuses.data.state === 'success' || statuses.data.state === 'none';
 
-              if ((pr.mergeable === true || pr.mergeable_state === 'clean') && allCheckRunsOK && statusesOK) {
+              const isClean = (pr.mergeable === true || pr.mergeable_state === 'clean');
+              if (isClean && allCheckRunsOK && statusesOK) {
                 await github.rest.pulls.merge({
                   owner, repo, pull_number: prNumber, merge_method: 'merge',
                   commit_title: pr.title,
-                  commit_message: `Auto-merged clean back-merge PR #${prNumber} (main -> develop)`
+                  commit_message: 'Auto-merged clean back-merge PR #' + prNumber + ' (main -> develop)'
                 });
-                core.info(`Merged PR #${prNumber}.`);
+                core.info('Merged PR #' + prNumber + '.');
                 return;
               }
 
@@ -369,7 +381,3 @@ jobs:
             }
 
             core.setFailed('Timed out waiting for PR to become clean & mergeable.');
-        env:
-          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
-          PRNUM: ${{ steps.prnum.outputs.number }}
-          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
