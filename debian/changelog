@@ -1,11 +1,17 @@
-chd2iso-fuse (0.2.14-1ubuntu1~1.gbp4de4f3) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.14-1ubuntu1~2.gbp84cbae) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @4de4f3580e1ca3cc3f5597c9ad93ca433482f90b **
+  ** SNAPSHOT build @84cbaed07038ad6f93ec4376247bf0c77f5fe3ad **
 
   [ lloydsmart ]
   * ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 11:02:05 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(build): default workflow shell to Bash to fix `shopt` usage
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 11:12:38 +0000
 
 chd2iso-fuse (0.2.14-1) trixie; urgency=medium
 
