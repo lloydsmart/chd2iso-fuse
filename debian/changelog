@@ -1,4 +1,4 @@
-chd2iso-fuse (0.2.14-1ubuntu1~2.gbp84cbae) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.15-1) trixie; urgency=medium
 
   ** SNAPSHOT build @84cbaed07038ad6f93ec4376247bf0c77f5fe3ad **
 
@@ -10,8 +10,30 @@ chd2iso-fuse (0.2.14-1ubuntu1~2.gbp84cbae) UNRELEASED; urgency=medium
 
   [ lloydsmart ]
   * ci(build): default workflow shell to Bash to fix `shopt` usage
+  * ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 11:12:38 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(build): default workflow shell to Bash to fix `shopt` usage
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci: auto-merge clean main→develop back-merge PRs
+  * ci(merge): auto-enable & complete main→develop back-merges
+  * fix(ci/release): always attach artifacts and changelog
+  * ci(merge): fix YAML parse error and harden fallback auto-merge guard
+  * ci(merge): stabilize auto-backmerge with gated fallback and fix tag dispatch var
+  * ci(merge): remove brittle step-level if; gate fallback via env var
+  * ci(merge): inline fallback gate to single step (simpler, fewer outputs)
+  * ci(merge): inline fallback gate and fix YAML syntax for auto-backmerge
+  * ci(merge): fix fallback step ordering and YAML validity
+  * ci(merge): fix YAML parse errors in fallback auto-merge step
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 15:18:49 +0000
 
 chd2iso-fuse (0.2.14-1) trixie; urgency=medium
 
