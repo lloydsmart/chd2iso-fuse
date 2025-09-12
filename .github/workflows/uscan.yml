@@ -27,33 +27,13 @@ jobs:
 
       - name: Run uscan
         id: scan
-        shell: bash
         run: |
           set -euo pipefail
-
-          # Capture real exit code without pipes changing it.
-          # --dehs writes XML to STDOUT; keep a verbose log on STDERR.
-          if uscan --dehs --verbose --timeout 30 > uscan.xml 2>uscan.log; then
-            rc=0
-          else
-            rc=$?
-          fi
-
-          echo "uscan exit code: $rc"
-          # Only fail on rc >= 2 (rc=0 newer available, rc=1 up-to-date).
-          if (( rc >= 2 )); then
-            echo "::error::uscan failed (rc=$rc)"
-            sed -n '1,200p' uscan.log || true
-            exit "$rc"
-          fi
-
-          # Derive outputs from the XML
+          uscan --dehs --verbose --timeout 30 | tee uscan.xml
           if grep -q '<status>newer</status>' uscan.xml; then
-            ver="$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)"
-            {
-              echo "newer=true"
-              echo "version=$ver"
-            } >> "$GITHUB_OUTPUT"
+            ver=$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)
+            echo "newer=true" >> "$GITHUB_OUTPUT"
+            echo "version=$ver" >> "$GITHUB_OUTPUT"
           else
             echo "newer=false" >> "$GITHUB_OUTPUT"
           fi
