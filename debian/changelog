@@ -1,3 +1,12 @@
+chd2iso-fuse (0.2.14-1ubuntu1~1.gbp4de4f3) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @4de4f3580e1ca3cc3f5597c9ad93ca433482f90b **
+
+  [ lloydsmart ]
+  * ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 11:02:05 +0000
+
 chd2iso-fuse (0.2.14-1) trixie; urgency=medium
 
   [ lloydsmart ]
