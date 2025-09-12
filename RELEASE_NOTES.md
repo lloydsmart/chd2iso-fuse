@@ -3,8 +3,10 @@
 - ci(release): force bash on steps that use bashisms (fix shopt error) (1925c02)
 - ci(build): enforce bash in reusable workflow to fix “shopt: not found” (435d736)
 - ci(security): ignore RUSTSEC-2021-0154 (fuser) by default in cargo-audit (314a62f)
-- ci(uscan): handle uscan exit codes correctly; only fail on rc>=2 (30a0136)### Chore
-- chore(release): prepare v0.2.13 [skip ci] (986417b)### Fixes
+- ci(uscan): handle uscan exit codes correctly; only fail on rc>=2 (30a0136)
+- ci(security): run cargo-audit only when Rust files change (17b98d8)### Chore
+- chore(release): prepare v0.2.13 [skip ci] (986417b)
+- chore(release): prepare v0.2.14 [skip ci] (83d805b)### Fixes
 - fix(ci): always kick off release after tagging; keep back-merge independent (138f093)
 - fix(ci): include signed checksums in releases and ensure SHA256SUMS is generated (11d0ebf)
 - fix(ci): correct artifact upload syntax in _build.yml (2971d21)
@@ -16,7 +18,13 @@
 - PR #106: Release/0.2.13 (19fe506)
 - PR #107: Back-merge (7a5c4f8)
 - PR #108: ci(release): force bash on steps that use bashisms (fix shopt error) (21b7da3)
-- PR #109: Bugfix/cargo audit (73c3cc7)### Chore
+- PR #109: Bugfix/cargo audit (73c3cc7)
+- security: add policy-as-code for advisories + CI guard (4831616)
+- cargo-deny: fix invalid TOML (remove db-path=null) (c9972a6)
+- cargo-deny: update deny.toml to current schema (eb39a45)
+- cargo-deny: allow Unicode-3.0 and quiet unused license warnings (ca80f1c)
+- deps: drop ANSI feature from tracing-subscriber to unify windows-* deps (d95cacd)
+- cargo-deny: fix config key (unused-allowed-license) and keep Unicode-3.0 allow (e3d9198)### Chore
 - chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds (c1fb8c7)
 - chore(release): prepare v0.2.12 [skip ci] (fb28aec)### Features
 - feat(ci): sign SHA256SUMS in release workflow (8d06c0e)### Fixes
