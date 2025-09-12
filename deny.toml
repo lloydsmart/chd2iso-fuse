@@ -10,8 +10,7 @@ unmaintained  = "warn"
 yanked        = "warn"
 notice        = "warn"
 
-# Fail if the advisory DB can’t be fetched (keeps CI honest)
-db-path = null
+# Use the upstream RustSec database
 db-urls = ["https://github.com/RustSec/advisory-db"]
 
 # Per-advisory waivers with reasons and expiry.
