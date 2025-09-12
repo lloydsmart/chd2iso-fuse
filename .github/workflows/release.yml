@@ -127,6 +127,7 @@ jobs:
           merge-multiple: true
 
       - name: Guard artifacts exist
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -169,6 +170,7 @@ jobs:
 
       - name: Assemble asset list
         id: assets
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
