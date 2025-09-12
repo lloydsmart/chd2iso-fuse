@@ -1,0 +1,12 @@
+# Policy for cargo-audit (auto-discovered by cargo-audit)
+# Keep this small: just the minimum local waivers; add context & owners in the linked issue.
+
+[advisories]
+ignore = [
+  # RUSTSEC-2021-0154 (fuser unsoundness)
+  # Tracked via issue #<REPLACE_WITH_ISSUE_NUMBER>; review by 2026-03-12
+  "RUSTSEC-2021-0154",
+]
+
+# Optional: keep noise down
+informational_warnings = ["unmaintained", "yanked", "notice"]

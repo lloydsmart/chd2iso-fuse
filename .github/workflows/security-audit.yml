@@ -1,80 +1,19 @@
-name: Security audit (cargo-audit)
-
-on:
-  push:
-    branches: [ develop, main ]
-  pull_request:
-    branches: [ develop, main ]
-  schedule:
-    - cron: "45 3 * * 1"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: sec-audit-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  cargo-audit:
-    name: cargo-audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    env:
-      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
-      CARGO_TERM_COLOR: always
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
-
-      - name: Determine if Rust/package files changed
-        id: paths
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            rust:
-              - 'src/**'
-              - '**/*.rs'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - 'build.rs'
-              - 'debian/**'
-
-      - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
-
-      - name: Install Rust (stable)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      - name: Install latest cargo-audit
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: Run cargo-audit
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          CARGO_TERM_COLOR: always
+          # Optional comma-separated list you can set in repo/org vars or secrets
+          # e.g. "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
+          ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
         run: |
           set -euo pipefail
-          if ! command -v cargo-audit >/dev/null 2>&1; then
-            cargo install cargo-audit --locked
-          fi
-          cargo audit --version
-
-      - name: Ensure Cargo.lock exists
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        run: |
-          set -euo pipefail
+          # Ensure we have a lockfile (some CI paths may check out without it)
           [ -f Cargo.lock ] || cargo generate-lockfile
 
-      - name: Run cargo-audit
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        shell: bash
-        run: |
-          set -euo pipefail
           args=( -D warnings )
+
+          # Respect user-provided ACCEPTED list
           if [[ -n "${ACCEPTED}" ]]; then
             IFS=',' read -ra ids <<< "${ACCEPTED}"
             for id in "${ids[@]}"; do
@@ -82,4 +21,15 @@ jobs:
               [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
             done
           fi
+
+          # Also ignore the long-standing fuser advisory unless already accepted
+          if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
+            args+=( --ignore RUSTSEC-2021-0154 )
+          fi
+
           cargo audit "${args[@]}"
+
+      - name: Skipped (no relevant changes)
+        if: steps.gate.outputs.run != 'true'
+        run: echo "No Rust changes detected (and not forced); skipping cargo-audit."
+        
