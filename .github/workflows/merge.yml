@@ -322,13 +322,8 @@ jobs:
 
       - name: Fallback: wait until clean & merge (10 min max)
         uses: actions/github-script@v7
-        env:
-          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
-          PRNUM: ${{ steps.prnum.outputs.number }}
-          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
         with:
           script: |
-            // Gate logic inline
             const shouldBackmerge = process.env.SHOULD_BACKMERGE === 'true';
             const prnum = process.env.PRNUM || '';
             const autoEnabled = process.env.AUTO_ENABLED === 'true';
@@ -374,3 +369,7 @@ jobs:
             }
 
             core.setFailed('Timed out waiting for PR to become clean & mergeable.');
+        env:
+          SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
+          PRNUM: ${{ steps.prnum.outputs.number }}
+          AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
