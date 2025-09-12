@@ -1,31 +1,35 @@
-# cargo-deny policy (v2)
+# cargo-deny policy
 # Docs: https://embarkstudios.github.io/cargo-deny/
 
 ########################################
 # Advisories
 ########################################
 [advisories]
-vulnerability = "deny"
-unmaintained  = "warn"
-yanked        = "warn"
-notice        = "warn"
-
-# Use the upstream RustSec database
+# Use upstream RustSec DB
 db-urls = ["https://github.com/RustSec/advisory-db"]
 
-# Per-advisory waivers with reasons and expiry.
-# CI will fail after the "until" date if waiver still present.
-[[advisories.ignore]]
-id     = "RUSTSEC-2021-0154"
-reason = "fuser upstream lacks a fixed release; chd2iso-fuse does not expose untrusted inputs"
-until  = "2026-03-12" # review/expiry guard
+# Ignore specific advisories (optional). You can give an id or a crate spec.
+# No 'until' field in current schema; time-box in process (issue, reminders, CI) instead.
+ignore = [
+  { id = "RUSTSEC-2021-0154", reason = "fuser has no fixed release; project does not process untrusted inputs" },
+]
+
+# How to treat 'unmaintained' advisories (scope, not warn/deny):
+#   all | workspace | transitive | none
+unmaintained = "workspace"
+
+# Yanked crate handling (level):
+#   deny | warn | allow
+yanked = "warn"
+
+# If you prefer git CLI for DB fetches (instead of gix), uncomment:
+# git-fetch-with-cli = true
 
 ########################################
-# Licenses (reasonable defaults; adjust as needed)
+# Licenses
 ########################################
 [licenses]
-confidence-threshold = 0.8
-unlicensed = "deny"
+# Allowed SPDX identifiers; anything else is denied by default.
 allow = [
   "Apache-2.0",
   "MIT",
@@ -36,12 +40,19 @@ allow = [
   "Zlib",
 ]
 
-# Flag copyleft as review-needed (tweak per project policy)
-copyleft = "warn"
+# Confidence for text -> SPDX inference
+confidence-threshold = 0.8
+
+# Example of targeted exceptions (optional)
+# [[licenses.exceptions]]
+# crate = "some-crate"
+# allow = ["MPL-2.0"]
 
 ########################################
 # Bans (optional hygiene)
 ########################################
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"     # deny wildcard dependency specs
+wildcards = "deny"
+# deny = ["some-bad-crate"]                   # optional
+# skip = [{ crate = "x@1.2.3", reason = "…" }] # optional
