@@ -191,7 +191,7 @@ jobs:
     if: needs.detect.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # write needed for merge fallback
+      contents: write
       pull-requests: write
       checks: read
     steps:
@@ -320,7 +320,7 @@ jobs:
               core.setOutput('auto_merge_enabled', 'false');
             }
 
-      # Gate for the fallback to avoid long/quoted if: expressions
+      # Gate for the fallback to avoid YAML if expression problems
       - name: Fallback gate
         id: fallback_gate
         if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
@@ -335,13 +335,18 @@ jobs:
           else
             echo "do_fallback=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "Fallback gate -> do_fallback=$(grep do_fallback $GITHUB_OUTPUT | cut -d= -f2)"
 
       - name: Fallback: wait until clean & merge (10 min max)
-        if: ${{ steps.fallback_gate.outputs.do_fallback == 'true' }}
+        env:
+          DO_FALLBACK: ${{ steps.fallback_gate.outputs.do_fallback }}
         uses: actions/github-script@v7
         with:
           script: |
+            if (process.env.DO_FALLBACK !== 'true') {
+              core.info('Fallback not required; skipping.');
+              return;
+            }
+
             const { owner, repo } = context.repo;
             const prNumber = parseInt('${{ steps.prnum.outputs.number }}', 10);
             const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -357,13 +362,11 @@ jobs:
 
               const sha = pr.head.sha;
 
-              // Checks v3 API
               const checks = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
               const allCheckRunsOK = checks.data.check_runs.every(cr =>
                 ['success','neutral','skipped'].includes(cr.conclusion || '')
               );
 
-              // Combined statuses (legacy)
               const statuses = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
               const statusesOK = statuses.data.state === 'success' || statuses.data.state === 'none';
 
@@ -376,6 +379,8 @@ jobs:
                 core.info(`Merged PR #${prNumber}.`);
                 return;
               }
+
               await sleep(20000);
             }
+
             core.setFailed('Timed out waiting for PR to become clean & mergeable.');
