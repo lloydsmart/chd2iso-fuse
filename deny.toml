@@ -1,0 +1,48 @@
+# cargo-deny policy (v2)
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+########################################
+# Advisories
+########################################
+[advisories]
+vulnerability = "deny"
+unmaintained  = "warn"
+yanked        = "warn"
+notice        = "warn"
+
+# Fail if the advisory DB can’t be fetched (keeps CI honest)
+db-path = null
+db-urls = ["https://github.com/RustSec/advisory-db"]
+
+# Per-advisory waivers with reasons and expiry.
+# CI will fail after the "until" date if waiver still present.
+[[advisories.ignore]]
+id     = "RUSTSEC-2021-0154"
+reason = "fuser upstream lacks a fixed release; chd2iso-fuse does not expose untrusted inputs"
+until  = "2026-03-12" # review/expiry guard
+
+########################################
+# Licenses (reasonable defaults; adjust as needed)
+########################################
+[licenses]
+confidence-threshold = 0.8
+unlicensed = "deny"
+allow = [
+  "Apache-2.0",
+  "MIT",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-DFS-2016",
+  "Zlib",
+]
+
+# Flag copyleft as review-needed (tweak per project policy)
+copyleft = "warn"
+
+########################################
+# Bans (optional hygiene)
+########################################
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"     # deny wildcard dependency specs
