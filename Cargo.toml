@@ -14,7 +14,7 @@ clap = { version = "4.5", features = ["derive"] }
 fuser = "0.15"
 lru = "0.16"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }
 time = { version = "0.3", features = ["macros"] }
 libc = "0.2"
 chd = "0.3.3"
