@@ -11,6 +11,11 @@ on:
         default: false
     secrets: {}
 
+# Ensure every run: step executes with Bash (fixes shopt/compgen)
+defaults:
+  run:
+    shell: bash
+
 jobs:
   rust-deb:
     name: Rust build & tests (chd2iso-fuse)
@@ -33,7 +38,7 @@ jobs:
           set -euo pipefail
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            git ca-certificates
+            bash git ca-certificates
 
       - name: Checkout (with tags)
         uses: actions/checkout@v4
