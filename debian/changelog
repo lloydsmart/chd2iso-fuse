@@ -27,6 +27,52 @@ chd2iso-fuse (0.2.14-1) trixie; urgency=medium
   * deps: drop ANSI feature from tracing-subscriber to unify windows-* deps
   * cargo-deny: fix config key (unused-allowed-license) and keep Unicode-3.0 allow
 
+  [ Lloyd Smart ]
+  * Revert "Feature/security exceptions"
+
+  [ lloydsmart ]
+  * security: add policy-as-code for advisories + CI guard
+  * ci(security): run cargo-audit only when Rust files change
+  * cargo-deny: fix invalid TOML (remove db-path=null)
+  * cargo-deny: update deny.toml to current schema
+  * cargo-deny: allow Unicode-3.0 and quiet unused license warnings
+  * deps: drop ANSI feature from tracing-subscriber to unify windows-* deps
+  * cargo-deny: fix config key (unused-allowed-license) and keep Unicode-3.0 allow
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.14 [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 10:50:39 +0000
+
+chd2iso-fuse (0.2.14-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(ci): always kick off release after tagging; keep back-merge independent
+  * fix(ci): include signed checksums in releases and ensure SHA256SUMS is generated
+  * fix(ci): correct artifact upload syntax in _build.yml
+  * fix(ci/release): lock release title to resolved tag to prevent “-1” drift
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.13 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release): force bash on steps that use bashisms (fix shopt error)
+  * ci(build): enforce bash in reusable workflow to fix “shopt: not found”
+  * ci(security): ignore RUSTSEC-2021-0154 (fuser) by default in cargo-audit
+  * ci(uscan): handle uscan exit codes correctly; only fail on rc>=2
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.14 [skip ci]
+
+  [ lloydsmart ]
+  * security: add policy-as-code for advisories + CI guard
+  * ci(security): run cargo-audit only when Rust files change
+  * cargo-deny: fix invalid TOML (remove db-path=null)
+  * cargo-deny: update deny.toml to current schema
+  * cargo-deny: allow Unicode-3.0 and quiet unused license warnings
+  * deps: drop ANSI feature from tracing-subscriber to unify windows-* deps
+  * cargo-deny: fix config key (unused-allowed-license) and keep Unicode-3.0 allow
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 10:35:46 +0000
 
 chd2iso-fuse (0.2.14-1) trixie; urgency=medium
