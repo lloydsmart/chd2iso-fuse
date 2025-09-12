@@ -320,14 +320,12 @@ jobs:
               core.setOutput('auto_merge_enabled', 'false');
             }
 
-      # Gate for the fallback to avoid YAML if expression problems
       - name: Fallback: wait until clean & merge (10 min max)
-        # No step-level if: — compute the gate inside the script
+        uses: actions/github-script@v7
         env:
           SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
           PRNUM: ${{ steps.prnum.outputs.number }}
           AUTO_ENABLED: ${{ steps.enable_auto_merge.outputs.auto_merge_enabled }}
-        uses: actions/github-script@v7
         with:
           script: |
             // Gate logic inline
