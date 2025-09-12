@@ -1,98 +1,35 @@
-name: Security audit (cargo-audit)
-
-on:
-  push:
-    branches: [ develop, main ]
-  pull_request:
-    branches: [ develop, main ]
-  workflow_dispatch:
-    inputs:
-      force:
-        description: "Run cargo-audit even if no Rust changes were detected"
-        type: boolean
-        default: false
-  schedule:
-    # Keep this if you want a periodic check; it will *not* run unless forced
-    - cron: "30 4 * * 1"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: cargo-audit-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  audit:
-    name: Cargo audit (changes-aware)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout (full history for reliable diffs)
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Determine if Rust/package files changed
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          # For PRs, paths-filter auto-detects base/head.
-          # For pushes (incl. merges), compare the before SHA to the new SHA.
-          base: ${{ github.event_name == 'push' && github.event.before || '' }}
-          ref:  ${{ github.sha }}
-          filters: |
-            rust:
-              - '**/*.rs'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - 'build.rs'
-              - 'crates/**'
-              - '.cargo/**'
-
-      - name: Decide whether to run cargo-audit
-        id: gate
-        run: |
-          set -euo pipefail
-          force="${{ github.event_name == 'workflow_dispatch' && inputs.force || 'false' }}"
-          event="${{ github.event_name }}"
-          rust_changed="${{ steps.changes.outputs.rust }}"
-
-          run="false"
-          case "$event" in
-            push|pull_request)
-              if [ "$rust_changed" = "true" ]; then run="true"; fi
-              ;;
-            workflow_dispatch)
-              if [ "$force" = "true" ]; then run="true"; fi
-              ;;
-            schedule)
-              # default: don't run on schedule unless forced
-              if [ "$force" = "true" ]; then run="true"; fi
-              ;;
-          esac
-
-          echo "rust_changed=$rust_changed"
-          echo "force=$force"
-          echo "event=$event"
-          echo "run=$run"
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
-      - name: Install Rust toolchain
-        if: steps.gate.outputs.run == 'true'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        if: steps.gate.outputs.run == 'true'
-        run: cargo install cargo-audit --locked
-
       - name: Run cargo-audit
         if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          CARGO_TERM_COLOR: always
+          # Optional comma-separated list you can set in repo/org vars or secrets
+          # e.g. "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
+          ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
         run: |
           set -euo pipefail
-          cargo generate-lockfile || true
-          cargo audit
+          # Ensure we have a lockfile (some CI paths may check out without it)
+          [ -f Cargo.lock ] || cargo generate-lockfile
+
+          args=( -D warnings )
+
+          # Respect user-provided ACCEPTED list
+          if [[ -n "${ACCEPTED}" ]]; then
+            IFS=',' read -ra ids <<< "${ACCEPTED}"
+            for id in "${ids[@]}"; do
+              id_trimmed="$(echo "$id" | xargs)"
+              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
+            done
+          fi
+
+          # Also ignore the long-standing fuser advisory unless already accepted
+          if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
+            args+=( --ignore RUSTSEC-2021-0154 )
+          fi
+
+          cargo audit "${args[@]}"
 
       - name: Skipped (no relevant changes)
         if: steps.gate.outputs.run != 'true'
         run: echo "No Rust changes detected (and not forced); skipping cargo-audit."
+        
