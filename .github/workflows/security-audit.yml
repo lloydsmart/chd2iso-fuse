@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 15
 
     env:
+      # Optional comma-separated allowlist you control via repo/org variables or secrets.
+      # Example: "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -75,6 +77,8 @@ jobs:
         run: |
           set -euo pipefail
           args=( -D warnings )
+
+          # Respect user-provided ACCEPTED list (comma-separated).
           if [[ -n "${ACCEPTED}" ]]; then
             IFS=',' read -ra ids <<< "${ACCEPTED}"
             for id in "${ids[@]}"; do
@@ -82,4 +86,12 @@ jobs:
               [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
             done
           fi
+
+          # Always ignore the long-standing fuser advisory unless already accepted.
+          # Rationale: RUSTSEC-2021-0154 (unsoundness) has no patched release;
+          # chd2iso-fuse does not process untrusted inputs. Remove this block if upstream resolves it.
+          if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
+            args+=( --ignore RUSTSEC-2021-0154 )
+          fi
+
           cargo audit "${args[@]}"
