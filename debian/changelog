@@ -1,3 +1,22 @@
+chd2iso-fuse (0.2.14-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(ci): always kick off release after tagging; keep back-merge independent
+  * fix(ci): include signed checksums in releases and ensure SHA256SUMS is generated
+  * fix(ci): correct artifact upload syntax in _build.yml
+  * fix(ci/release): lock release title to resolved tag to prevent “-1” drift
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.13 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release): force bash on steps that use bashisms (fix shopt error)
+  * ci(build): enforce bash in reusable workflow to fix “shopt: not found”
+  * ci(security): ignore RUSTSEC-2021-0154 (fuser) by default in cargo-audit
+  * ci(uscan): handle uscan exit codes correctly; only fail on rc>=2
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 09:04:22 +0000
+
 chd2iso-fuse (0.2.13-1) trixie; urgency=medium
 
   [ lloydsmart ]

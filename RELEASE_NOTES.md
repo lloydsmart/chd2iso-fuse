@@ -1,5 +1,10 @@
 # Changelog
-### Fixes
+### CI
+- ci(release): force bash on steps that use bashisms (fix shopt error) (1925c02)
+- ci(build): enforce bash in reusable workflow to fix “shopt: not found” (435d736)
+- ci(security): ignore RUSTSEC-2021-0154 (fuser) by default in cargo-audit (314a62f)
+- ci(uscan): handle uscan exit codes correctly; only fail on rc>=2 (30a0136)### Chore
+- chore(release): prepare v0.2.13 [skip ci] (986417b)### Fixes
 - fix(ci): always kick off release after tagging; keep back-merge independent (138f093)
 - fix(ci): include signed checksums in releases and ensure SHA256SUMS is generated (11d0ebf)
 - fix(ci): correct artifact upload syntax in _build.yml (2971d21)
@@ -7,7 +12,11 @@
 - PR #99: Back-merge (0b48333)
 - PR #103: fix(ci): always kick off release after tagging; keep back-merge independent (66d6c43)
 - PR #104: Bugfix/sha256 sum gpg (e562780)
-- PR #105: fix(ci/release): lock release title to resolved tag to prevent “-1” drift (17b4086)### Chore
+- PR #105: fix(ci/release): lock release title to resolved tag to prevent “-1” drift (17b4086)
+- PR #106: Release/0.2.13 (19fe506)
+- PR #107: Back-merge (7a5c4f8)
+- PR #108: ci(release): force bash on steps that use bashisms (fix shopt error) (21b7da3)
+- PR #109: Bugfix/cargo audit (73c3cc7)### Chore
 - chore(ci): generate git-cliff RELEASE_NOTES.md on tag builds (c1fb8c7)
 - chore(release): prepare v0.2.12 [skip ci] (fb28aec)### Features
 - feat(ci): sign SHA256SUMS in release workflow (8d06c0e)### Fixes
@@ -108,6 +117,8 @@
 - PR #93: Bugfix/better ci (f12cfe2)
 - PR #94: Bugfix/backmerge fix (9c818f5)
 - PR #95: Release/0.2.11 (a30775d)### CI
+- ci(cargo-audit): install tool, update RustSec DB, and run audit (with caching) (cd6a28c)
+- ci(codeql): switch Rust to build-mode=none and drop manual build (be37788)
 - ci(cargo-audit): drop obsolete --db-update flag (3418c33)
 - ci(audit): remove duplicate cargo-audit.yml (use security-audit.yml only) (cc9c6c2)
 - ci(release): add version/changelog guard for release/* and hotfix/* (a67a4a4)
@@ -143,11 +154,14 @@
 - ci: trigger checks (47614bf)
 - ci: trigger checks (bfdf343)
 - ci: run Bash for version check (fix [[ and BASH_REMATCH under sh) (ccf0ec5)### Chore
+- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.4 (4b49420)
 - chore(release): v0.2.7 (e524697)### Fixes
 - fix(workflows): remove invalid empty `workflow_call.secrets` from _release.yml (7afdaca)
 - fix(workflows): resolve YAML parse error by using block-style inputs in _release.yml (380c9aa)
 - fix(workflows): make publish-apt a valid reusable-workflow job (ffd37ae)### Merged PRs
 - Merge pull request #58 from lloydsmart/feature/streamline-build (dcdb2fd)### Other
+- PR #53: chore(release): update changelogs for v0.2.4 (c294306)
+- Merge branch 'hotfix/0.2.6' (cafdee6)
 - merge: back-merge main into develop (hotfix + CI fixes) (b597f94)
 - PR #54: ci(audit): remove duplicate cargo-audit.yml (use security-audit.yml only) (e54ddb2)
 - sec(audit): add cargo-audit on push/PR and weekly (9198986)
@@ -167,11 +181,6 @@
 - PR #69: Issue templates (c5e4078)
 - PR #70: ci: run Bash for version check (fix [[ and BASH_REMATCH under sh) (e84be6a)
 - Merge branch 'release/0.2.7' (6a3225c)### CI
-- ci(cargo-audit): install tool, update RustSec DB, and run audit (with caching) (cd6a28c)
-- ci(codeql): switch Rust to build-mode=none and drop manual build (be37788)### Chore
-- chore(release): update CHANGELOG.md, debian/changelog, and Cargo.toml for v0.2.4 (4b49420)### Other
-- PR #53: chore(release): update changelogs for v0.2.4 (c294306)
-- Merge branch 'hotfix/0.2.6' (cafdee6)### CI
 - ci: run single robust Cargo version check right after bump (ebd4197)
 - ci: introduce git-flow router + reusable build/release (APT gated off) (f0d3112)
 - ci(router): grant write perms to release job & skip on PRs (9dd80a9)
