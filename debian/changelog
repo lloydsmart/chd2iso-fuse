@@ -1,3 +1,10 @@
+chd2iso-fuse (0.2.16-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix false “no changes” on manual/scheduled runs by overriding paths-filter range
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 12 Sep 2025 15:54:39 +0000
+
 chd2iso-fuse (0.2.15-1) trixie; urgency=medium
 
   ** SNAPSHOT build @84cbaed07038ad6f93ec4376247bf0c77f5fe3ad **

@@ -1,5 +1,8 @@
 # Changelog
 ### CI
+- ci(codeql): fix false “no changes” on manual/scheduled runs by overriding paths-filter range (83978e3)### Other
+- PR #124: Back-merge (ea5a574)
+- PR #125: ci(codeql): fix false “no changes” on manual/scheduled runs by overriding paths-filter range (651970b)### CI
 - ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic (4de4f35)
 - ci(build): default workflow shell to Bash to fix `shopt` usage (84cbaed)
 - ci: auto-merge clean main→develop back-merge PRs (f47cb82)
@@ -12,7 +15,8 @@
 - ci(merge): fix fallback step ordering and YAML validity (8124f51)
 - ci(merge): fix YAML parse errors in fallback auto-merge step (1d25030)### Chore
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (4550588)
-- chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (1f1fdc6)### Fixes
+- chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (1f1fdc6)
+- chore(release): prepare v0.2.15 [skip ci] (a83d3a8)### Fixes
 - fix(ci/release): always attach artifacts and changelog (0a7af3d)### Other
 - PR #114: Back-merge main -> develop (post-release) (bcc7d58)
 - PR #115: Hotfix/security audit fix (0160a5b)
@@ -21,7 +25,8 @@
 - PR #118: Back-merge main -> develop (post-release) (372fbed)
 - PR #119: Feature/auto merge (ffb3299)
 - PR #121: fix(ci/release): always attach artifacts and changelog (1e0cb10)
-- PR #120: Feature/auto merge (580824b)### CI
+- PR #120: Feature/auto merge (580824b)
+- PR #122: Release/0.2.15 (0a56fcc)### CI
 - ci(release): force bash on steps that use bashisms (fix shopt error) (1925c02)
 - ci(build): enforce bash in reusable workflow to fix “shopt: not found” (435d736)
 - ci(security): ignore RUSTSEC-2021-0154 (fuser) by default in cargo-audit (314a62f)
