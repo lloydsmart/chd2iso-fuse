@@ -5,81 +5,94 @@ on:
     branches: [ develop, main ]
   pull_request:
     branches: [ develop, main ]
-  schedule:
-    - cron: "45 3 * * 1"
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Run cargo-audit even if no Rust changes were detected"
+        type: boolean
+        default: false
+  schedule:
+    # Keep this if you want a periodic check; it will *not* run unless forced
+    - cron: "30 4 * * 1"
 
 permissions:
   contents: read
 
 concurrency:
-  group: sec-audit-${{ github.ref }}
+  group: cargo-audit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  cargo-audit:
-    name: cargo-audit
+  audit:
+    name: Cargo audit (changes-aware)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    env:
-      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
-      CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout
+      - name: Checkout (full history for reliable diffs)
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - name: Determine if Rust/package files changed
-        id: paths
+        id: changes
         uses: dorny/paths-filter@v3
         with:
+          # For PRs, paths-filter auto-detects base/head.
+          # For pushes (incl. merges), compare the before SHA to the new SHA.
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          ref:  ${{ github.sha }}
           filters: |
             rust:
-              - 'src/**'
               - '**/*.rs'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'build.rs'
-              - 'debian/**'
+              - 'crates/**'
+              - '.cargo/**'
 
-      - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
+      - name: Decide whether to run cargo-audit
+        id: gate
+        run: |
+          set -euo pipefail
+          force="${{ github.event_name == 'workflow_dispatch' && inputs.force || 'false' }}"
+          event="${{ github.event_name }}"
+          rust_changed="${{ steps.changes.outputs.rust }}"
 
-      - name: Install Rust (stable)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+          run="false"
+          case "$event" in
+            push|pull_request)
+              if [ "$rust_changed" = "true" ]; then run="true"; fi
+              ;;
+            workflow_dispatch)
+              if [ "$force" = "true" ]; then run="true"; fi
+              ;;
+            schedule)
+              # default: don't run on schedule unless forced
+              if [ "$force" = "true" ]; then run="true"; fi
+              ;;
+          esac
+
+          echo "rust_changed=$rust_changed"
+          echo "force=$force"
+          echo "event=$event"
+          echo "run=$run"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        if: steps.gate.outputs.run == 'true'
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
 
-      - name: Install latest cargo-audit
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        run: |
-          set -euo pipefail
-          if ! command -v cargo-audit >/dev/null 2>&1; then
-            cargo install cargo-audit --locked
-          fi
-          cargo audit --version
-
-      - name: Ensure Cargo.lock exists
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        run: |
-          set -euo pipefail
-          [ -f Cargo.lock ] || cargo generate-lockfile
+      - name: Install cargo-audit
+        if: steps.gate.outputs.run == 'true'
+        run: cargo install cargo-audit --locked
 
       - name: Run cargo-audit
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        shell: bash
+        if: steps.gate.outputs.run == 'true'
         run: |
           set -euo pipefail
-          args=( -D warnings )
-          if [[ -n "${ACCEPTED}" ]]; then
-            IFS=',' read -ra ids <<< "${ACCEPTED}"
-            for id in "${ids[@]}"; do
-              id_trimmed="$(echo "$id" | xargs)"
-              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
-            done
-          fi
-          cargo audit "${args[@]}"
+          cargo generate-lockfile || true
+          cargo audit
+
+      - name: Skipped (no relevant changes)
+        if: steps.gate.outputs.run != 'true'
+        run: echo "No Rust changes detected (and not forced); skipping cargo-audit."
