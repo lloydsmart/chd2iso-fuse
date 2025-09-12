@@ -172,7 +172,7 @@ jobs:
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
           REPO: ${{ github.repository }}
-          TAG: v${{ steps.ver.outputs.val }}
+          TAG: v{{ steps.ver.outputs.val }}
         run: |
           set -euo pipefail
           echo "Dispatching release.yml for TAG=${TAG}"
@@ -282,7 +282,6 @@ jobs:
             core.setOutput('node_id', pr.data.node_id);
             core.info(`Opened PR #${pr.data.number} main -> develop`);
 
-      # --- Choose a PR number to operate on (existing or newly created) ---
       - name: Select PR number
         id: prnum
         if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
@@ -296,10 +295,9 @@ jobs:
             echo "Using newly created PR #${{ steps.create_pr.outputs.number }}"
           fi
 
-      # --- Enable GitHub Auto-merge (preferred) ---
       - name: Enable native Auto-merge (merge commit)
         id: enable_auto_merge
-        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number != '' }}
+        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number }}
         uses: actions/github-script@v7
         continue-on-error: true
         with:
@@ -325,9 +323,8 @@ jobs:
               core.setOutput('auto_merge_enabled', 'false');
             }
 
-      # --- Fallback: poll until clean & mergeable, then merge with GITHUB_TOKEN ---
       - name: Fallback: wait until clean & merge (10 min max)
-        if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number != '' && steps.enable_auto_merge.outputs.auto_merge_enabled != 'true' }}
+        if: "${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number && steps.enable_auto_merge.outputs.auto_merge_enabled != 'true' }}"
         uses: actions/github-script@v7
         with:
           script: |
@@ -360,7 +357,7 @@ jobs:
                 await github.rest.pulls.merge({
                   owner, repo, pull_number: prNumber, merge_method: 'merge',
                   commit_title: pr.title,
-                  commit_message: `Auto-merged clean back-merge PR #${prNumber} (main → develop)`
+                  commit_message: `Auto-merged clean back-merge PR #${prNumber} (main -> develop)`
                 });
                 core.info(`Merged PR #${prNumber}.`);
                 return;
