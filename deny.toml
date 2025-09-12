@@ -11,16 +11,16 @@ ignore = [
   { id = "RUSTSEC-2021-0154", reason = "fuser has no fixed release; project does not process untrusted inputs" },
 ]
 
-# advisory classes handling
-unmaintained = "workspace"
-yanked       = "warn"
+# Scope/levels for other advisory classes
+unmaintained = "workspace"  # one of: all | workspace | transitive | none
+yanked       = "warn"       # one of: deny | warn | allow
 # git-fetch-with-cli = true
 
 ########################################
 # Licenses
 ########################################
 [licenses]
-# Allow common permissive licenses + Unicode licenses used by deps
+# Allow common permissive + Unicode licenses used by deps
 allow = [
   "Apache-2.0",
   "MIT",
@@ -28,11 +28,12 @@ allow = [
   "BSD-3-Clause",
   "ISC",
   "Unicode-DFS-2016",
-  "Unicode-3.0",          # <-- needed for unicode-ident's "(MIT OR Apache-2.0) AND Unicode-3.0"
+  "Unicode-3.0",      # needed by unicode-ident’s "(MIT OR Apache-2.0) AND Unicode-3.0"
   "Zlib",
 ]
+
 confidence-threshold = 0.8
-unused-allowed = "warn"   # don't fail just because an allowed license isn't currently encountered
+unused-allowed-license = "warn"   # <— correct key; avoid failing on unused allows
 
 ########################################
 # Bans (optional hygiene)
