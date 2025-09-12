@@ -1,0 +1,48 @@
+name: Security policy (cargo-deny)
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+  schedule:
+    - cron: "10 4 * * 1" # Weekly, early morning (Europe/London)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cargo-deny-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+
+      - name: Install Rust (minimal for cargo-deny)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        run: |
+          set -euo pipefail
+          if ! command -v cargo-deny >/dev/null 2>&1; then
+            cargo install cargo-deny --locked
+          fi
+          cargo-deny --version
+
+      - name: Fetch advisory DB (optional warm-up)
+        run: cargo-deny fetch
+
+      - name: Check advisories (enforces per-waiver expiry)
+        run: cargo-deny check advisories
+
+      - name: Check bans & licenses (policy hygiene)
+        run: cargo-deny check bans licenses
