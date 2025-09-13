@@ -116,13 +116,42 @@ jobs:
             echo "needs_ci=${{ steps.export_push.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
+  # Always-on quick sanity for PRs (even if heavy CI is skipped)
+  quick_sanity:
+    name: Quick sanity (fmt + check)
+    needs: gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+
+      - name: Install system deps (minimal)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
+
+      - name: Setup Rust (stable, rustfmt)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: fmt
+        run: cargo fmt --all -- --check
+
+      - name: Smoke compile (fast)
+        env: { CARGO_TERM_COLOR: always }
+        run: cargo check --workspace --locked --all-features
+
   build_test:
     name: Build & Test (Linux)
     needs: gate
     # Keep your existing "skip ci" guard, and only gate PRs; pushes unaffected
     if: >
-      !contains(github.event.head_commit.message, '[skip ci]') &&
-      !contains(github.event.head_commit.message, '[ci skip]') &&
+      !contains(github.event_head_commit.message, '[skip ci]') &&
+      !contains(github.event_head_commit.message, '[ci skip]') &&
       (github.event_name != 'pull_request' || needs.gate.outputs.needs_ci == 'true')
     runs-on: ubuntu-latest
 
@@ -178,8 +207,8 @@ jobs:
     needs: build_test
     if: >
       github.event_name == 'push' &&
-      !contains(github.event.head_commit.message, '[skip ci]') &&
-      !contains(github.event.head_commit.message, '[ci skip]') &&
+      !contains(github.event_head_commit.message, '[skip ci]') &&
+      !contains(github.event_head_commit.message, '[ci skip]') &&
       (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
     runs-on: ubuntu-latest
     container:
