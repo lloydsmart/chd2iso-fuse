@@ -50,10 +50,11 @@ jobs:
     needs: [resolve_tag]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: Checkout full history + tags
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Debug refs
         run: |
@@ -120,12 +121,12 @@ jobs:
       - name: Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
 
-      - name: Download build artifacts (all)
+      # --- NEW: download the deterministic artifact name from _build.yml ---
+      - name: Download build artifacts (release-artifacts)
         uses: actions/download-artifact@v4
         with:
-          pattern: '*'
+          name: release-artifacts
           path: artifacts
-          merge-multiple: true
 
       - name: Guard artifacts exist
         run: |
@@ -133,17 +134,18 @@ jobs:
           shopt -s nullglob
           files=(artifacts/*)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No artifacts found in ./artifacts"
+            echo "::error::No artifacts found in ./artifacts (expected release-artifacts from _build.yml)"
             exit 1
           fi
           echo "Artifacts downloaded:"
           find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       # If build didn't provide notes, generate with git-cliff (tag range)
-      - name: Checkout full history (for changelog generation)
+      - name: Checkout full history + tags (for changelog generation)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
         id: notes
@@ -151,9 +153,6 @@ jobs:
           set -euo pipefail
           if [ -f artifacts/RELEASE_NOTES.md ]; then
             cp artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
-            echo "source=artifact" >> "$GITHUB_OUTPUT"
-          elif [ -f artifacts/CHANGELOG.md ]; then
-            cp artifacts/CHANGELOG.md RELEASE_NOTES.md
             echo "source=artifact" >> "$GITHUB_OUTPUT"
           else
             echo "No notes artifact found; generating with git-cliff…"
@@ -215,7 +214,8 @@ jobs:
             printf '%s\n' "${files[@]}"
             echo 'EOF'
           } >> "$GITHUB_ENV"
-          echo "Prepared ${{ env.ASSET_FILES }}"
+          echo "Prepared files:"
+          printf ' - %s\n' "${files[@]}" || true
 
       - name: Create draft release and upload
         uses: softprops/action-gh-release@v2

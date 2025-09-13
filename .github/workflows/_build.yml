@@ -158,23 +158,16 @@ jobs:
             lintian artifacts/*.deb || true
           fi
 
-      - name: Create nightly manifest
-        if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
+      # --- NEW: deterministic artifact name on tag builds ---
+      - name: Set artifact name
+        id: aname
         run: |
           set -euo pipefail
-          ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          sha="${GITHUB_SHA}"
-          lane="${{ inputs.lane }}"
-          files=$(ls -1 artifacts 2>/dev/null | sed 's/^/  "/; s/$/"/' | paste -sd, - || true)
-          {
-            echo "{"
-            echo "  \"nightly\": true,"
-            echo "  \"timestamp\": \"${ts}\","
-            echo "  \"sha\": \"${sha}\","
-            echo "  \"lane\": \"${lane}\","
-            echo "  \"files\": [ ${files} ]"
-            echo "}"
-          } > artifacts/manifest.json
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "val=release-artifacts" >> "$GITHUB_OUTPUT"
+          else
+            echo "val=chd2iso-fuse-${{ inputs.lane }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload nightly artifacts
         if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
@@ -187,5 +180,6 @@ jobs:
         if: ${{ !inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
         uses: actions/upload-artifact@v4
         with:
-          name: chd2iso-fuse-${{ inputs.lane }}-${{ github.sha }}
+          name: ${{ steps.aname.outputs.val }}
           path: artifacts/
+          if-no-files-found: error
