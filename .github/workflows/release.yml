@@ -139,7 +139,7 @@ jobs:
           echo "Artifacts downloaded:"
           find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
 
-      # If build didn't provide notes, generate with git-cliff (tag range)
+      # If build didn't provide notes, generate with git-cliff (using -u)
       - name: Checkout full history (for changelog generation)
         uses: actions/checkout@v5
         with:
@@ -166,20 +166,22 @@ jobs:
         with:
           tool: git-cliff
 
-      - name: Generate release notes with git-cliff
+      # NEW: also prepend to CHANGELOG.md and generate RELEASE_NOTES.md using -u
+      - name: Generate changelog and notes with git-cliff (-u)
         if: steps.notes.outputs.source == 'cliff'
         run: |
           set -euo pipefail
           TAG="${{ needs.resolve_tag.outputs.tag }}"
-          # Find previous tag chronologically older than TAG
-          PREV_TAG="$(git for-each-ref --sort=-creatordate --format='%(refname:short)' refs/tags | awk -v t="$TAG" '$0!=t{seen=seen} $0==t{exit} {print}' | head -n1 || true)"
-          if [[ -n "${PREV_TAG}" ]]; then
-            echo "Generating notes for range ${PREV_TAG}..${TAG}"
-            git-cliff --tag "${TAG}" --range "${PREV_TAG}..${TAG}" -o RELEASE_NOTES.md
-          else
-            echo "No previous tag found; generating notes up to ${TAG}"
-            git-cliff --tag "${TAG}" -o RELEASE_NOTES.md
-          fi
+
+          # Ensure CHANGELOG.md exists so --prepend works idempotently
+          [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
+
+          # Collect unreleased commits since previous tag, label as TAG, prepend to changelog
+          git-cliff --tag "${TAG}" -u --prepend CHANGELOG.md
+
+          # Emit notes for the release body
+          git-cliff --tag "${TAG}" -u --output RELEASE_NOTES.md
+
           sed -n '1,120p' RELEASE_NOTES.md || true
 
       # 🔐 SIGN BEFORE ASSEMBLING THE UPLOAD LIST
