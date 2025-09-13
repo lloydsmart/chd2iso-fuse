@@ -101,6 +101,7 @@ jobs:
 
   analyze:
     name: "Analyze (CodeQL: ${{ matrix.variant }})"
+    needs: gate
     if: |
       !(
         github.event_name == 'pull_request' &&

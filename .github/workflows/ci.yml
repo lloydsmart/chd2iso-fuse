@@ -147,6 +147,8 @@ jobs:
 
   build_test:
     name: Build & Test (Linux)
+    needs: gate
+    # Keep your existing "skip ci" guard, and only gate PRs; pushes unaffected
     if: |
       !(
         github.event_name == 'pull_request' &&
@@ -223,6 +225,10 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+      options: --init
 
     env:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."

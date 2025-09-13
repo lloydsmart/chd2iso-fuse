@@ -108,6 +108,8 @@ jobs:
 
   deny:
     name: cargo-deny
+    needs: gate
+    # Only gate PRs; push/schedule/manual runs are unaffected
     if: |
       !(
         github.event_name == 'pull_request' &&

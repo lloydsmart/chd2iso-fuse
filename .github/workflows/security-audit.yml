@@ -100,6 +100,7 @@ jobs:
 
   cargo-audit:
     name: cargo-audit
+    needs: gate
     if: |
       !(
         github.event_name == 'pull_request' &&
