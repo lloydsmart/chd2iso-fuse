@@ -101,8 +101,16 @@ jobs:
 
   analyze:
     name: "Analyze (CodeQL: ${{ matrix.variant }})"
-    needs: gate
-    if: needs.gate.outputs.needs_ci == 'true'
+    if: |
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          (github.base_ref == 'develop' && github.head_ref == 'main') ||
+          contains(github.event.pull_request.title, 'Back-merge') ||
+          contains(github.event.pull_request.title, 'back-merge') ||
+          contains(toJson(github.event.pull_request.labels), 'back-merge')
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:

@@ -147,12 +147,16 @@ jobs:
 
   build_test:
     name: Build & Test (Linux)
-    needs: gate
-    # Keep your existing "skip ci" guard, and only gate PRs; pushes unaffected
-    if: >
-      !contains(github.event_head_commit.message, '[skip ci]') &&
-      !contains(github.event_head_commit.message, '[ci skip]') &&
-      (github.event_name != 'pull_request' || needs.gate.outputs.needs_ci == 'true')
+    if: |
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          (github.base_ref == 'develop' && github.head_ref == 'main') ||
+          contains(github.event.pull_request.title, 'Back-merge') ||
+          contains(github.event.pull_request.title, 'back-merge') ||
+          contains(toJson(github.event.pull_request.labels), 'back-merge')
+        )
+      )
     runs-on: ubuntu-latest
 
     steps:
@@ -205,15 +209,20 @@ jobs:
   package_deb:
     name: Debian package (push only)
     needs: build_test
-    if: >
-      github.event_name == 'push' &&
-      !contains(github.event_head_commit.message, '[skip ci]') &&
-      !contains(github.event_head_commit.message, '[ci skip]') &&
-      (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
-    runs-on: ubuntu-latest
-    container:
-      image: debian:trixie
-      options: --init
+    if: |
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          (github.base_ref == 'develop' && github.head_ref == 'main') ||
+          contains(github.event.pull_request.title, 'Back-merge') ||
+          contains(github.event.pull_request.title, 'back-merge') ||
+          contains(toJson(github.event.pull_request.labels), 'back-merge')
+        )
+      )
+      && github.event_name == 'push'
+      && !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
 
     env:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
