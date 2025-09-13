@@ -143,6 +143,17 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # NEW: keep repo CHANGELOG.md in sync (generated on release/hotfix branch)
+      - name: Prepend this release to CHANGELOG.md (keep file in repo up to date)
+        if: steps.ver.outputs.mode == 'versioned'
+        shell: bash
+        run: |
+          set -euo pipefail
+          v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.16
+          tag="v${v}"
+          git-cliff --tag "${tag}" --prepend CHANGELOG.md
+          git add CHANGELOG.md || true
+
       - name: Detect if Cargo.toml changed in this run
         id: cargo_changed
         if: steps.ver.outputs.mode == 'versioned' && steps.bump.outputs.no_changes == 'false'
