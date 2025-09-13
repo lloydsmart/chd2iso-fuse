@@ -31,6 +31,7 @@ jobs:
     steps:
       - name: Mode
         id: mode
+        shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "is_pr=true" >>"$GITHUB_OUTPUT"
@@ -48,6 +49,7 @@ jobs:
       - name: Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
+        shell: bash
         run: |
           if [[ "${{ github.event.pull_request.base.ref }}" == "develop" && \
                 "${{ github.event.pull_request.head.ref }}" == "main" ]]; then
@@ -66,6 +68,7 @@ jobs:
       - name: Compare develop…main (ahead/behind)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: compare
+        shell: bash
         run: |
           set -euo pipefail
           git remote set-url origin "${{ github.server_url }}/${{ github.repository }}"
@@ -79,6 +82,7 @@ jobs:
       - name: Conflict probe (simulate merge main → develop)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: probe
+        shell: bash
         run: |
           set -euo pipefail
           git checkout -q -B tmp origin/develop
@@ -93,6 +97,7 @@ jobs:
       - name: Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
+        shell: bash
         run: |
           # Non-backmerge PRs always run heavy CI
           if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
@@ -109,6 +114,7 @@ jobs:
 
       - name: Export final
         id: export
+        shell: bash
         run: |
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
             echo "needs_ci=${{ steps.export_pr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
@@ -125,7 +131,8 @@ jobs:
     steps:
       - name: Checkout (shallow)
         uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
+        with:
+          fetch-depth: 1
 
       - name: Install system deps (minimal)
         run: |
@@ -148,13 +155,18 @@ jobs:
   build_test:
     name: Build & Test (Linux)
     needs: gate
-    # Keep your existing "skip ci" guard, and only gate PRs; pushes unaffected
-    if: >
-      !contains(github.event_head_commit.message, '[skip ci]') &&
-      !contains(github.event_head_commit.message, '[ci skip]') &&
-      (github.event_name != 'pull_request' || needs.gate.outputs.needs_ci == 'true')
+    # Skip heavy CI for back-merge PRs (manual or auto)
+    if: |
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          (github.base_ref == 'develop' && github.head_ref == 'main') ||
+          contains(github.event.pull_request.title, 'Back-merge') ||
+          contains(github.event.pull_request.title, 'back-merge') ||
+          contains(toJson(github.event.pull_request.labels), 'back-merge')
+        )
+      )
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -174,6 +186,12 @@ jobs:
         with:
           toolchain: stable
           components: clippy, rustfmt
+
+      - name: Prepare cargo cache dirs
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.cargo/registry
+          mkdir -p ~/.cargo/git
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -205,21 +223,28 @@ jobs:
   package_deb:
     name: Debian package (push only)
     needs: build_test
-    if: >
-      github.event_name == 'push' &&
-      !contains(github.event_head_commit.message, '[skip ci]') &&
-      !contains(github.event_head_commit.message, '[ci skip]') &&
-      (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
+    if: |
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          (github.base_ref == 'develop' && github.head_ref == 'main') ||
+          contains(github.event.pull_request.title, 'Back-merge') ||
+          contains(github.event.pull_request.title, 'back-merge') ||
+          contains(toJson(github.event.pull_request.labels), 'back-merge')
+        )
+      )
+      && github.event_name == 'push'
+      && !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
       options: --init
-
     env:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
-
     steps:
       - name: Install git for checkout
         run: |
