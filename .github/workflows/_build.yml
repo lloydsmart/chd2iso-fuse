@@ -104,6 +104,12 @@ jobs:
 
           rustc -V; cargo -V; sccache --version || true
 
+      - name: Prepare sccache dir
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          mkdir -p .sccache
+
       - name: Cache sccache
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: actions/cache@v4

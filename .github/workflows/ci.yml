@@ -181,6 +181,12 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
 
+      - name: Prepare cargo cache dirs
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.cargo/registry
+          mkdir -p ~/.cargo/git
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
