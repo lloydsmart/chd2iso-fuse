@@ -22,10 +22,108 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # GATE: decide whether heavy CI is needed for PRs (incl. conflict probe)
+  gate:
+    name: Decide if heavy CI is needed (PRs)
+    runs-on: ubuntu-latest
+    outputs:
+      needs_ci: ${{ steps.export.outputs.needs_ci }}
+    steps:
+      - name: Mode
+        id: mode
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "is_pr=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "is_pr=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      # Non-PR paths (i.e., push): always run
+      - name: Export for push
+        if: steps.mode.outputs.is_pr == 'false'
+        id: export_push
+        run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+
+      # Identify back-merge PR (main → develop)
+      - name: Identify back-merge PR
+        if: steps.mode.outputs.is_pr == 'true'
+        id: bm
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" == "develop" && \
+                "${{ github.event.pull_request.head.ref }}" == "main" ]]; then
+            echo "is_backmerge=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      # For back-merge evaluation we need full refs
+      - name: Checkout (full)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compare develop…main (ahead/behind)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        id: compare
+        run: |
+          set -euo pipefail
+          git remote set-url origin "${{ github.server_url }}/${{ github.repository }}"
+          git fetch --no-tags --prune origin \
+            +refs/heads/develop:refs/remotes/origin/develop \
+            +refs/heads/main:refs/remotes/origin/main
+          read A B < <(git rev-list --left-right --count origin/develop...origin/main)
+          echo "ahead_on_develop=${A}" >>"$GITHUB_OUTPUT"
+          echo "behind_on_main=${B}"  >>"$GITHUB_OUTPUT"
+
+      - name: Conflict probe (simulate merge main → develop)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        id: probe
+        run: |
+          set -euo pipefail
+          git checkout -q -B tmp origin/develop
+          if git merge --no-commit --no-ff origin/main >/dev/null 2>&1; then
+            echo "conflicts=false" >>"$GITHUB_OUTPUT"
+            git merge --abort || true
+          else
+            echo "conflicts=true" >>"$GITHUB_OUTPUT"
+            git merge --abort || true
+          fi
+
+      - name: Decide (PR)
+        if: steps.mode.outputs.is_pr == 'true'
+        id: export_pr
+        run: |
+          # Non-backmerge PRs always run heavy CI
+          if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
+            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
+          C="${{ steps.probe.outputs.conflicts || 'false' }}"
+          if [[ "$C" == "true" || "$A" -gt 0 ]]; then
+            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "needs_ci=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Export final
+        id: export
+        run: |
+          if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
+            echo "needs_ci=${{ steps.export_pr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
+          else
+            echo "needs_ci=${{ steps.export_push.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
+          fi
+
   build_test:
     name: Build & Test (Linux)
-    # Don’t rerun for the bot’s prep commits
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    needs: gate
+    # Keep your existing "skip ci" guard, and only gate PRs; pushes unaffected
+    if: >
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]') &&
+      (github.event_name != 'pull_request' || needs.gate.outputs.needs_ci == 'true')
     runs-on: ubuntu-latest
 
     steps:
