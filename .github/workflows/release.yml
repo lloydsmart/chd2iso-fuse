@@ -84,6 +84,7 @@ jobs:
     with:
       lane: main
       nightly: false
+      release_mode: true   # <— NEW: force release behavior even on workflow_dispatch
     secrets: inherit
 
   verify_versions:

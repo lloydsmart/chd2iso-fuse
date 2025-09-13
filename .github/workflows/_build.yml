@@ -9,6 +9,10 @@ on:
       nightly:
         type: boolean
         default: false
+      # NEW: force tag-like behavior for artifact naming and notes generation
+      release_mode:
+        type: boolean
+        default: false
     secrets: {}
 
 # Ensure every run: step executes with Bash (fixes shopt/compgen)
@@ -44,6 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Configure git trust and identity
         run: |
@@ -99,6 +104,12 @@ jobs:
 
           rustc -V; cargo -V; sccache --version || true
 
+      - name: Prepare sccache dir
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        run: |
+          set -euo pipefail
+          mkdir -p .sccache
+
       - name: Cache sccache
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: actions/cache@v4
@@ -135,16 +146,17 @@ jobs:
             (cd artifacts && sha256sum * > SHA256SUMS)
           fi
 
-      # Generate release notes on tag builds so release.yml can attach them
-      - name: Generate release notes (git-cliff) for tag builds
-        if: ${{ github.ref_type == 'tag' && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
+      # Generate release notes when either (a) this is a real tag event, or (b) release_mode is forced by caller
+      - name: Generate release notes (git-cliff) for release
+        if: ${{ inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
           apt-get update && apt-get install -y --no-install-recommends cargo
           cargo install git-cliff --locked || true
           mkdir -p artifacts
-          if [ -n "${GITHUB_REF_NAME:-}" ]; then
-            git-cliff --tag "${GITHUB_REF_NAME}" -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
+          tag="${GITHUB_REF_NAME:-}"
+          if [ -n "$tag" ] && [[ "$tag" == v* ]]; then
+            git-cliff --tag "$tag" -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
           else
             git-cliff -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
           fi
@@ -158,26 +170,21 @@ jobs:
             lintian artifacts/*.deb || true
           fi
 
-      # --- NEW: deterministic artifact name on tag builds ---
+      # Deterministic artifact name for releases
       - name: Set artifact name
         id: aname
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          if [ "${{ inputs.release_mode }}" = "true" ] || [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             echo "val=release-artifacts" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.nightly }}" = "true" ]; then
+            echo "val=chd2iso-fuse-nightly-${GITHUB_RUN_ID}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           else
             echo "val=chd2iso-fuse-${{ inputs.lane }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           fi
+          echo "Artifact name: $(cat "$GITHUB_OUTPUT" | sed -n 's/^val=//p')"
 
-      - name: Upload nightly artifacts
-        if: ${{ inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: chd2iso-fuse-nightly-${{ github.run_id }}-${{ github.sha }}
-          path: artifacts/
-
-      - name: Upload build artifacts
-        if: ${{ !inputs.nightly && (steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request') }}
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.aname.outputs.val }}

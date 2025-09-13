@@ -27,20 +27,41 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const commitSha = context.payload?.head_commit?.id || context.sha;
-            // Robust: works for merge/squash/rebase
-            const prs = await github.paginate(
-              github.rest.repos.listPullRequestsAssociatedWithCommit,
-              { owner, repo, commit_sha: commitSha, per_page: 100 }
-            );
-            const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
+
+            async function findByCommitSha() {
+              for (let i = 0; i < 5; i++) {
+                const prs = await github.paginate(
+                  github.rest.repos.listPullRequestsAssociatedWithCommit,
+                  { owner, repo, commit_sha: commitSha, per_page: 100 }
+                );
+                const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
+                if (pr) return pr;
+                // brief backoff to allow GitHub to index associations
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              return null;
+            }
+
+            async function fallbackRecentMerged() {
+              const closed = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'closed', base: 'main', per_page: 50, sort: 'updated', direction: 'desc'
+              });
+              return closed.find(p =>
+                p.merged_at &&
+                (p.head?.ref?.startsWith('release/') || p.head?.ref?.startsWith('hotfix/'))
+              ) || null;
+            }
+
+            const pr = await findByCommitSha() || await fallbackRecentMerged();
             const headRef = pr?.head?.ref || '';
             const isRelease = Boolean(pr && (headRef.startsWith('release/') || headRef.startsWith('hotfix/')));
+
             core.setOutput('is_release', String(isRelease));
             core.setOutput('head_ref', headRef);
             core.setOutput('pr_number', pr?.number ?? '');
             core.info(pr
-              ? `Found merged PR #${pr.number} from '${headRef}'`
-              : 'No merged PR into main found for this commit');
+              ? `Using PR #${pr.number} from '${headRef}' (merged_at=${pr.merged_at})`
+              : 'No merged PR into main found (detect)');
 
   verify:
     name: Verify versions (Cargo / Debian / binary)
