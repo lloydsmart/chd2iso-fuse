@@ -1,3 +1,50 @@
+chd2iso-fuse (0.2.17-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(build): default workflow shell to Bash to fix `shopt` usage
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci: auto-merge clean main→develop back-merge PRs
+  * ci(merge): auto-enable & complete main→develop back-merges
+  * fix(ci/release): always attach artifacts and changelog
+  * ci(merge): fix YAML parse error and harden fallback auto-merge guard
+  * ci(merge): stabilize auto-backmerge with gated fallback and fix tag dispatch var
+  * ci(merge): remove brittle step-level if; gate fallback via env var
+  * ci(merge): inline fallback gate to single step (simpler, fewer outputs)
+  * ci(merge): inline fallback gate and fix YAML syntax for auto-backmerge
+  * ci(merge): fix fallback step ordering and YAML validity
+  * ci(merge): fix YAML parse errors in fallback auto-merge step
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.15 [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): fix false “no changes” on manual/scheduled runs by overriding paths-filter range
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.16 [skip ci]
+
+  [ lloydsmart ]
+  * fix(release): reliably attach build assets to tagged releases
+  * ci(release): fetch tags during guard + notes to stabilize tag resolution
+  * chore(changelog): prepend current tag to CHANGELOG.md during release prep
+  * ci: gate back-merge PRs and skip heavy jobs when safe
+  * ci(cargo-deny): gate back-merge PRs to skip redundant runs
+  * ci: add always-on quick sanity job for PRs
+  * release: fix git-cliff usage and generate notes with -u
+  * ci(autobump): fix git-cliff usage and keep CHANGELOG.md in sync
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sat, 13 Sep 2025 15:04:57 +0000
+
 chd2iso-fuse (0.2.16-1) trixie; urgency=medium
 
   [ lloydsmart ]
