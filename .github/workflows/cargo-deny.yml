@@ -17,8 +17,100 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # GATE: affects PRs only; push/schedule/manual always run
+  gate:
+    name: Decide if cargo-deny is needed (PRs)
+    runs-on: ubuntu-latest
+    outputs:
+      needs_ci: ${{ steps.export.outputs.needs_ci }}
+    steps:
+      - name: Mode
+        id: mode
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "is_pr=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "is_pr=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Export for non-PR
+        if: steps.mode.outputs.is_pr == 'false'
+        id: export_nonpr
+        run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+
+      - name: Identify back-merge PR (main → develop)
+        if: steps.mode.outputs.is_pr == 'true'
+        id: bm
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" == "develop" && \
+                "${{ github.event.pull_request.head.ref }}" == "main" ]]; then
+            echo "is_backmerge=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (full, only for back-merge eval)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+
+      - name: Compare develop…main (ahead/behind)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        id: compare
+        run: |
+          set -euo pipefail
+          git remote set-url origin "${{ github.server_url }}/${{ github.repository }}"
+          git fetch --no-tags --prune origin \
+            +refs/heads/develop:refs/remotes/origin/develop \
+            +refs/heads/main:refs/remotes/origin/main
+          read A B < <(git rev-list --left-right --count origin/develop...origin/main)
+          echo "ahead_on_develop=${A}" >>"$GITHUB_OUTPUT"
+          echo "behind_on_main=${B}"  >>"$GITHUB_OUTPUT"
+
+      - name: Conflict probe (simulate merge main → develop)
+        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        id: probe
+        run: |
+          set -euo pipefail
+          git checkout -q -B tmp origin/develop
+          if git merge --no-commit --no-ff origin/main >/dev/null 2>&1; then
+            echo "conflicts=false" >>"$GITHUB_OUTPUT"
+            git merge --abort || true
+          else
+            echo "conflicts=true" >>"$GITHUB_OUTPUT"
+            git merge --abort || true
+          fi
+
+      - name: Decide (PR)
+        if: steps.mode.outputs.is_pr == 'true'
+        id: export_pr
+        run: |
+          if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
+            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
+          C="${{ steps.probe.outputs.conflicts       || 'false' }}"
+          if [[ "$C" == "true" || "$A" -gt 0 ]]; then
+            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "needs_ci=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Export final
+        id: export
+        run: |
+          if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
+            echo "needs_ci=${{ steps.export_pr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
+          else
+            echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
+          fi
+
   deny:
     name: cargo-deny
+    needs: gate
+    # Only gate PRs; push/schedule/manual runs are unaffected
+    if: needs.gate.outputs.needs_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
