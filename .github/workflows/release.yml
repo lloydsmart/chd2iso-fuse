@@ -50,10 +50,11 @@ jobs:
     needs: [resolve_tag]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: Checkout full history + tags
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Debug refs
         run: |
@@ -140,10 +141,11 @@ jobs:
           find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       # If build didn't provide notes, generate with git-cliff (tag range)
-      - name: Checkout full history (for changelog generation)
+      - name: Checkout full history + tags (for changelog generation)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
         id: notes
