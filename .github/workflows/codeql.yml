@@ -133,7 +133,7 @@ jobs:
         run: echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
 
   analyze:
-    name: 🧩 Analyze (CodeQL: ${{ matrix.variant }})
+    name: "🧩 Analyze (CodeQL: ${{ matrix.variant }})""
     needs: gate
     if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
     runs-on: ubuntu-latest
