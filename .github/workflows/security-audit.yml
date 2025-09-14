@@ -19,7 +19,6 @@ concurrency:
 
 jobs:
   gate:
-    # PRs only; push/schedule/manual always run
     name: Decide if checks are needed (PRs)
     runs-on: ubuntu-latest
     outputs:
@@ -102,7 +101,7 @@ jobs:
           fi
 
   security:
-    name: cargo-deny • cargo-audit
+    name: cargo-deny & cargo-audit
     needs: gate
     if: |
       !(
@@ -118,7 +117,6 @@ jobs:
     timeout-minutes: 20
 
     env:
-      # Optional comma-separated allowlist for cargo-audit
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -141,7 +139,6 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      # Prebuilt binaries — no Rust toolchain needed
       - name: Install cargo-deny (prebuilt)
         uses: taiki-e/install-action@v2
         with:
@@ -156,7 +153,6 @@ jobs:
       - name: cargo-audit version
         run: cargo audit --version
 
-      # One shared DAILY cache for RustSec advisory DB
       - name: Day key
         id: day
         run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
@@ -203,7 +199,6 @@ jobs:
           mkdir -p reports
           cargo audit -D warnings --json > reports/cargo-audit.json
 
-      # ---- PR comment summary (only on PRs) ----
       - name: Summarize & comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -211,126 +206,98 @@ jobs:
           script: |
             const fs = require('fs');
 
-            function readJsonSafe(path) {
+            const readJsonSafe = (p) => {
               try {
-                if (!fs.existsSync(path)) return null;
-                const raw = fs.readFileSync(path, 'utf8').trim();
+                if (!fs.existsSync(p)) return null;
+                const raw = fs.readFileSync(p, 'utf8').trim();
                 if (!raw) return null;
                 return JSON.parse(raw);
-              } catch (e) {
-                return null;
-              }
-            }
+              } catch { return null; }
+            };
 
-            function countDeny(file) {
+            const countDeny = (file) => {
               const data = readJsonSafe(file);
-              if (!data || !Array.isArray(data)) return {errors: 0, warnings: 0, notes: 0};
-              let errors = 0, warnings = 0, notes = 0;
-              for (const item of data) {
-                const lvl = (item.level || '').toLowerCase();
-                if (lvl === 'error') errors++;
-                else if (lvl === 'warning') warnings++;
-                else if (lvl === 'note') notes++;
+              if (!Array.isArray(data)) return {errors:0,warnings:0,notes:0};
+              let e=0,w=0,n=0;
+              for (const it of data) {
+                const lvl=(it.level||'').toLowerCase();
+                if (lvl==='error') e++; else if (lvl==='warning') w++; else if (lvl==='note') n++;
               }
-              return {errors, warnings, notes};
-            }
+              return {errors:e,warnings:w,notes:n};
+            };
 
-            function summarizeAudit(file) {
-              const data = readJsonSafe(file);
-              if (!data || !data.vulnerabilities) return {vulns: 0, warnings: 0};
-              const vulns = data.vulnerabilities.count || 0;
-              const warnings = Array.isArray(data.warnings) ? data.warnings.length : 0;
-              return {vulns, warnings};
-            }
+            const summarizeAudit = (file) => {
+              const d = readJsonSafe(file);
+              if (!d || !d.vulnerabilities) return {vulns:0,warnings:0};
+              return {vulns: d.vulnerabilities.count||0, warnings: Array.isArray(d.warnings)?d.warnings.length:0};
+            };
 
-            // Load results
             const denyAdv = countDeny('reports/cargo-deny-advisories.json');
             const denyBans = countDeny('reports/cargo-deny-bans.json');
             const denyLic  = countDeny('reports/cargo-deny-licenses.json');
             const auditSum = summarizeAudit('reports/cargo-audit.json');
 
-            const totalDenyErrors   = denyAdv.errors + denyBans.errors + denyLic.errors;
-            const totalDenyWarnings = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
+            const totalErr = denyAdv.errors + denyBans.errors + denyLic.errors;
+            const totalWarn = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
+            const pass = (totalErr === 0 && auditSum.vulns === 0);
+            const ok = (x) => x ? '✅' : '❌';
 
-            const pass = (totalDenyErrors === 0 && auditSum.vulns === 0);
-            const okBadge = (ok) => ok ? '✅' : '❌';
-
-            // ---- Badge helpers (shields.io) ----
+            // badges (no backticks)
             const esc = encodeURIComponent;
-            const badge = (label, message, color) =>
-              `https://img.shields.io/badge/${esc(label)}-${esc(message)}-${esc(color)}?style=for-the-badge`;
-
-            // Colors
+            const badge = (label, msg, color) =>
+              'https://img.shields.io/badge/' + esc(label) + '-' + esc(msg) + '-' + esc(color) + '?style=for-the-badge';
             const colorStatus = pass ? 'success' : 'critical';
-            const colorDeny   = totalDenyErrors > 0 ? 'critical' : (totalDenyWarnings > 0 ? 'important' : 'success');
+            const colorDeny   = totalErr > 0 ? 'critical' : (totalWarn > 0 ? 'important' : 'success');
             const colorAudit  = auditSum.vulns > 0 ? 'critical' : 'success';
-
-            // Badge URLs
             const bStatus = badge('Security', pass ? 'passing' : 'failing', colorStatus);
-            const bDeny   = badge('cargo--deny', `errors:${totalDenyErrors} | warn:${totalDenyWarnings}`, colorDeny);
-            const bAudit  = badge('cargo--audit', `vulns:${auditSum.vulns}`, colorAudit);
+            const bDeny   = badge('cargo--deny', 'errors:' + totalErr + ' | warn:' + totalWarn, colorDeny);
+            const bAudit  = badge('cargo--audit', 'vulns:' + auditSum.vulns, colorAudit);
 
-            // Tables and text
-            const table = `
-**cargo-deny**
-| Check       | Errors | Warnings | Notes |
-|-------------|:------:|:--------:|:-----:|
-| advisories  | ${denyAdv.errors} | ${denyAdv.warnings} | ${denyAdv.notes} |
-| bans        | ${denyBans.errors} | ${denyBans.warnings} | ${denyBans.notes} |
-| licenses    | ${denyLic.errors} | ${denyLic.warnings} | ${denyLic.notes} |
-| **total**   | **${totalDenyErrors}** | **${totalDenyWarnings}** | **${denyAdv.notes + denyBans.notes + denyLic.notes}** |
+            // table text
+            const lines = [];
+            lines.push('**cargo-deny**');
+            lines.push('| Check | Errors | Warnings | Notes |');
+            lines.push('|-------------|:------:|:--------:|:-----:|');
+            lines.push('| advisories  | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |');
+            lines.push('| bans        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |');
+            lines.push('| licenses    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' |');
+            lines.push('| **total**   | **' + totalErr + '** | **' + totalWarn + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |');
+            lines.push('');
+            lines.push('**cargo-audit**');
+            lines.push('- vulnerabilities: **' + auditSum.vulns + '**');
+            lines.push('- warnings: **' + auditSum.warnings + '**');
+            lines.push('');
+            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalErr + ', vulns: ' + auditSum.vulns + ')');
+            const table = lines.join('\n');
 
-**cargo-audit**
-- vulnerabilities: **${auditSum.vulns}**
-- warnings: **${auditSum.warnings}**
-
-**Status**: ${okBadge(pass)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})
-`;
-
-            // Job summary in Actions UI (expanded)
-            const summaryMd = `
-### Security checks summary
-
-![status](${bStatus}) ![deny](${bDeny}) ![audit](${bAudit})
-
-${table}
-`;
+            // job summary
+            const summaryMd =
+              '### Security checks summary\n\n' +
+              '![status](' + bStatus + ') ![deny](' + bDeny + ') ![audit](' + bAudit + ')\n\n' +
+              table + '\n';
             core.summary.addRaw(summaryMd).write();
 
-            // Collapsible PR comment with badges in the header
+            // PR comment (collapsible)
             const marker = '<!-- security-checks-summary -->';
-            const commentBody = `${marker}
-<details>
-<summary><strong>Security checks</strong> — <img alt="status" src="${bStatus}" height="20"> <img alt="cargo-deny" src="${bDeny}" height="20"> <img alt="cargo-audit" src="${bAudit}" height="20"> (click to expand)</summary>
+            const commentBody =
+              marker + '\n' +
+              '<details>\n' +
+              '<summary><strong>Security checks</strong> — ' +
+              '<img alt="status" src="' + bStatus + '" height="20"> ' +
+              '<img alt="cargo-deny" src="' + bDeny + '" height="20"> ' +
+              '<img alt="cargo-audit" src="' + bAudit + '" height="20"> (click to expand)</summary>\n\n' +
+              table + '\n' +
+              '</details>';
 
-${table}
-</details>`;
-
-            // Create/update PR comment
             const {owner, repo} = context.repo;
             const issue_number = context.issue.number;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner, repo, issue_number, per_page: 100
-            });
-
-            const existing = comments.find(c =>
-              c.user?.type === 'Bot' &&
-              typeof c.body === 'string' &&
-              c.body.includes(marker)
-            );
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find(c => c.user?.type === 'Bot' && typeof c.body === 'string' && c.body.includes(marker));
 
             if (existing) {
-              await github.rest.issues.updateComment({
-                owner, repo,
-                comment_id: existing.id,
-                body: commentBody
-              });
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: commentBody });
             } else {
-              await github.rest.issues.createComment({
-                owner, repo, issue_number,
-                body: commentBody
-              });
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: commentBody });
             }
 
       - name: Upload security reports
