@@ -238,7 +238,7 @@ jobs:
               -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
           gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 
-      # ===== NEW: assemble assets as a STEP OUTPUT (explicit files only) =====
+      # Assemble assets as a STEP OUTPUT (explicit files only)
       - name: Assemble release asset list (explicit)
         id: assets
         shell: bash
@@ -278,7 +278,8 @@ jobs:
           echo "Files:"
           echo "${{ steps.assets.outputs.files }}" | sed 's/^/  - /'
 
-      - name: Create draft release and upload
+      # ===== switched to GitHub CLI for robust uploads =====
+      - name: Create/ensure draft release (no assets yet)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.resolve_tag.outputs.tag }}
@@ -286,18 +287,30 @@ jobs:
           body_path: "RELEASE_NOTES.md"
           generate_release_notes: false
           draft: true
-          fail_on_unmatched_files: true
-          files: ${{ steps.assets.outputs.files }}
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish draft
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.resolve_tag.outputs.tag }}
-          draft: false
+      - name: Upload assets via gh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve_tag.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(printf '%s\n' "${{ steps.assets.outputs.files }}")
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No files to upload"; exit 1
+          fi
+          echo "Uploading ${#files[@]} assets to release ${TAG}:"
+          printf ' - %s\n' "${files[@]}"
+          gh release upload "${TAG}" "${files[@]}" --clobber
+
+      - name: Publish the release (gh)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve_tag.outputs.tag }}
+        run: gh release edit "${TAG}" --draft=false
 
       # Optional: verify assets attached to the release
       - name: Verify release assets (debug)

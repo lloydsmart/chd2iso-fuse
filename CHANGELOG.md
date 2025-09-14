@@ -1,5 +1,8 @@
 # Changelog
-### Fixes
+### Other
+- Back-merge main -> develop (post-release) (3e07a18)
+- release: switch to gh CLI for asset uploads (7f4d961)
+- PR #148: release: switch to gh CLI for asset uploads (7e59220)### Fixes
 - fix(release): reliably attach .deb + checksums to GitHub Release (b760320)### Other
 - Back-merge main -> develop (post-release) (2683939)
 - PR #145: fix(release): reliably attach .deb + checksums to GitHub Release (a615216)### Chore
