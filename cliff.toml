@@ -1,6 +1,6 @@
 [git]
 # Match tags like v0.1.6
-tag_pattern = "^v\\d+\\.\\d+\\.\\d+$"
+tag_pattern = "^v\\d+\\.\\d+\\.\\d+(-rc\\d+)?$"
 # We don't force Conventional Commits; messages still work fine.
 conventional_commits = false
 
