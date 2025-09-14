@@ -1,5 +1,8 @@
 # Changelog
-### CI
+### Fixes
+- fix(ci): fail-fast on missing release artifacts & broaden back-merge detection (c76a07e)### Other
+- PR #137: Back-merge (deeb6f1)
+- PR #138: fix(ci): fail-fast on missing release artifacts & broaden back-merge detection (1566bf9)### CI
 - ci: flip fail_on_unmatched_files to true (7745c61)
 - ci: update cliff.toml tag pattern to include -rcN (3848162)
 - ci(release): fetch tags & lock artifact name for deterministic releases (ce1c3b1)### Chore
