@@ -1,3 +1,14 @@
+chd2iso-fuse (0.2.27-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(autobump): speed up Debian tool install with APT cache + prebuilt git-cliff
+  * ci(autobump): derive APT cache key from package list (hashFiles)
+  * fix(ci): ensure non-empty release notes and attach to GitHub Release
+  * fix(ci): quote name to escape colon
+  * ci(codeql): speed-up PRs while keeping high-quality analysis
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 23:39:30 +0000
+
 chd2iso-fuse (0.2.26-1) trixie; urgency=medium
 
   [ lloydsmart ]

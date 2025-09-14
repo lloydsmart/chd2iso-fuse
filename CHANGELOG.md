@@ -1,5 +1,14 @@
 # Changelog
 ### CI
+- ci(autobump): speed up Debian tool install with APT cache + prebuilt git-cliff (05291a0)
+- ci(autobump): derive APT cache key from package list (hashFiles) (6c82aab)
+- ci(codeql): speed-up PRs while keeping high-quality analysis (f6c6846)### Fixes
+- fix(ci): ensure non-empty release notes and attach to GitHub Release (9e6aee8)
+- fix(ci): quote name to escape colon (4d0ff02)### Other
+- Back-merge main -> develop (post-release) (0985050)
+- PR #168: Feature/release performance (06acd8b)
+- PR #169: Bugfix/release notes (904925b)
+- PR #170: ci(codeql): speed-up PRs while keeping high-quality analysis (5fabeee)### CI
 - ci: speed up cargo-audit workflow with prebuilt install and DB cache (d5f3385)
 - ci: unify cargo-deny and cargo-audit workflows, use prebuilt binaries and daily RustSec cache (a651317)
 - ci: enhance security checks workflow with summaries and PR comments (5927306)

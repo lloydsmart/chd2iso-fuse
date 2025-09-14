@@ -1,0 +1,9 @@
+git-buildpackage
+devscripts
+python3-debian
+debhelper
+fakeroot
+libdistro-info-perl
+ca-certificates
+jq
+curl

@@ -32,26 +32,46 @@ jobs:
           fetch-tags: true
           persist-credentials: true
 
-      - name: 🛠️ Install Debian packaging tools & git-cliff
+      # --- Speedup: cache APT lists + archives between runs (keyed to package list file) ---
+      - name: ♻️ Cache APT (lists + archives)
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/apt-packages.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      # --- Speedup: install Debian tools quickly + use prebuilt git-cliff binary ---
+      - name: 🛠️ Install Debian packaging tools & git-cliff (fast)
         shell: bash
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            git-buildpackage \
-            devscripts \
-            python3-debian \
-            debhelper \
-            fakeroot \
-            libdistro-info-perl \
-            ca-certificates
-          if ! sudo apt-get install -y --no-install-recommends git-cliff; then
-            echo "APT git-cliff not available; falling back to cargo install..."
-            sudo apt-get install -y --no-install-recommends cargo pkg-config libssl-dev
-            cargo install git-cliff --locked
-            echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+
+          # 1) Install Debian packaging toolchain from tracked list (quiet + retries; uses cache above)
+          sudo apt-get -o Acquire::Retries=3 update -yqq
+          sudo apt-get -o Dpkg::Use-Pty=0 install -yqq --no-install-recommends $(tr '\n' ' ' < .github/apt-packages.txt)
+
+          # 2) Install git-cliff via prebuilt release binary (much faster than Cargo)
+          if ! command -v git-cliff >/dev/null 2>&1; then
+            echo "Installing git-cliff (prebuilt)…"
+            tag="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/latest | jq -r .tag_name)"
+            asset_url="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/tags/${tag} \
+              | jq -r '.assets[] | select(.name | test("x86_64-unknown-linux-musl\\.tar\\.gz$")) | .browser_download_url')"
+            if [[ -z "${asset_url}" || "${asset_url}" == "null" ]]; then
+              asset_url="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/tags/${tag} \
+                | jq -r '.assets[] | select(.name | test("x86_64-unknown-linux-gnu\\.tar\\.gz$")) | .browser_download_url')"
+            fi
+            tmpdir="$(mktemp -d)"
+            curl -fsSL "$asset_url" -o "${tmpdir}/git-cliff.tar.gz"
+            tar -xf "${tmpdir}/git-cliff.tar.gz" -C "${tmpdir}"
+            sudo install -m 0755 "${tmpdir}"/git-cliff*/git-cliff /usr/local/bin/git-cliff
+            rm -rf "${tmpdir}"
           fi
+
+          # 3) Sanity checks (non-fatal)
           gbp --version || true
           dch --version || true
           git-cliff --version || true
@@ -134,6 +154,15 @@ jobs:
 
           # 3) Release notes tagged as v$v (collect unreleased since previous tag)
           git-cliff --tag "v${v}" -u -o RELEASE_NOTES.md
+
+          # Guard: don't let "(no notes)" be committed
+          if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
+            echo "::warning title=Empty release notes::git-cliff produced no entries for v${v}. Skipping staging of RELEASE_NOTES.md."
+            git restore --staged --worktree --quiet -- RELEASE_NOTES.md || true
+          else
+            git add RELEASE_NOTES.md
+          fi
+
           changed=1
 
           git add -A
@@ -151,9 +180,7 @@ jobs:
           set -euo pipefail
           v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.16
           tag="v${v}"
-          # Ensure file exists so --prepend is idempotent
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
-          # Collect unreleased since previous tag and prepend under ${tag}
           git-cliff --tag "${tag}" -u --prepend CHANGELOG.md
           git add CHANGELOG.md || true
 
@@ -206,7 +233,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Create/extend a snapshot entry without bumping fixed version
           gbp dch \
             --snapshot \
             --distribution UNRELEASED \
@@ -220,9 +246,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Create a notes file for current HEAD without tagging
           git-cliff --unreleased -o RELEASE_NOTES.md
-          git add RELEASE_NOTES.md || true
+          if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
+            echo "::warning title=Empty release notes::git-cliff produced no entries for UNRELEASED; not staging."
+            git restore --staged --worktree --quiet -- RELEASE_NOTES.md || true
+          else
+            git add RELEASE_NOTES.md || true
+          fi
 
       - name: 🦀 Install Rust (stable)
         if: steps.ver.outputs.mode == 'maintenance'
@@ -234,7 +264,6 @@ jobs:
         run: |
           set -euo pipefail
           cargo generate-lockfile
-          # Stage only if it actually changed
           if ! git diff --quiet -- Cargo.lock; then
             git add Cargo.lock
           fi
