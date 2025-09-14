@@ -1,4 +1,4 @@
-name: Security audit (cargo-audit)
+name: Security checks (cargo-deny & cargo-audit)
 
 on:
   push:
@@ -6,20 +6,20 @@ on:
   pull_request:
     branches: [ develop, main ]
   schedule:
-    - cron: "45 3 * * 1"
+    - cron: "30 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: sec-audit-${{ github.ref }}
+  group: sec-checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # GATE: only affects PRs; push/schedule/manual still run
+  # GATE: PRs only; push/schedule/manual always run
   gate:
-    name: Decide if audit is needed (PRs)
+    name: Decide if checks are needed (PRs)
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
@@ -38,7 +38,7 @@ jobs:
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back-merge PR
+      - name: Identify back-merge PR (main → develop)
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -53,7 +53,7 @@ jobs:
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         with: { fetch-depth: 0 }
 
-      - name: Compare & probe (only for back-merge PRs)
+      - name: Compare & conflict probe (only for back-merge PRs)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -98,8 +98,8 @@ jobs:
             echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
-  cargo-audit:
-    name: cargo-audit
+  security:
+    name: cargo-deny • cargo-audit
     needs: gate
     if: |
       !(
@@ -112,11 +112,11 @@ jobs:
         )
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     env:
-      # Optional comma-separated allowlist via repo/org vars or secrets.
-      # Example: "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
+      # Optional comma-separated allowlist for cargo-audit
+      # e.g. "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -125,7 +125,8 @@ jobs:
         uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
-      - name: Determine if Rust/package files changed
+      # Only used to optionally skip cargo-audit on doc-only PRs, etc.
+      - name: Determine if Rust/package files changed (for cargo-audit skip)
         id: paths
         uses: dorny/paths-filter@v3
         with:
@@ -138,40 +139,51 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
-
       - name: Install Rust (stable)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      # FAST: install prebuilt cargo-audit binary
+        # Prebuilt, checksummed binaries (fast)
+      - name: Install cargo-deny (prebuilt)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@latest
+      - run: cargo-deny --version
+
       - name: Install cargo-audit (prebuilt)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@latest
-          # fallback: none   # uncomment to fail instead of building from source
       - run: cargo audit --version
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
 
-      # Optional: warm cache for the RustSec advisory DB (refresh weekly)
-      - name: Week key
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        id: wk
-        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      # One shared DAILY cache for the RustSec advisory DB
+      - name: Day key
+        id: day
+        run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
 
       - name: Cache RustSec advisory DB
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: actions/cache@v4
         with:
           path: ~/.cargo/advisory-db
-          key: rustsec-db-${{ runner.os }}-${{ steps.wk.outputs.week }}
+          key: rustsec-db-${{ runner.os }}-${{ steps.day.outputs.day }}
           restore-keys: |
             rustsec-db-${{ runner.os }}-
+
+      # ---- cargo-deny ----
+      - name: Fetch advisory DB (warm-up)
+        run: cargo-deny fetch
+
+      - name: Check advisories (enforces per-waiver expiry)
+        run: cargo-deny check advisories
+
+      - name: Check bans & licenses (policy hygiene)
+        run: cargo-deny check bans licenses
+
+      # ---- cargo-audit ----
+      - name: No-op (non-code PR: skip cargo-audit)
+        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
+        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
 
       - name: Ensure Cargo.lock exists
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
@@ -196,8 +208,7 @@ jobs:
             done
           fi
 
-          # Also ignore the long-standing fuser advisory unless already accepted.
-          # RUSTSEC-2021-0154 (unsoundness) has no patched release; our usage doesn't process untrusted input.
+          # Ignore long-standing fuser advisory unless already accepted.
           if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
             args+=( --ignore RUSTSEC-2021-0154 )
           fi
