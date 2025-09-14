@@ -128,7 +128,7 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Debug: list downloaded artifact contents
+      - name: Debug list downloaded artifact contents
         if: always()
         shell: bash
         run: |
@@ -136,7 +136,7 @@ jobs:
           echo "Downloaded files:"
           find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
 
-      - name: Guard: expected release payload present (.deb and notes)
+      - name: Guard expected release payload present (.deb and notes)
         shell: bash
         run: |
           set -euo pipefail
