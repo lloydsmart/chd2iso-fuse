@@ -1,5 +1,12 @@
 # Changelog
 ### CI
+- ci(back-merge): skip heavy checks on main→develop back-merge PRs (7beab84)
+- ci: restore missing gate (76db874)
+- ci(cache): pre-create cache directories to avoid “Path Validation Error” (5852cd8)
+- ci: minor fixes (f1a718d)### Fixes
+- fix(release): ensure artifacts on workflow_dispatch + robust back-merge detect (e034236)### Other
+- PR #131: Back-merge (46b5bd0)
+- PR #132: Bugfix/workflow dispatch (7b9def0)### CI
 - ci(cargo-audit): fix YAML structure, restore paths gate, and keep ACCEPTED logic (4de4f35)
 - ci(build): default workflow shell to Bash to fix `shopt` usage (84cbaed)
 - ci: auto-merge clean main→develop back-merge PRs (f47cb82)
