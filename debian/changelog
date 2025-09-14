@@ -1,11 +1,17 @@
-chd2iso-fuse (0.2.27-1ubuntu1~1.gbp56f8b0) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.27-1ubuntu1~2.gbp95c7ef) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @56f8b0eeba0f89ea00a8643165a31cc993af9511 **
+  ** SNAPSHOT build @95c7efe448ddb993793092cca9a03a615b975d46 **
 
   [ lloydsmart ]
   * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 23:45:13 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): remove APT cache usage (Option A) to avoid post-job tar permission errors
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 23:54:54 +0000
 
 chd2iso-fuse (0.2.27-1) trixie; urgency=medium
 
