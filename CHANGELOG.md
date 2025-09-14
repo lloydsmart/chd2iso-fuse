@@ -1,5 +1,8 @@
 # Changelog
 ### Fixes
+- fix(release): prevent checkout from wiping build artifacts (2d4caac)### Other
+- Back-merge main -> develop (post-release) (3d7893e)
+- PR #154: fix(release): prevent checkout from wiping build artifacts (c2fd437)### Fixes
 - fix(build): always produce artifacts on tagged releases (1f4e268)### Other
 - Back-merge main -> develop (post-release) (565139a)
 - PR #151: fix(build): always produce artifacts on tagged releases (8923955)### Other
