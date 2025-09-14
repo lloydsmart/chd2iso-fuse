@@ -219,15 +219,29 @@ jobs:
               } catch { return {ok:false, data:null}; }
             };
 
-            const countDeny = (file) => {
+            // Parse cargo-deny results; also collect per-check details (esp. licenses)
+            const analyzeDeny = (file, kindFilter = null) => {
               const {ok, data} = readJsonSafe(file);
-              if (!ok || !Array.isArray(data)) return {errors:0,warnings:0,notes:0, ok:false};
+              if (!ok || !Array.isArray(data)) return {errors:0,warnings:0,notes:0,details:[],ok:false};
               let e=0,w=0,n=0;
+              const details=[];
               for (const it of data) {
                 const lvl=(it.level||'').toLowerCase();
+                const kind = it.kind || (it.code && it.code.code) || it.type || '';
                 if (lvl==='error') e++; else if (lvl==='warning') w++; else if (lvl==='note') n++;
+                if (lvl==='error' && (!kindFilter || kind===kindFilter)) {
+                  // Try to surface license + crate if present, else fall back to message-ish
+                  const lic = it.license || (it.licenses && it.licenses.join(', ')) || null;
+                  const crt = it.crate || it.package || (it.krate && (it.krate.name || it.krate)) || null;
+                  let msg = '';
+                  if (lic && crt) msg = `❌ ${lic} (crate: ${crt})`;
+                  else if (lic)    msg = `❌ ${lic}`;
+                  else if (crt)    msg = `❌ crate: ${crt}`;
+                  else             msg = it.message || it.note || '❌ violation';
+                  details.push(msg);
+                }
               }
-              return {errors:e,warnings:w,notes:n, ok:true};
+              return {errors:e,warnings:w,notes:n,details,ok:true};
             };
 
             const summarizeAudit = (file) => {
@@ -236,62 +250,64 @@ jobs:
               return {vulns: data.vulnerabilities.count||0, warnings: Array.isArray(data.warnings)?data.warnings.length:0, ok:true};
             };
 
-            const adv = countDeny('reports/cargo-deny-advisories.json');
-            const bans = countDeny('reports/cargo-deny-bans.json');
-            const lic  = countDeny('reports/cargo-deny-licenses.json');
-            const aud  = summarizeAudit('reports/cargo-audit.json');
+            // Load results
+            const denyAdv = analyzeDeny('reports/cargo-deny-advisories.json');     // kind varies
+            const denyBans = analyzeDeny('reports/cargo-deny-bans.json', 'ban');   // kind might be 'ban' or 'bans'
+            const denyLic  = analyzeDeny('reports/cargo-deny-licenses.json', 'license');
+            const auditSum = summarizeAudit('reports/cargo-audit.json');
 
-            const totalErr  = adv.errors + bans.errors + lic.errors;
-            const totalWarn = adv.warnings + bans.warnings + lic.warnings;
-            const pass = (totalErr === 0 && aud.vulns === 0);
+            const totalDenyErrors   = denyAdv.errors + denyBans.errors + denyLic.errors;
+            const totalDenyWarnings = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
+            const pass = (totalDenyErrors === 0 && auditSum.vulns === 0);
             const ok = (x) => x ? '✅' : '❌';
 
-            // badges
+            // Badges
             const esc = encodeURIComponent;
             const badge = (label, msg, color) =>
               'https://img.shields.io/badge/' + esc(label) + '-' + esc(msg) + '-' + esc(color) + '?style=for-the-badge';
             const colorStatus = pass ? 'success' : 'critical';
-            const colorDeny   = totalErr > 0 ? 'critical' : (totalWarn > 0 ? 'important' : 'success');
-            const colorAudit  = aud.vulns > 0 ? 'critical' : 'success';
+            const colorDeny   = totalDenyErrors > 0 ? 'critical' : (totalDenyWarnings > 0 ? 'important' : 'success');
+            const colorAudit  = auditSum.vulns > 0 ? 'critical' : 'success';
             const bStatus = badge('Security', pass ? 'passing' : 'failing', colorStatus);
-            const bDeny   = badge('cargo--deny', 'errors:' + totalErr + ' | warn:' + totalWarn, colorDeny);
-            const bAudit  = badge('cargo--audit', 'vulns:' + aud.vulns, colorAudit);
+            const bDeny   = badge('cargo--deny', 'errors:' + totalDenyErrors + ' | warn:' + totalDenyWarnings, colorDeny);
+            const bAudit  = badge('cargo--audit', 'vulns:' + auditSum.vulns, colorAudit);
 
-            // build table (with emojis)
+            // Build table with a Details column (esp. for license issues)
+            const detLic = denyLic.details.length ? denyLic.details.slice(0,5).join('<br>') + (denyLic.details.length>5 ? '<br>…' : '') : '';
             const lines = [];
             lines.push('**cargo-deny 🚫**');
-            lines.push('| Check         | Errors | Warnings | Notes |');
-            lines.push('|---------------|:------:|:--------:|:-----:|');
-            lines.push('| advisories 🚨 | ' + adv.errors + ' | ' + adv.warnings + ' | ' + adv.notes + ' |');
-            lines.push('| bans ❌        | ' + bans.errors + ' | ' + bans.warnings + ' | ' + bans.notes + ' |');
-            lines.push('| licenses 📜    | ' + lic.errors + ' | ' + lic.warnings + ' | ' + lic.notes + ' |');
-            lines.push('| **total**     | **' + totalErr + '** | **' + totalWarn + '** | **' + (adv.notes+bans.notes+lic.notes) + '** |');
+            lines.push('| Check         | Errors | Warnings | Notes | Details |');
+            lines.push('|---------------|:------:|:--------:|:-----:|---------|');
+            lines.push('| advisories 🚨 | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |  |');
+            lines.push('| bans ❌        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |  |');
+            lines.push('| licenses 📜    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' | ' + detLic + ' |');
+            lines.push('| **total**     | **' + (denyAdv.errors+denyBans.errors+denyLic.errors) + '** | **' + (denyAdv.warnings+denyBans.warnings+denyLic.warnings) + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |  |');
             lines.push('');
             lines.push('**cargo-audit 🔍**');
-            lines.push('- vulnerabilities: **' + aud.vulns + '**');
-            lines.push('- warnings ⚠️: **' + aud.warnings + '**');
-            if (!adv.ok || !bans.ok || !lic.ok || !aud.ok) {
+            lines.push('- vulnerabilities: **' + auditSum.vulns + '**');
+            lines.push('- warnings ⚠️: **' + auditSum.warnings + '**');
+            if (!denyAdv.ok || !denyBans.ok || !denyLic.ok || !auditSum.ok) {
               lines.push('');
               const missing = [
-                !adv.ok ? 'cargo-deny advisories' : null,
-                !bans.ok ? 'cargo-deny bans' : null,
-                !lic.ok  ? 'cargo-deny licenses' : null,
-                !aud.ok  ? 'cargo-audit' : null,
+                !denyAdv.ok ? 'cargo-deny advisories' : null,
+                !denyBans.ok ? 'cargo-deny bans' : null,
+                !denyLic.ok  ? 'cargo-deny licenses' : null,
+                !auditSum.ok ? 'cargo-audit' : null,
               ].filter(Boolean).join(', ');
               lines.push('_Note: one or more reports were unavailable (' + missing + '); counts shown as 0._');
             }
             lines.push('');
-            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalErr + ', vulns: ' + aud.vulns + ')');
+            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalDenyErrors + ', vulns: ' + auditSum.vulns + ')');
             const table = lines.join('\n');
 
-            // job summary
+            // Job summary
             const summaryMd =
               '### Security checks summary\n\n' +
               '![status](' + bStatus + ') ![deny](' + bDeny + ') ![audit](' + bAudit + ')\n\n' +
               table + '\n';
             core.summary.addRaw(summaryMd).write();
 
-            // PR comment (collapsible)
+            // Collapsible PR comment
             const marker = '<!-- security-checks-summary -->';
             const commentBody =
               marker + '\n' +
