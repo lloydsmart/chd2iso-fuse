@@ -19,8 +19,20 @@ yanked       = "warn"       # one of: deny | warn | allow
 ########################################
 # Licenses
 ########################################
+# ---------------------------------------------------------------------
+# cargo-deny license policy
+#
+# The "allow" list should only include licenses actually in use.
+# To review current licenses in the dependency tree, run:
+#
+#   cargo deny list
+#
+# If new licenses appear in your dependencies, you can add them here.
+# Avoid leaving unused licenses in the list, as this causes
+# `license-not-encountered` warnings in CI.
+# ---------------------------------------------------------------------
+
 [licenses]
-# Allow common permissive + Unicode licenses used by deps
 allow = [
   "Apache-2.0",
   "BSD-3-Clause",
@@ -28,6 +40,8 @@ allow = [
 ]
 
 confidence-threshold = 0.8
+unlicensed = "deny"     # fail if a dependency has no license
+unknown    = "deny"     # fail if cargo-deny can't classify a license
 unused-allowed-license = "warn"   # <— correct key; avoid failing on unused allows
 
 ########################################
