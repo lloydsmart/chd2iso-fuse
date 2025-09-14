@@ -1,4 +1,4 @@
-name: Release prep (auto-bump & changelog)
+name: Release prep (auto-bump & changelog) 📝🔖
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   prep:
-    name: Prepare (version & changelog)
+    name: 🛠️ Prepare (version & changelog)
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
 
@@ -25,14 +25,14 @@ jobs:
       EMAIL: lloydsmart@users.noreply.github.com
 
     steps:
-      - name: Checkout branch (full history + tags)
+      - name: 📥 Checkout branch (full history + tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: true
 
-      - name: Install Debian packaging tools & git-cliff
+      - name: 🛠️ Install Debian packaging tools & git-cliff
         shell: bash
         run: |
           set -euo pipefail
@@ -56,7 +56,7 @@ jobs:
           dch --version || true
           git-cliff --version || true
 
-      - name: Derive version/mode from branch
+      - name: 🔎 Derive version/mode from branch
         id: ver
         shell: bash
         run: |
@@ -75,7 +75,7 @@ jobs:
           fi
 
       # ===== VERSIONED FLOW =====
-      - name: Read current Cargo.toml version
+      - name: 📖 Read current Cargo.toml version
         id: cur
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -85,7 +85,7 @@ jobs:
           echo "value=$cur" >> "$GITHUB_OUTPUT"
           echo "Cargo.toml version: ${cur:-<none>}"
 
-      - name: Determine previous tag
+      - name: 🏷️ Determine previous tag
         id: prev
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -97,7 +97,7 @@ jobs:
           echo "value=$prev" >> "$GITHUB_OUTPUT"
           echo "Previous tag: ${prev:-<none>}"
 
-      - name: Bump version, Debian changelog, and release notes (stage only)
+      - name: 🚀 Bump version, Debian changelog, and release notes (stage only)
         id: bump
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -144,7 +144,7 @@ jobs:
           fi
 
       # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch)
-      - name: Prepend this release to CHANGELOG.md (keep file in repo up to date)
+      - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
         run: |
@@ -157,7 +157,7 @@ jobs:
           git-cliff --tag "${tag}" -u --prepend CHANGELOG.md
           git add CHANGELOG.md || true
 
-      - name: Detect if Cargo.toml changed in this run
+      - name: 🔍 Detect if Cargo.toml changed in this run
         id: cargo_changed
         if: steps.ver.outputs.mode == 'versioned' && steps.bump.outputs.no_changes == 'false'
         shell: bash
@@ -173,11 +173,11 @@ jobs:
             fi
           fi
 
-      - name: Install Rust (stable) if Cargo.toml changed
+      - name: 🦀 Install Rust (stable) if Cargo.toml changed
         if: steps.ver.outputs.mode == 'versioned' && steps.bump.outputs.no_changes == 'false' && steps.cargo_changed.outputs.changed == 'true'
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Regenerate Cargo.lock after version bump
+      - name: 🔄 Regenerate Cargo.lock after version bump
         if: steps.ver.outputs.mode == 'versioned' && steps.bump.outputs.no_changes == 'false' && steps.cargo_changed.outputs.changed == 'true'
         shell: bash
         run: |
@@ -186,7 +186,7 @@ jobs:
           test -f Cargo.lock
           git add Cargo.lock || true
 
-      - name: Commit and push changes
+      - name: 💾 Commit and push changes
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
         run: |
@@ -201,7 +201,7 @@ jobs:
           git push
 
       # ===== MAINTENANCE HOTFIX FLOW (NO VERSION BUMP) =====
-      - name: Debian changelog snapshot (UNRELEASED)
+      - name: 📝 Debian changelog snapshot (UNRELEASED)
         if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
         run: |
@@ -215,7 +215,7 @@ jobs:
             --verbose
           git add debian/changelog || true
 
-      - name: Generate Unreleased release notes
+      - name: 🗒️ Generate Unreleased release notes
         if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
         run: |
@@ -224,11 +224,11 @@ jobs:
           git-cliff --unreleased -o RELEASE_NOTES.md
           git add RELEASE_NOTES.md || true
 
-      - name: Install Rust (stable)
+      - name: 🦀 Install Rust (stable)
         if: steps.ver.outputs.mode == 'maintenance'
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Regenerate Cargo.lock (no version bump)
+      - name: 🔄 Regenerate Cargo.lock (no version bump)
         if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
         run: |
@@ -239,7 +239,7 @@ jobs:
             git add Cargo.lock
           fi
 
-      - name: Commit and push maintenance changes
+      - name: 💾 Commit and push maintenance changes
         if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
         run: |
