@@ -1,3 +1,10 @@
+chd2iso-fuse (0.2.24-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(build): always produce artifacts on tagged releases
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 15:57:17 +0000
+
 chd2iso-fuse (0.2.23-1) trixie; urgency=medium
 
   [ lloydsmart ]
