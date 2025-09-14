@@ -117,6 +117,7 @@ jobs:
     timeout-minutes: 20
 
     env:
+      # Optional comma-separated allowlist for cargo-audit suppressions
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -180,9 +181,9 @@ jobs:
       - name: Export cargo-deny reports 📝
         run: |
           mkdir -p reports
-          cargo-deny --locked check advisories --format json > reports/cargo-deny-advisories.json
-          cargo-deny --locked check bans       --format json > reports/cargo-deny-bans.json
-          cargo-deny --locked check licenses   --format json > reports/cargo-deny-licenses.json
+          cargo-deny --locked check advisories -- --format json > reports/cargo-deny-advisories.json
+          cargo-deny --locked check bans       -- --format json > reports/cargo-deny-bans.json
+          cargo-deny --locked check licenses   -- --format json > reports/cargo-deny-licenses.json
 
       # ---- cargo-audit ----
       - name: Skip cargo-audit on non-code PRs ⏭️
@@ -211,72 +212,86 @@ jobs:
 
             const readJsonSafe = (p) => {
               try {
-                if (!fs.existsSync(p)) return null;
+                if (!fs.existsSync(p)) return {ok:false, data:null};
                 const raw = fs.readFileSync(p, 'utf8').trim();
-                if (!raw) return null;
-                return JSON.parse(raw);
-              } catch { return null; }
+                if (!raw) return {ok:false, data:null};
+                return {ok:true, data: JSON.parse(raw)};
+              } catch { return {ok:false, data:null}; }
             };
 
             const countDeny = (file) => {
-              const data = readJsonSafe(file);
-              if (!Array.isArray(data)) return {errors:0,warnings:0,notes:0};
+              const {ok, data} = readJsonSafe(file);
+              if (!ok || !Array.isArray(data)) return {errors:0,warnings:0,notes:0, ok:false};
               let e=0,w=0,n=0;
               for (const it of data) {
                 const lvl=(it.level||'').toLowerCase();
                 if (lvl==='error') e++; else if (lvl==='warning') w++; else if (lvl==='note') n++;
               }
-              return {errors:e,warnings:w,notes:n};
+              return {errors:e,warnings:w,notes:n, ok:true};
             };
 
             const summarizeAudit = (file) => {
-              const d = readJsonSafe(file);
-              if (!d || !d.vulnerabilities) return {vulns:0,warnings:0};
-              return {vulns: d.vulnerabilities.count||0, warnings: Array.isArray(d.warnings)?d.warnings.length:0};
+              const {ok, data} = readJsonSafe(file);
+              if (!ok || !data || !data.vulnerabilities) return {vulns:0,warnings:0, ok:false};
+              return {vulns: data.vulnerabilities.count||0, warnings: Array.isArray(data.warnings)?data.warnings.length:0, ok:true};
             };
 
-            const denyAdv = countDeny('reports/cargo-deny-advisories.json');
-            const denyBans = countDeny('reports/cargo-deny-bans.json');
-            const denyLic  = countDeny('reports/cargo-deny-licenses.json');
-            const auditSum = summarizeAudit('reports/cargo-audit.json');
+            const adv = countDeny('reports/cargo-deny-advisories.json');
+            const bans = countDeny('reports/cargo-deny-bans.json');
+            const lic  = countDeny('reports/cargo-deny-licenses.json');
+            const aud  = summarizeAudit('reports/cargo-audit.json');
 
-            const totalErr = denyAdv.errors + denyBans.errors + denyLic.errors;
-            const totalWarn = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
-            const pass = (totalErr === 0 && auditSum.vulns === 0);
+            const totalErr  = adv.errors + bans.errors + lic.errors;
+            const totalWarn = adv.warnings + bans.warnings + lic.warnings;
+            const pass = (totalErr === 0 && aud.vulns === 0);
             const ok = (x) => x ? '✅' : '❌';
 
+            // badges
             const esc = encodeURIComponent;
             const badge = (label, msg, color) =>
               'https://img.shields.io/badge/' + esc(label) + '-' + esc(msg) + '-' + esc(color) + '?style=for-the-badge';
             const colorStatus = pass ? 'success' : 'critical';
             const colorDeny   = totalErr > 0 ? 'critical' : (totalWarn > 0 ? 'important' : 'success');
-            const colorAudit  = auditSum.vulns > 0 ? 'critical' : 'success';
+            const colorAudit  = aud.vulns > 0 ? 'critical' : 'success';
             const bStatus = badge('Security', pass ? 'passing' : 'failing', colorStatus);
             const bDeny   = badge('cargo--deny', 'errors:' + totalErr + ' | warn:' + totalWarn, colorDeny);
-            const bAudit  = badge('cargo--audit', 'vulns:' + auditSum.vulns, colorAudit);
+            const bAudit  = badge('cargo--audit', 'vulns:' + aud.vulns, colorAudit);
 
+            // build table (with emojis)
             const lines = [];
             lines.push('**cargo-deny 🚫**');
             lines.push('| Check         | Errors | Warnings | Notes |');
             lines.push('|---------------|:------:|:--------:|:-----:|');
-            lines.push('| advisories 🚨 | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |');
-            lines.push('| bans ❌        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |');
-            lines.push('| licenses 📜    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' |');
-            lines.push('| **total**     | **' + totalErr + '** | **' + totalWarn + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |');
+            lines.push('| advisories 🚨 | ' + adv.errors + ' | ' + adv.warnings + ' | ' + adv.notes + ' |');
+            lines.push('| bans ❌        | ' + bans.errors + ' | ' + bans.warnings + ' | ' + bans.notes + ' |');
+            lines.push('| licenses 📜    | ' + lic.errors + ' | ' + lic.warnings + ' | ' + lic.notes + ' |');
+            lines.push('| **total**     | **' + totalErr + '** | **' + totalWarn + '** | **' + (adv.notes+bans.notes+lic.notes) + '** |');
             lines.push('');
             lines.push('**cargo-audit 🔍**');
-            lines.push('- vulnerabilities: **' + auditSum.vulns + '**');
-            lines.push('- warnings ⚠️: **' + auditSum.warnings + '**');
+            lines.push('- vulnerabilities: **' + aud.vulns + '**');
+            lines.push('- warnings ⚠️: **' + aud.warnings + '**');
+            if (!adv.ok || !bans.ok || !lic.ok || !aud.ok) {
+              lines.push('');
+              const missing = [
+                !adv.ok ? 'cargo-deny advisories' : null,
+                !bans.ok ? 'cargo-deny bans' : null,
+                !lic.ok  ? 'cargo-deny licenses' : null,
+                !aud.ok  ? 'cargo-audit' : null,
+              ].filter(Boolean).join(', ');
+              lines.push('_Note: one or more reports were unavailable (' + missing + '); counts shown as 0._');
+            }
             lines.push('');
-            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalErr + ', vulns: ' + auditSum.vulns + ')');
+            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalErr + ', vulns: ' + aud.vulns + ')');
             const table = lines.join('\n');
 
+            // job summary
             const summaryMd =
               '### Security checks summary\n\n' +
               '![status](' + bStatus + ') ![deny](' + bDeny + ') ![audit](' + bAudit + ')\n\n' +
               table + '\n';
             core.summary.addRaw(summaryMd).write();
 
+            // PR comment (collapsible)
             const marker = '<!-- security-checks-summary -->';
             const commentBody =
               marker + '\n' +
