@@ -1,8 +1,8 @@
-name: uscan (watch upstream)
+name: 🔭 uscan — Watch upstream
 
 on:
   schedule:
-    - cron: "15 8 * * 1-5"   # Weekdays 08:15 Europe/London
+    - cron: "15 8 * * 1-5"   # 🕗 08:15 Europe/London (weekdays)
   workflow_dispatch:
 
 permissions:
@@ -11,21 +11,21 @@ permissions:
 
 jobs:
   uscan:
-    name: Watch upstream (dehs)
+    name: 👀 Watch upstream (dehs)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with tags)
+      - name: 📥 Checkout (with tags)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Install devscripts (for uscan)
+      - name: 🛠️ Install devscripts (for uscan)
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends devscripts ca-certificates
 
-      - name: Run uscan
+      - name: 🔎 Run uscan
         id: scan
         run: |
           set -euo pipefail
@@ -38,7 +38,7 @@ jobs:
             echo "newer=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create issue if newer upstream
+      - name: 🆕 Create issue (new upstream)
         if: steps.scan.outputs.newer == 'true'
         uses: actions/github-script@v8
         with:
