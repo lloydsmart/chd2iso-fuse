@@ -1,11 +1,15 @@
-chd2iso-fuse (0.2.20-1ubuntu1~1.gbp197c4d) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.21-1) trixie; urgency=medium
 
   ** SNAPSHOT build @197c4db7f9da3115e09beec8f5567da81bfef508 **
 
   [ lloydsmart ]
   * fix(merge): repair auto-merge GraphQL + fallback merge logic
+  * fix(merge): repair auto-merge GraphQL + fallback merge logic
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 14:09:44 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 14:24:32 +0000
 
 chd2iso-fuse (0.2.20-1) trixie; urgency=medium
 

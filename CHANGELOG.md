@@ -1,5 +1,10 @@
 # Changelog
-### Fixes
+### Chore
+- chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (a54abe7)### Fixes
+- fix(merge): repair auto-merge GraphQL + fallback merge logic (197c4db)### Other
+- PR #140: Back-merge main -> develop (post-release) (fe6a5cb)
+- PR #141: fix(merge): repair auto-merge GraphQL + fallback merge logic (3b2bd4a)
+- Back-merge main -> develop (post-release) (c4edb77)### Fixes
 - fix(ci): fail-fast on missing release artifacts & broaden back-merge detection (c76a07e)### Other
 - PR #137: Back-merge (deeb6f1)
 - PR #138: fix(ci): fail-fast on missing release artifacts & broaden back-merge detection (1566bf9)### CI
