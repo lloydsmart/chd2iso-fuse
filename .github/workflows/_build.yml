@@ -146,7 +146,7 @@ jobs:
             (cd artifacts && sha256sum * > SHA256SUMS)
           fi
           
-      - name: Guard: at least one .deb was built
+      - name: Guard at least one .deb was built
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         shell: bash
         run: |
