@@ -218,7 +218,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Try GHAC first
           if SCCACHE_GHA_ENABLED=on sccache --start-server && SCCACHE_GHA_ENABLED=on sccache --show-stats >/dev/null 2>&1; then
             echo "backend=ghac" >> "$GITHUB_OUTPUT"
             echo "SCCACHE_GHA_ENABLED=on" >> "$GITHUB_ENV"
@@ -231,15 +230,19 @@ jobs:
             echo "Falling back to sccache filesystem backend"
           fi
 
-      - name: 🗃️ Cache sccache store (filesystem only)
+      - name: 🗂️ Ensure sccache dir (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache@v4
+        run: mkdir -p ~/.cache/sccache
+
+      - name: ♻️ Restore sccache (FS only)
+        if: steps.scc.outputs.backend == 'filesystem'
+        id: sccache_restore
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
           restore-keys: |
             sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
-          save-always: true
 
       - name: 🦀 Setup Rust (stable + clippy)
         uses: dtolnay/rust-toolchain@stable
@@ -270,6 +273,13 @@ jobs:
 
       - name: ✅ Test (nextest, parallel)
         run: cargo nextest run --workspace --locked --all-features --no-fail-fast
+
+      - name: 💾 Save sccache (FS only)
+        if: steps.scc.outputs.backend == 'filesystem'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/sccache
+          key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
   package_deb:
     name: 📦 Debian package (push only)
@@ -326,15 +336,19 @@ jobs:
             echo "Falling back to sccache filesystem backend (container)"
           fi
 
-      - name: 🗃️ Cache sccache store (filesystem only)
+      - name: 🗂️ Ensure sccache dir (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache@v4
+        run: mkdir -p /root/.cache/sccache
+
+      - name: ♻️ Restore sccache (FS only)
+        if: steps.scc.outputs.backend == 'filesystem'
+        id: sccache_restore
+        uses: actions/cache/restore@v4
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
           restore-keys: |
             sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
-          save-always: true
 
       - name: ⚙️ Install build deps
         run: |
@@ -367,3 +381,10 @@ jobs:
         with:
           name: chd2iso-fuse-${{ github.sha }}
           path: artifacts/
+
+      - name: 💾 Save sccache (FS only)
+        if: steps.scc.outputs.backend == 'filesystem'
+        uses: actions/cache/save@v4
+        with:
+          path: /root/.cache/sccache
+          key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
