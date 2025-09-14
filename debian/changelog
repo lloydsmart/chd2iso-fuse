@@ -1,3 +1,12 @@
+chd2iso-fuse (0.2.27-1ubuntu1~1.gbp56f8b0) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @56f8b0eeba0f89ea00a8643165a31cc993af9511 **
+
+  [ lloydsmart ]
+  * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 23:45:13 +0000
+
 chd2iso-fuse (0.2.27-1) trixie; urgency=medium
 
   [ lloydsmart ]
