@@ -9,7 +9,7 @@ on:
       nightly:
         type: boolean
         default: false
-      # NEW: force tag-like behavior for artifact naming and notes generation
+      # force tag-like behavior for artifact naming and notes generation
       release_mode:
         type: boolean
         default: false
@@ -79,12 +79,13 @@ jobs:
               - 'debian/**'
               - 'Makefile'
 
+      # PR only: allow noop when nothing relevant changed
       - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' && !inputs.release_mode && github.ref_type != 'tag' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
 
       - name: Install toolchain & deps
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
           apt-get update
@@ -105,13 +106,13 @@ jobs:
           rustc -V; cargo -V; sccache --version || true
 
       - name: Prepare sccache dir
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
           mkdir -p .sccache
 
       - name: Cache sccache
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         uses: actions/cache@v4
         with:
           path: .sccache
@@ -121,17 +122,17 @@ jobs:
             sccache-${{ runner.os }}-
 
       - name: Rust fmt & clippy
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Rust tests
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: cargo test --workspace --locked --all-features
 
       - name: Debian build
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         env:
           DEB_BUILD_OPTIONS: nocheck
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
@@ -147,7 +148,7 @@ jobs:
           fi
           
       - name: Guard at least one .deb was built
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -179,7 +180,7 @@ jobs:
           sed -n '1,80p' artifacts/RELEASE_NOTES.md || true
 
       - name: Lintian (non-fatal)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         continue-on-error: true
         run: |
           if compgen -G "artifacts/*.deb" > /dev/null; then
