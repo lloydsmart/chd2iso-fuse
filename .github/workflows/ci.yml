@@ -224,7 +224,7 @@ jobs:
             echo "Using sccache GHAC backend"
           else
             echo "backend=filesystem" >> "$GITHUB_OUTPUT"
-            echo "SCCACHE_GHA_ENABLED=" >> "$GITHUB_ENV"
+            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"            # <-- set off
             echo "SCCACHE_DIR=$HOME/.cache/sccache" >> "$GITHUB_ENV"
             mkdir -p "$HOME/.cache/sccache"
             echo "Falling back to sccache filesystem backend"
@@ -330,7 +330,7 @@ jobs:
             echo "Using sccache GHAC backend (container)"
           else
             echo "backend=filesystem" >> "$GITHUB_OUTPUT"
-            echo "SCCACHE_GHA_ENABLED=" >> "$GITHUB_ENV"
+            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"           # <-- set off
             echo "SCCACHE_DIR=/root/.cache/sccache" >> "$GITHUB_ENV"
             mkdir -p /root/.cache/sccache
             echo "Falling back to sccache filesystem backend (container)"
