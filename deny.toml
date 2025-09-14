@@ -35,22 +35,26 @@ yanked       = "warn"       # one of: deny | warn | allow
 # ---------------------------------------------------------------------
 
 [licenses]
-# Only licenses listed here are allowed (everything else is denied).
-# GNU licenses must be listed explicitly (pedantic handling ≥ 0.18.4).
+# Allow any OSI/FSF-free licenses by explicitly listing the ones we accept.
+# GNU-family and some niche licenses must be listed explicitly on cargo-deny ≥ 0.18.
 
 allow = [
   # Permissive
   "Apache-2.0",
   "BSD-3-Clause",
   "MIT",
+  "Zlib",            # ← needed by foldhash, zlib-rs, libz-rs-sys
 
-  # Copyleft (GPL/LGPL) — prefer “-or-later” where appropriate
+  # Unicode data license (used by unicode-ident)
+  "Unicode-3.0",     # ← needed for (MIT OR Apache-2.0) AND Unicode-3.0
+
+  # Copyleft (kept allowed so GPL/LGPL crates won’t block CI if introduced)
   "GPL-2.0-or-later",
   "GPL-3.0-or-later",
   "LGPL-2.1-or-later",
   "LGPL-3.0-or-later",
 
-  # Other common FOSS licenses
+  # Other common FOSS licenses (okay to keep even if not currently used)
   "MPL-2.0",
   "EPL-2.0"
 ]
