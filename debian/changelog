@@ -1,3 +1,58 @@
+chd2iso-fuse (0.2.26-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * docs: add RELEASING.md with full release workflow
+  * ci: speed up cargo-audit workflow with prebuilt install and DB cache
+  * ci: unify cargo-deny and cargo-audit workflows, use prebuilt binaries and daily RustSec cache
+  * ci: enhance security checks workflow with summaries and PR comments
+  * ci: add collapsible PR comment + job summary to unified security checks
+  * ci: add shields.io badges to security PR comment and summary
+  * ci: fix syntax errors
+  * ci: harden workflow YAML by removing JS template literals in github-script
+  * ci: temporarily remove security-audit.yml
+  * ci: restore security-audit.yml
+  * ci: security-audit.yml troubleshooting
+  * ci: security-audit.yml troubleshooting - remove dodgy characters
+  * ci: add emojis back to unified security workflow 🎉
+  * ci: unify security checks, fix cargo-deny JSON export, and harden PR summary 💪
+  * ci: fix cargo-deny JSON export and harden PR summary 💪
+  * ci(deny.toml): remove unused allowed licenses (ISC, Unicode-DFS-2016)
+  * ci(deny.toml): clean up license allowlist and add guidance 📝
+  * ci(deny.toml): fix invalid key “unknown”; use default="deny" instead
+  * ci(deny.toml): allow GPL and other OSI/FSF-free licenses ✅
+  * ci(security): show offending license details in PR summary 📜
+  * ci(deny.toml): migrate to cargo-deny ≥0.18 config; explicitly allow GPL/LGPL/MPL/EPL
+  * ci(deny.toml): allow Zlib and Unicode-3.0 to satisfy cargo-deny
+  * ci(codeql): auto-fix Cargo.lock in CI ✨🔒
+  * ci(codeql): gate job controls rust change detection; skip on no-op pushes/PRs; keep schedule/manual always-on
+  * ci: add lint & test workflow for shell scripts
+  * ci: add emojis to shellcheck workflows
+  * ci: 🎨 add emoji flair to _build.yml workflow
+  * ci: 🎨 add emoji flair to _publish_apt.yml workflow
+  * ci: 🎨 add emoji flair to _release.yml workflow
+  * ci: 🎨 add emoji flair to _verify-release.yml workflow
+  * ci: 🎨 add emoji flair to autobump.yml workflow
+  * ci: 🎨 add emoji flair to ci.yml workflow
+  * ci: 🎨 unify emoji style in codeql.yml workflow
+  * ci: 🎨 add emoji flair to merge.yml workflow
+  * ci: 🌙 add emoji flair to nightly.yml workflow
+  * ci: 🎨 add emoji flair to release.yml workflow
+  * style(workflows): polish scripts lint/test workflow with consistent emoji style 🎨🐚🧪
+  * ci: 🎨 unify emoji style in security-audit.yml workflow
+  * ci: 🎨 add emoji flair to uscan.yml workflow
+  * fi(fix): replace colon
+  * ci(fix): add quotes to name
+  * ci(codeql): fix YAML parse error & harden run blocks
+  * ci(apt): quote YAML strings with colons to fix parse errors
+  * ci: speed up CI with smart gating, rust-cache, sccache & nextest
+  * ci: fix cache warning & enable real sccache use; keep speedups
+  * ci: prefer sccache GHAC with automatic filesystem fallback + 🤔 emoji
+  * ci: prefer GHAC for sccache with filesystem fallback, split restore/save
+  * ci: set SCCACHE_GHA_ENABLED=off for filesystem fallback (no empty env)
+  * ci: add FORCE_FULL override for heavy CI gating
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 22:55:27 +0000
+
 chd2iso-fuse (0.2.25-1) trixie; urgency=medium
 
   [ lloydsmart ]
