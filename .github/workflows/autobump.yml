@@ -32,26 +32,56 @@ jobs:
           fetch-tags: true
           persist-credentials: true
 
-      - name: 🛠️ Install Debian packaging tools & git-cliff
+      # --- Speedup: cache APT lists + archives between runs ---
+      - name: ♻️ Cache APT (lists + archives)
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt/archives
+            /var/lib/apt/lists
+          # Use a stable key; bump the suffix to invalidate if package set changes
+          key: ${{ runner.os }}-apt-debtools-v1
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      # --- Speedup: install Debian tools quickly + use prebuilt git-cliff binary ---
+      - name: 🛠️ Install Debian packaging tools & git-cliff (fast)
         shell: bash
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+
+          # 1) Install Debian packaging toolchain (quiet + retries; benefits from cache)
+          sudo apt-get -o Acquire::Retries=3 update -yqq
+          sudo apt-get -o Dpkg::Use-Pty=0 install -yqq --no-install-recommends \
             git-buildpackage \
             devscripts \
             python3-debian \
             debhelper \
             fakeroot \
             libdistro-info-perl \
-            ca-certificates
-          if ! sudo apt-get install -y --no-install-recommends git-cliff; then
-            echo "APT git-cliff not available; falling back to cargo install..."
-            sudo apt-get install -y --no-install-recommends cargo pkg-config libssl-dev
-            cargo install git-cliff --locked
-            echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+            ca-certificates \
+            jq \
+            curl
+
+          # 2) Install git-cliff via prebuilt release binary (much faster than Cargo)
+          if ! command -v git-cliff >/dev/null 2>&1; then
+            echo "Installing git-cliff (prebuilt)…"
+            tag="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/latest | jq -r .tag_name)"
+            asset_url="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/tags/${tag} \
+              | jq -r '.assets[] | select(.name | test("x86_64-unknown-linux-musl\\.tar\\.gz$")) | .browser_download_url')"
+            if [[ -z "${asset_url}" || "${asset_url}" == "null" ]]; then
+              asset_url="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/tags/${tag} \
+                | jq -r '.assets[] | select(.name | test("x86_64-unknown-linux-gnu\\.tar\\.gz$")) | .browser_download_url')"
+            fi
+            tmpdir="$(mktemp -d)"
+            curl -fsSL "$asset_url" -o "${tmpdir}/git-cliff.tar.gz"
+            tar -xf "${tmpdir}/git-cliff.tar.gz" -C "${tmpdir}"
+            sudo install -m 0755 "${tmpdir}"/git-cliff*/git-cliff /usr/local/bin/git-cliff
+            rm -rf "${tmpdir}"
           fi
+
+          # 3) Sanity checks (non-fatal)
           gbp --version || true
           dch --version || true
           git-cliff --version || true
