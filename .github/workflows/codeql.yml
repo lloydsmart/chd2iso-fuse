@@ -20,13 +20,13 @@ concurrency:
 jobs:
   # 🛡️ GATE: decides if CodeQL should run & whether Rust changed
   gate:
-    name: Decide if CodeQL is needed (PRs & changes) ⚖️
+    name: 🚦 Gate (decide if CodeQL is needed)
     runs-on: ubuntu-latest
     outputs:
       needs_ci:     ${{ steps.export.outputs.needs_ci }}
       rust_changed: ${{ steps.pathout.outputs.rust_changed }}
     steps:
-      - name: Mode 🔎
+      - name: 🔎 Mode
         id: mode
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -35,12 +35,12 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export for non-PR
+      - name: 📤 Export for non-PR
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back-merge PR 🔄
+      - name: 🔄 Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -51,12 +51,12 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout (for diff & change detection) 📥
+      - name: 📥 Checkout (for diff & change detection)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Compare & probe (only for back-merge PRs) 🧪
+      - name: 🧪 Compare & probe (back-merge PRs)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -76,7 +76,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide (PR) 🤔
+      - name: 🧮 Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -92,7 +92,7 @@ jobs:
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export final 📤
+      - name: 📤 Export final
         id: export
         run: |
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
@@ -101,7 +101,7 @@ jobs:
             echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Compute base/ref for paths-filter (manual/scheduled) 🧮
+      - name: 🧮 Compute base/ref for paths-filter (schedule/dispatch)
         id: range
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
         shell: bash
@@ -112,11 +112,11 @@ jobs:
           echo "base=${base_sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${head_sha}"  >> "$GITHUB_OUTPUT"
 
-      - name: Determine if Rust/package files changed 🦀📦
+      - name: 🦀📦 Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
         with:
-          # Auto-detect base/ref for push/PR; use explicit range for schedule/dispatch
+          # Auto-detect base/ref for push/PR; explicit range for schedule/dispatch
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
           filters: |
@@ -128,14 +128,13 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: Export rust_changed
+      - name: 📤 Export rust_changed
         id: pathout
         run: echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
 
   analyze:
-    name: "Analyze (CodeQL: ${{ matrix.variant }}) 🧩"
+    name: 🧩 Analyze (CodeQL: ${{ matrix.variant }})
     needs: gate
-    # Run if CI is needed AND either schedule/manual OR Rust-related changes detected
     if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -145,23 +144,22 @@ jobs:
         variant: [ minimal, default, all-features ]
 
     steps:
-      - name: Checkout 📥
+      - name: 📥 Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Install system deps 🛠️
+      - name: 🛠️ Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
-      - name: Setup Rust 🦀
+      - name: 🦀 Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      # ✅ Same-repo PRs: auto-fix & push
-      - name: Autofix Cargo.lock 🔒✨
+      - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set -euo pipefail
@@ -177,27 +175,26 @@ jobs:
             echo "✅ Cargo.lock already up to date."
           fi
 
-      # 🧯 Fork PRs: warn & fail (no push permissions)
-      - name: Check Cargo.lock (fork PRs) 🚨
+      - name: 🚨 Check Cargo.lock (fork PRs)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
           set -euo pipefail
           cargo update -w
           if ! git diff --quiet -- Cargo.lock; then
-            echo "::error file=Cargo.lock,title=Lockfile out of date::This PR comes from a fork, so CI cannot push fixes. Please run 'cargo update - w' locally and commit the updated Cargo.lock."
+            echo "::error file=Cargo.lock,title=Lockfile out of date::This PR comes from a fork, so CI cannot push fixes. Please run 'cargo update -w' locally and commit the updated Cargo.lock."
             git --no-pager diff -- Cargo.lock | sed -n '1,200p' || true
             exit 1
           else
             echo "✅ Cargo.lock up to date."
           fi
 
-      - name: Initialize CodeQL 🧰
+      - name: 🧰 Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
 
-      - name: Build (${{ matrix.variant }}) 🏗️
+      - name: 🏗️ Build (${{ matrix.variant }})
         env:
           CARGO_TERM_COLOR: always
         shell: bash
@@ -216,7 +213,7 @@ jobs:
               ;;
           esac
 
-      - name: Analyze 🔬
+      - name: 🔬 Analyze
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
