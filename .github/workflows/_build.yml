@@ -1,4 +1,4 @@
-name: Reusable - Build
+name: Reusable – Build 📦🛠️
 
 on:
   workflow_call:
@@ -22,7 +22,7 @@ defaults:
 
 jobs:
   rust-deb:
-    name: Rust build & tests (chd2iso-fuse)
+    name: Rust build & tests (chd2iso-fuse) 🦀🧪📦
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
@@ -37,35 +37,35 @@ jobs:
       EMAIL: "lloydsmart@users.noreply.github.com"
 
     steps:
-      - name: Install git for checkout & basic tooling
+      - name: 🧰 Install git for checkout & basic tooling
         run: |
           set -euo pipefail
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             bash git ca-certificates
 
-      - name: Checkout (with tags)
+      - name: 📥 Checkout (with tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Configure git trust and identity
+      - name: 👤 Configure git trust and identity
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global user.name  "Lloyd Smart"
           git config --global user.email "lloydsmart@users.noreply.github.com"
 
-      - name: Hash Cargo.lock
+      - name: 🔐 Hash Cargo.lock
         id: cargo_lock
         run: |
           if [ -f Cargo.lock ]; then
             echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           else
-            echo "val=none" >> "$GITHUB_OUTPUT"
+            echo "val=none" >> "$GITHUBOUTPUT"
           fi
 
-      - name: Determine if Rust/package files changed
+      - name: 🗂️ Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
         with:
@@ -80,11 +80,11 @@ jobs:
               - 'Makefile'
 
       # PR only: allow noop when nothing relevant changed
-      - name: No-op (non-code PR)
+      - name: 💤 No-op (non-code PR)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' && !inputs.release_mode && github.ref_type != 'tag' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
 
-      - name: Install toolchain & deps
+      - name: 🛠️ Install toolchain & deps
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
@@ -105,13 +105,13 @@ jobs:
 
           rustc -V; cargo -V; sccache --version || true
 
-      - name: Prepare sccache dir
+      - name: 📂 Prepare sccache dir
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
           mkdir -p .sccache
 
-      - name: Cache sccache
+      - name: 🗃️ Cache sccache
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         uses: actions/cache@v4
         with:
@@ -121,17 +121,17 @@ jobs:
             sccache-${{ runner.os }}-${{ steps.cargo_lock.outputs.val }}-
             sccache-${{ runner.os }}-
 
-      - name: Rust fmt & clippy
+      - name: 🎯 Rust fmt & clippy
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Rust tests
+      - name: 🧪 Rust tests
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         run: cargo test --workspace --locked --all-features
 
-      - name: Debian build
+      - name: 🏗️ Debian build
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         env:
           DEB_BUILD_OPTIONS: nocheck
@@ -147,7 +147,7 @@ jobs:
             (cd artifacts && sha256sum * > SHA256SUMS)
           fi
           
-      - name: Guard at least one .deb was built
+      - name: 🔎 Guard at least one .deb was built
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         shell: bash
         run: |
@@ -164,7 +164,7 @@ jobs:
           printf ' - %s\n' "${debs[@]}"
 
       # Generate release notes when either (a) this is a real tag event, or (b) release_mode is forced by caller
-      - name: Generate release notes (git-cliff) for release
+      - name: 📝 Generate release notes (git-cliff) for release
         if: ${{ inputs.release_mode || github.ref_type == 'tag' }}
         run: |
           set -euo pipefail
@@ -179,7 +179,7 @@ jobs:
           fi
           sed -n '1,80p' artifacts/RELEASE_NOTES.md || true
 
-      - name: Lintian (non-fatal)
+      - name: 🔍 Lintian (non-fatal)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
         continue-on-error: true
         run: |
@@ -188,7 +188,7 @@ jobs:
           fi
 
       # Deterministic artifact name for releases
-      - name: Set artifact name
+      - name: 🏷️ Set artifact name
         id: aname
         run: |
           set -euo pipefail
@@ -200,14 +200,14 @@ jobs:
             echo "val=chd2iso-fuse-${{ inputs.lane }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload artifacts
+      - name: ⬆️ Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.aname.outputs.val }}
           path: artifacts/
           if-no-files-found: error
 
-      - name: Debug list artifact contents
+      - name: 🧾 Debug list artifact contents
         if: always()
         shell: bash
         run: |
