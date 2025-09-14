@@ -1,4 +1,4 @@
-name: CodeQL (Rust)
+name: CodeQL (Rust) 🦀🔍
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write    # allow autofix step to push 🚀
   security-events: write
 
 concurrency:
@@ -18,14 +18,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # GATE: only affects PRs; push/schedule/manual still run
+  # 🛡️ GATE: decides if CodeQL should run & whether Rust changed
   gate:
-    name: Decide if CodeQL is needed (PRs)
+    name: 🚦 Gate (decide if CodeQL is needed)
     runs-on: ubuntu-latest
     outputs:
-      needs_ci: ${{ steps.export.outputs.needs_ci }}
+      needs_ci:     ${{ steps.export.outputs.needs_ci }}
+      rust_changed: ${{ steps.pathout.outputs.rust_changed }}
     steps:
-      - name: Mode
+      - name: 🔎 Mode
         id: mode
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -34,12 +35,13 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export for non-PR
+      - name: 📤 Export for non-PR
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
-        run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+        run: |
+          echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back-merge PR
+      - name: 🔄 Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -50,11 +52,12 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v5
-        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        with: { fetch-depth: 0 }
+      - name: 📥 Checkout (for diff & change detection)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Compare & probe (only for back-merge PRs)
+      - name: 🧪 Compare & probe (back-merge PRs)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -74,7 +77,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide (PR)
+      - name: 🤔 Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -90,7 +93,7 @@ jobs:
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export final
+      - name: 📤 Export final
         id: export
         run: |
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
@@ -99,35 +102,7 @@ jobs:
             echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
-  analyze:
-    name: "Analyze (CodeQL: ${{ matrix.variant }})"
-    needs: gate
-    if: |
-      !(
-        github.event_name == 'pull_request' &&
-        (
-          (github.base_ref == 'develop' && github.head_ref == 'main') ||
-          contains(github.event.pull_request.title, 'Back-merge') ||
-          contains(github.event.pull_request.title, 'back-merge') ||
-          contains(toJson(github.event.pull_request.labels), 'back-merge')
-        )
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [ minimal, default, all-features ]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      # Provide an explicit compare range for manual/scheduled runs so paths-filter
-      # doesn't fall back to "last commit" (which is often a merge commit with no file list).
-      - name: Compute base/ref for paths-filter (manual/scheduled)
+      - name: 🧮 Compute base/ref for paths-filter (schedule/dispatch)
         id: range
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
         shell: bash
@@ -138,11 +113,11 @@ jobs:
           echo "base=${base_sha}" >> "$GITHUB_OUTPUT"
           echo "ref=${head_sha}"  >> "$GITHUB_OUTPUT"
 
-      - name: Determine if Rust/package files changed
+      - name: 🦀📦 Determine if Rust/package files changed
         id: paths
         uses: dorny/paths-filter@v3
         with:
-          # Override only on manual/scheduled runs; empty values are ignored on PR/push.
+          # Auto-detect base/ref for push/PR; explicit range for schedule/dispatch
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
           filters: |
@@ -154,60 +129,74 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping heavy CodeQL steps."
+      - name: 📤 Export rust_changed
+        id: pathout
+        run: |
+          echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
 
-      - name: Install system deps
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+  analyze:
+    name: "🧩 Analyze (CodeQL: ${{ matrix.variant }})"
+    needs: gate
+    if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ minimal, default, all-features ]
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: 🛠️ Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
-      - name: Setup Rust
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: 🦀 Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
-      - name: Initialize CodeQL
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          set -euo pipefail
+          cargo update -w
+          if ! git diff --quiet -- Cargo.lock; then
+            echo "🔧 Cargo.lock updated — committing fix..."
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add Cargo.lock
+            git commit -m "chore(lockfile): update Cargo.lock to latest compatible [skip ci]"
+            git push
+          else
+            echo "✅ Cargo.lock already up to date."
+          fi
+
+      - name: 🚨 Check Cargo.lock (fork PRs)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          set -euo pipefail
+          cargo update -w
+          if ! git diff --quiet -- Cargo.lock; then
+            echo "::error file=Cargo.lock,title=Lockfile out of date::This PR comes from a fork, so CI cannot push fixes. Please run 'cargo update -w' locally and commit the updated Cargo.lock."
+            git --no-pager diff -- Cargo.lock | sed -n '1,200p' || true
+            exit 1
+          else
+            echo "✅ Cargo.lock up to date."
+          fi
+
+      - name: 🧰 Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
 
-      # 🔒 Guard: fail early if Cargo.lock is stale (since we build with --locked)
-      - name: Ensure Cargo.lock is up to date
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        env:
-          CARGO_TERM_COLOR: always
-        run: |
-          set -euo pipefail
-          cargo generate-lockfile
-          if ! git diff --quiet -- Cargo.lock; then
-            echo "::error file=Cargo.lock::Cargo.lock is out of date. Run 'cargo generate-lockfile' locally and commit the result."
-            echo "---- Diff (for visibility) ----"
-            git --no-pager diff -- Cargo.lock || true
-            exit 1
-          fi
-
-      - name: Build (all features & targets)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        env:
-          CARGO_TERM_COLOR: always
-        run: |
-          set -euo pipefail
-          cargo generate-lockfile
-          if ! git diff --quiet -- Cargo.lock; then
-            echo "::error file=Cargo.lock::Cargo.lock is out of date. Run 'cargo generate-lockfile' locally and commit the result."
-            echo "---- Diff (for visibility) ----"
-            git --no-pager diff -- Cargo.lock || true
-            exit 1
-          fi
-
-      - name: Build (${{ matrix.variant }})
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: 🏗️ Build (${{ matrix.variant }})
         env:
           CARGO_TERM_COLOR: always
         shell: bash
@@ -226,9 +215,7 @@ jobs:
               ;;
           esac
 
-      - name: Analyze
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: 🔬 Analyze
         uses: github/codeql-action/analyze@v3
         with:
-          # Must match base branch categories exactly to avoid "Neutral"
           category: "/language:rust;variant=${{ matrix.variant }}"

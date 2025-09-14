@@ -1,4 +1,4 @@
-name: Reusable - Release lane
+name: Reusable – Release lane 📦🚀
 
 on:
   workflow_call:
@@ -18,16 +18,17 @@ permissions:
 
 jobs:
   prepare-release:
-    name: Prepare release (decide channel)
+    name: 🧭 Prepare release (decide channel)
     runs-on: ubuntu-latest
     outputs:
       channel: ${{ steps.ch.outputs.channel }}
     steps:
-      - uses: actions/checkout@v5
+      - name: 📥 Checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Determine channel
+      - name: 🧮 Determine channel
         id: ch
         shell: bash
         run: |
@@ -51,7 +52,7 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
           echo "Resolved channel: $channel"
 
-      - name: Summary
+      - name: 📝 Summary
         shell: bash
         run: |
           echo "Lane:     ${{ inputs.lane }}"
@@ -60,7 +61,7 @@ jobs:
           echo "APT:      ${{ inputs.apt_enabled }}"
 
   publish-apt:
-    name: Publish to APT (gated)
+    name: 📦 Publish to APT (gated) 🔒
     needs: prepare-release
     if: ${{ inputs.apt_enabled && needs.prepare-release.outputs.channel != 'none' }}
     permissions:
@@ -74,12 +75,12 @@ jobs:
     secrets: inherit
 
   publish-stub:
-    name: Publish stub
+    name: 🚧 Publish stub (no-op)
     needs: prepare-release
     if: ${{ !inputs.apt_enabled || needs.prepare-release.outputs.channel == 'none' }}
     runs-on: ubuntu-latest
     steps:
-      - name: No-op publish
+      - name: 💤 No-op publish
         shell: bash
         run: |
           echo "No publishing required."

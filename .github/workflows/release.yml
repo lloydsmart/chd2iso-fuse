@@ -1,4 +1,4 @@
-name: Release (on tag)
+name: 🚀 Release (on tag)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g. v0.2.11). Leave empty to use event tag.'
+        description: '🏷️ Tag to build (e.g. v0.2.11). Leave empty to use event tag.'
         required: false
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
   security-events: read
 
 concurrency:
-  # Avoid collisions: for workflow_dispatch use the provided tag; for push use github.ref
+  # ⛔ Avoid collisions: for workflow_dispatch use the provided tag; for push use github.ref
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
   cancel-in-progress: false
 
@@ -24,7 +24,7 @@ defaults:
 
 jobs:
   resolve_tag:
-    name: Resolve tag for this run
+    name: 🏷️ Resolve tag for this run
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.out.outputs.tag }}
@@ -46,17 +46,17 @@ jobs:
           echo "Resolved TAG=$tag"
 
   guard_tag_on_main:
-    name: Guard - tag must be on main
+    name: 🛡️ Guard — tag must be on main
     needs: [resolve_tag]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history + tags
+      - name: 📥 Checkout full history + tags
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Debug refs
+      - name: 🐛 Debug refs
         run: |
           set -euo pipefail
           echo "event_name=${GITHUB_EVENT_NAME}"
@@ -64,7 +64,7 @@ jobs:
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           echo "origin/main -> $(git rev-parse refs/remotes/origin/main)"
 
-      - name: Verify tag commit is reachable from origin main
+      - name: 🔍 Verify tag commit is reachable from origin main
         run: |
           set -euo pipefail
           TAG="${{ needs.resolve_tag.outputs.tag }}"
@@ -72,14 +72,14 @@ jobs:
           TAG_SHA="$(git rev-parse "${TAG}^{commit}")"
           echo "Tag ${TAG} -> ${TAG_SHA}"
           if git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
-            echo "OK: ${TAG} is contained in origin/main"
+            echo "✅ ${TAG} is contained in origin/main"
           else
             echo "::error::${TAG} (${TAG_SHA}) is NOT on main."
             exit 1
           fi
 
   build:
-    name: Build for tag
+    name: 🛠️ Build for tag
     needs: [guard_tag_on_main]
     uses: ./.github/workflows/_build.yml
     with:
@@ -89,17 +89,17 @@ jobs:
     secrets: inherit
 
   verify_versions:
-    name: Verify versions
+    name: 🔎 Verify versions
     needs: [build]
     uses: ./.github/workflows/_verify-release.yml
     secrets: inherit
 
   publish_release:
-    name: Publish GitHub Release
+    name: 📦 Publish GitHub Release
     needs: [build, verify_versions, resolve_tag]
     runs-on: ubuntu-latest
     steps:
-      - name: Preflight check (identity variables present)
+      - name: 🛫 Preflight check (identity variables present)
         env:
           HAS_AUTHOR_NAME: ${{ vars.GIT_AUTHOR_NAME != '' }}
           HAS_AUTHOR_EMAIL: ${{ vars.GIT_AUTHOR_EMAIL != '' }}
@@ -109,14 +109,14 @@ jobs:
           if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."; fi
 
       # ⬅️ Move checkout BEFORE any artifact downloads, and disable clean
-      - name: Checkout full history + tags (for changelog generation)
+      - name: 📥 Checkout full history + tags (for changelog generation)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
           clean: false   # <— do NOT wipe downloaded artifacts
 
-      - name: Configure git identity (from Actions Variables)
+      - name: 👤 Configure git identity (from Actions Variables)
         run: |
           set -euo pipefail
           NAME="${{ vars.GIT_AUTHOR_NAME }}"
@@ -127,11 +127,11 @@ jobs:
           git config --global user.email "${EMAIL}"
           echo "Using git identity: ${NAME} <${EMAIL}>"
 
-      - name: Debug tag
+      - name: 🐛 Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
 
       # Assert the build uploaded the expected artifact
-      - name: Assert build artifact 'release-artifacts' exists in this run
+      - name: 🧾 Assert build artifact 'release-artifacts' exists in this run
         uses: actions/github-script@v7
         with:
           script: |
@@ -148,13 +148,13 @@ jobs:
                 "Check the _build.yml logs (did the .deb guard fire? did upload-artifact run?)");
             }
 
-      - name: Download build artifacts (release-artifacts)
+      - name: 📥 Download build artifacts (release-artifacts)
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts
           path: artifacts
 
-      - name: Debug list downloaded artifact contents
+      - name: 🐛 Debug list downloaded artifact contents
         if: always()
         shell: bash
         run: |
@@ -162,7 +162,7 @@ jobs:
           echo "Downloaded files:"
           find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
 
-      - name: Guard expected release payload present (.deb and notes)
+      - name: 🛡️ Guard expected release payload present (.deb and notes)
         shell: bash
         run: |
           set -euo pipefail
@@ -184,7 +184,7 @@ jobs:
           echo "Artifacts downloaded:"
           find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
-      - name: Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
+      - name: 📝 Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
         id: notes
         run: |
           set -euo pipefail
@@ -199,14 +199,13 @@ jobs:
             echo "source=cliff" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install git-cliff
+      - name: 🛠️ Install git-cliff
         if: steps.notes.outputs.source == 'cliff'
         uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
 
-      # also prepend to CHANGELOG.md and generate RELEASE_NOTES.md using -u
-      - name: Generate changelog and notes with git-cliff (-u)
+      - name: 📝 Generate changelog and notes with git-cliff (-u)
         if: steps.notes.outputs.source == 'cliff'
         run: |
           set -euo pipefail
@@ -217,14 +216,14 @@ jobs:
           sed -n '1,120p' RELEASE_NOTES.md || true
 
       # 🔐 SIGN BEFORE ASSEMBLING THE UPLOAD LIST
-      - name: Import GPG (for checksums signing)
+      - name: 🔐 Import GPG (for checksums signing)
         if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Sign SHA256SUMS (detached, into artifacts/)
+      - name: ✍️ Sign SHA256SUMS (detached, into artifacts/)
         if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
         run: |
           set -euo pipefail
@@ -232,7 +231,7 @@ jobs:
               -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
           gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 
-      - name: Assemble release asset list (explicit)
+      - name: 📦 Assemble release asset list (explicit)
         id: assets
         shell: bash
         run: |
@@ -259,12 +258,12 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Echo files to upload (debug)
+      - name: 🐛 Echo files to upload (debug)
         run: |
           echo "Files:"
           echo "${{ steps.assets.outputs.files }}" | sed 's/^/  - /'
 
-      - name: Create/ensure draft release (no assets yet)
+      - name: 📄 Create/ensure draft release (no assets yet)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.resolve_tag.outputs.tag }}
@@ -274,7 +273,7 @@ jobs:
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
           fi
 
-      - name: Upload assets via gh
+      - name: ⬆️ Upload assets via gh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.resolve_tag.outputs.tag }}
@@ -288,7 +287,7 @@ jobs:
           printf ' - %s\n' "${files[@]}"
           gh release upload "${TAG}" "${files[@]}" --clobber
 
-      - name: Publish the release (gh)
+      - name: 🚀 Publish the release (gh)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.resolve_tag.outputs.tag }}
@@ -296,7 +295,7 @@ jobs:
           set -euo pipefail
           gh release edit "${TAG}" --draft=false
 
-      - name: Verify release assets (debug)
+      - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v7
         with:
           script: |
@@ -306,7 +305,7 @@ jobs:
             const names = rel.data.assets.map(a => a.name);
             core.info('Release assets: ' + JSON.stringify(names));
 
-      - name: Reconcile release title with tag (safety net)
+      - name: 📝 Reconcile release title with tag (safety net)
         uses: actions/github-script@v7
         with:
           script: |
@@ -326,7 +325,7 @@ jobs:
             }
 
   release_lane:
-    name: Release lane and optional APT
+    name: 🛣️ Release lane and optional APT
     needs: [build, verify_versions, publish_release]
     uses: ./.github/workflows/_release.yml
     with:

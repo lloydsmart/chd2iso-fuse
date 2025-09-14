@@ -1,0 +1,68 @@
+# .github/workflows/scripts-lint-test.yml
+name: 🔧🐚 Scripts — Lint & Test ✅
+
+on:
+  push:
+    branches: [ develop, main ]
+    paths:
+      - "scripts/**"
+      - "**/*.sh"
+  pull_request:
+    branches: [ develop, main ]
+    paths:
+      - "scripts/**"
+      - "**/*.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 🎨🔍 Lint (shellcheck + shfmt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📦 Install shellcheck & shfmt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          sudo bash -lc 'curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/latest/download/shfmt_linux_amd64; chmod +x /usr/local/bin/shfmt'
+
+      - name: 🕵️ Run shellcheck
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(git ls-files '*.sh' 'scripts/*' 2>/dev/null || true)
+          [ ${#FILES[@]} -gt 0 ] || { echo "No shell files."; exit 0; }
+          shellcheck "${FILES[@]}"
+
+      - name: 🎨 Check formatting (shfmt)
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(git ls-files '*.sh' 'scripts/*' 2>/dev/null || true)
+          [ ${#FILES[@]} -gt 0 ] || exit 0
+          shfmt -i 2 -ci -sr -d "${FILES[@]}"
+
+  test:
+    name: 🧪 Run bats tests ▶️
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📦 Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: ▶️ Run bats
+        run: |
+          if compgen -G "tests/**/*.bats" > /dev/null; then
+            bats -r tests
+          else
+            echo "No bats tests found; skipping."
+          fi
