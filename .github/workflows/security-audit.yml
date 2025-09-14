@@ -148,14 +148,30 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install latest cargo-audit
+      # FAST: install prebuilt cargo-audit binary
+      - name: Install cargo-audit (prebuilt)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        run: |
-          set -euo pipefail
-          if ! command -v cargo-audit >/dev/null 2>&1; then
-            cargo install cargo-audit --locked
-          fi
-          cargo audit --version
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@latest
+          # fallback: none   # uncomment to fail instead of building from source
+      - run: cargo audit --version
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+
+      # Optional: warm cache for the RustSec advisory DB (refresh weekly)
+      - name: Week key
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        id: wk
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache RustSec advisory DB
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/advisory-db
+          key: rustsec-db-${{ runner.os }}-${{ steps.wk.outputs.week }}
+          restore-keys: |
+            rustsec-db-${{ runner.os }}-
 
       - name: Ensure Cargo.lock exists
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
