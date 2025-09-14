@@ -21,14 +21,34 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Shared across jobs to make caches portable
+  RUST_TOOLCHAIN: stable
+
 jobs:
-  # GATE: decide whether heavy CI is needed for PRs (incl. conflict probe)
+  # GATE: decide whether heavy CI is needed for PRs (incl. conflict probe + path filter)
   gate:
     name: 🚦 Decide if heavy CI is needed (PRs)
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
+      lock_hash: ${{ steps.lock.outputs.val }}
     steps:
+      - name: 📥 Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🔐 Hash Cargo.lock
+        id: lock
+        shell: bash
+        run: |
+          if [ -f Cargo.lock ]; then
+            echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          else
+            echo "val=none" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 🧰 Mode
         id: mode
         shell: bash
@@ -39,11 +59,25 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      # Non-PR paths (i.e., push): always run
-      - name: 📤 Export for push
-        if: steps.mode.outputs.is_pr == 'false'
-        id: export_push
-        run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+      - name: 🗂️ Detect path changes
+        if: steps.mode.outputs.is_pr == 'true'
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          # If none of these change, we can usually skip heavy CI on PRs
+          filters: |
+            rust:
+              - 'src/**'
+              - '**/*.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'build.rs'
+            ci:
+              - '.github/workflows/ci.yml'
+            deb:
+              - 'debian/**'
+            scripts:
+              - 'scripts/**'
 
       # Identify back-merge PR (main → develop)
       - name: 🔎 Identify back-merge PR
@@ -59,7 +93,7 @@ jobs:
           fi
 
       # For back-merge evaluation we need full refs
-      - name: 📥 Checkout (full)
+      - name: 📥 Checkout (full) for merge probe
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
         with:
@@ -99,14 +133,33 @@ jobs:
         id: export_pr
         shell: bash
         run: |
-          # Non-backmerge PRs always run heavy CI
+          FORCE_FULL="$(
+            jq -r '
+              [
+                (.pull_request.title // "" | test("(?i)\\[full ci\\]|full[- ]?ci")),
+                ((.pull_request.labels // []) | tostring | test("(?i)full-ci|full ci"))
+              ] | any
+            ' <<< '${{ toJson(github.event) }}'
+          )'
+
+          # Non-backmerge PRs normally run heavy CI if relevant files changed
           if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
-            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+            if [[ "$FORCE_FULL" == "true" || \
+                  "${{ steps.paths.outputs.rust }}" == "true" || \
+                  "${{ steps.paths.outputs.deb }}" == "true"  || \
+                  "${{ steps.paths.outputs.scripts }}" == "true" || \
+                  "${{ steps.paths.outputs.ci }}" == "true" ]]; then
+              echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+            else
+              echo "needs_ci=false" >>"$GITHUB_OUTPUT"
+            fi
             exit 0
           fi
+
+          # Back-merge PRs: only run if there are conflicts or develop is ahead
           A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
           C="${{ steps.probe.outputs.conflicts || 'false' }}"
-          if [[ "$C" == "true" || "$A" -gt 0 ]]; then
+          if [[ "$C" == "true" || "$A" -gt 0 || "$FORCE_FULL" == "true" ]]; then
             echo "needs_ci=true" >>"$GITHUB_OUTPUT"
           else
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
@@ -119,7 +172,8 @@ jobs:
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
             echo "needs_ci=${{ steps.export_pr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           else
-            echo "needs_ci=${{ steps.export_push.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
+            # Non-PR paths (i.e., push): always run heavy CI; push already path-filtered in 'on:'
+            echo "needs_ci=true" >>"$GITHUB_OUTPUT"
           fi
 
   # Always-on quick sanity for PRs (even if heavy CI is skipped)
@@ -142,8 +196,9 @@ jobs:
       - name: 🦀 Setup Rust (stable, rustfmt)
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt
+          # profile is minimal by default in this action
 
       - name: 🎯 fmt
         run: cargo fmt --all -- --check
@@ -155,55 +210,41 @@ jobs:
   build_test:
     name: 🛠️ Build & Test (Linux)
     needs: gate
-    # Skip heavy CI for back-merge PRs (manual or auto)
-    if: |
-      !(
-        github.event_name == 'pull_request' &&
-        (
-          (github.base_ref == 'develop' && github.head_ref == 'main') ||
-          contains(github.event.pull_request.title, 'Back-merge') ||
-          contains(github.event.pull_request.title, 'back-merge') ||
-          contains(toJson(github.event.pull_request.labels), 'back-merge')
-        )
-      )
+    if: needs.gate.outputs.needs_ci == 'true'
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      SCCACHE_GHA_ENABLED: "true"   # Enable saving stats to logs
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: 🔐 Hash Cargo.lock
-        id: lock
-        run: |
-          if [ -f Cargo.lock ]; then
-            echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          else
-            echo "val=none" >> "$GITHUB_OUTPUT"
-          fi
+      # sccache (compiler cache) — big wins across runs
+      - name: ⚡ Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
 
-      - name: 🦀 Setup Rust (stable)
+      - name: 🦀 Setup Rust (stable + clippy)
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          components: clippy, rustfmt
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy,rustfmt
 
-      - name: 📦 Prepare cargo cache dirs
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.cargo/registry
-          mkdir -p ~/.cargo/git
+      # Rust cache (handles target/ + cargo registries/gits intelligently)
+      - name: 🗃️ Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Tie to lockfile + toolchain; restores across branches
+          key: ${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
-      - name: 🗃️ Cache cargo registry
+      # Optional: also persist sccache contents between runs
+      - name: 🗃️ Cache sccache store
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: cargo-registry-${{ runner.os }}-${{ steps.lock.outputs.val }}
-
-      - name: 🗄️ Cache cargo git
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: cargo-git-${{ runner.os }}-${{ steps.lock.outputs.val }}
+          path: ~/.cache/sccache
+          key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
+          restore-keys: |
+            sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
 
       - name: 🧩 Install system deps (minimal)
         run: |
@@ -216,27 +257,25 @@ jobs:
       - name: 🔎 clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: ✅ Test
-        env: { CARGO_TERM_COLOR: always }
-        run: cargo test --workspace --locked --all-features
+      # nextest: much faster parallel test runner
+      - name: 📦 Install nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: ✅ Test (nextest, parallel)
+        run: |
+          cargo nextest run --workspace --locked --all-features --no-fail-fast
 
   package_deb:
     name: 📦 Debian package (push only)
-    needs: build_test
+    needs: [gate, build_test]
     if: |
-      !(
-        github.event_name == 'pull_request' &&
-        (
-          (github.base_ref == 'develop' && github.head_ref == 'main') ||
-          contains(github.event.pull_request.title, 'Back-merge') ||
-          contains(github.event.pull_request.title, 'back-merge') ||
-          contains(toJson(github.event.pull_request.labels), 'back-merge')
-        )
-      )
-      && github.event_name == 'push'
-      && !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
+      needs.gate.outputs.needs_ci == 'true' &&
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]') &&
+      (github.ref_name == 'main' || startsWith(github.ref_name, 'release/'))
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
@@ -245,37 +284,54 @@ jobs:
       RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=."
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
+      CARGO_TERM_COLOR: always
+      RUST_TOOLCHAIN: stable
     steps:
       - name: 🧰 Install git for checkout
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl pkg-config
 
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
       - name: 🔏 Configure git trust
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: 🧰 Install build deps
+      # Install sccache inside the container and cache it
+      - name: 🧰 Install sccache
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends sccache
+
+      - name: 🗃️ Cache sccache store (container)
+        uses: actions/cache@v4
+        with:
+          path: /root/.cache/sccache
+          key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
+          restore-keys: |
+            sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: ⚙️ Install build deps
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential pkg-config \
+            build-essential \
             libfuse3-dev fuse3 \
-            rust-all \
-            debhelper devscripts dh-cargo lintian
+            debhelper devscripts dh-cargo lintian \
+            rust-all
 
-      - name: 🏗️ Build .deb (nocheck)
+      - name: 🏗️ Build .deb (nocheck, with sccache)
         env:
           DEB_BUILD_OPTIONS: nocheck
+          RUSTC_WRAPPER: sccache
         run: |
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
           (cd artifacts && sha256sum * > SHA256SUMS || true)
+          sccache --show-stats || true
 
       - name: 🔍 Lintian (non-fatal)
         continue-on-error: true
