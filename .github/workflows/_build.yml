@@ -206,7 +206,7 @@ jobs:
           path: artifacts/
           if-no-files-found: error
 
-      - name: Debug: list artifact contents
+      - name: Debug list artifact contents
         if: always()
         shell: bash
         run: |
