@@ -246,7 +246,7 @@ jobs:
           body_path: "RELEASE_NOTES.md"
           generate_release_notes: false
           draft: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           files: ${{ env.ASSET_FILES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
