@@ -14,7 +14,6 @@ permissions:
   security-events: read
 
 concurrency:
-  # ⛔ Avoid collisions: for workflow_dispatch use the provided tag; for push use github.ref
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
   cancel-in-progress: false
 
@@ -35,7 +34,6 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
             tag="${{ inputs.tag }}"
           else
-            # event is push on a tag
             tag="${GITHUB_REF_NAME}"
           fi
           if [ -z "$tag" ]; then
@@ -85,7 +83,7 @@ jobs:
     with:
       lane: main
       nightly: false
-      release_mode: true   # force release behavior even on workflow_dispatch
+      release_mode: true
     secrets: inherit
 
   verify_versions:
@@ -108,13 +106,12 @@ jobs:
           if [ "${HAS_AUTHOR_NAME}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_NAME is not set (will use default)."; fi
           if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."; fi
 
-      # ⬅️ Move checkout BEFORE any artifact downloads, and disable clean
       - name: 📥 Checkout full history + tags (for changelog generation)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
-          clean: false   # <— do NOT wipe downloaded artifacts
+          clean: false   # keep downloaded artifacts if any
 
       - name: 👤 Configure git identity (from Actions Variables)
         run: |
@@ -130,24 +127,6 @@ jobs:
       - name: 🐛 Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
 
-      # Assert the build uploaded the expected artifact
-      - name: 🧾 Assert build artifact 'release-artifacts' exists in this run
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const {owner, repo} = context.repo;
-            const run_id = context.runId;
-            const arts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
-              owner, repo, run_id, per_page: 100
-            });
-            const names = arts.map(a => a.name);
-            core.info('Artifacts on this run: ' + JSON.stringify(names));
-            const found = arts.find(a => a.name === 'release-artifacts');
-            if (!found) {
-              core.setFailed("Missing expected artifact 'release-artifacts'. " +
-                "Check the _build.yml logs (did the .deb guard fire? did upload-artifact run?)");
-            }
-
       - name: 📥 Download build artifacts (release-artifacts)
         uses: actions/download-artifact@v4
         with:
@@ -156,33 +135,21 @@ jobs:
 
       - name: 🐛 Debug list downloaded artifact contents
         if: always()
-        shell: bash
         run: |
           set -euo pipefail
           echo "Downloaded files:"
           find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
 
-      - name: 🛡️ Guard expected release payload present (.deb and notes)
-        shell: bash
+      - name: 🛡️ Guard expected release payload present (.deb)
         run: |
           set -euo pipefail
           shopt -s nullglob
-          files=(artifacts/*)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No files in artifacts/ (expected release-artifacts)."
-            exit 1
-          fi
-
           debs=(artifacts/*.deb)
           if [ ${#debs[@]} -eq 0 ]; then
             echo "::error::No .deb files found in artifacts/."
-            echo "Contents:"
             find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
             exit 1
           fi
-
-          echo "Artifacts downloaded:"
-          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       - name: 📝 Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
         id: notes
@@ -215,7 +182,15 @@ jobs:
           git-cliff --tag "${TAG}" -u --output RELEASE_NOTES.md
           sed -n '1,120p' RELEASE_NOTES.md || true
 
-      # 🔐 SIGN BEFORE ASSEMBLING THE UPLOAD LIST
+      - name: 🛡️ Guard: release notes must be non-empty
+        run: |
+          set -euo pipefail
+          if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
+            echo "::error title=Empty release notes::RELEASE_NOTES.md is empty or '(no notes)'."
+            echo "Check: full history/tags, correct tag range, and commit styles vs cliff.toml."
+            exit 1
+          fi
+
       - name: 🔐 Import GPG (for checksums signing)
         if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
         uses: crazy-max/ghaction-import-gpg@v6
@@ -233,11 +208,9 @@ jobs:
 
       - name: 📦 Assemble release asset list (explicit)
         id: assets
-        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
-          # Pick only what we want to publish
           wanted=( artifacts/*.deb artifacts/SHA256SUMS artifacts/SHA256SUMS.asc artifacts/CHANGELOG.md artifacts/RELEASE_NOTES.md )
           files=()
           for f in "${wanted[@]}"; do
@@ -250,8 +223,6 @@ jobs:
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No files selected for upload"; exit 1
           fi
-          echo "Will upload ${#files[@]} file(s):"
-          printf ' - %s\n' "${files[@]}"
           {
             echo "files<<EOF"
             printf '%s\n' "${files[@]}"
@@ -271,6 +242,9 @@ jobs:
           set -euo pipefail
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
+          else
+            # Ensure the body is updated from RELEASE_NOTES.md if a draft already existed
+            gh release edit "${TAG}" --notes-file RELEASE_NOTES.md
           fi
 
       - name: ⬆️ Upload assets via gh
@@ -283,8 +257,6 @@ jobs:
           if [ "${#files[@]}" -eq 0 ]; then
             echo "::error::No files to upload"; exit 1
           fi
-          echo "Uploading ${#files[@]} assets to release ${TAG}:"
-          printf ' - %s\n' "${files[@]}"
           gh release upload "${TAG}" "${files[@]}" --clobber
 
       - name: 🚀 Publish the release (gh)
@@ -311,17 +283,13 @@ jobs:
           script: |
             const tag = `${{ needs.resolve_tag.outputs.tag }}`;
             const { owner, repo } = context.repo;
-            try {
-              const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-              const desired = `chd2iso-fuse ${tag}`;
-              if (res.data.name !== desired) {
-                await github.rest.repos.updateRelease({ owner, repo, release_id: res.data.id, name: desired });
-                core.info(`Updated release title to '${desired}'`);
-              } else {
-                core.info('Release title already correct.');
-              }
-            } catch (e) {
-              core.setFailed(`Failed to reconcile title: ${e.message}`);
+            const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const desired = `chd2iso-fuse ${tag}`;
+            if (res.data.name !== desired) {
+              await github.rest.repos.updateRelease({ owner, repo, release_id: res.data.id, name: desired });
+              core.info(`Updated release title to '${desired}'`);
+            } else {
+              core.info('Release title already correct.');
             }
 
   release_lane:

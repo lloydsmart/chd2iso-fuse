@@ -154,6 +154,15 @@ jobs:
 
           # 3) Release notes tagged as v$v (collect unreleased since previous tag)
           git-cliff --tag "v${v}" -u -o RELEASE_NOTES.md
+
+          # Guard: don't let "(no notes)" be committed
+          if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
+            echo "::warning title=Empty release notes::git-cliff produced no entries for v${v}. Skipping staging of RELEASE_NOTES.md."
+            git restore --staged --worktree --quiet -- RELEASE_NOTES.md || true
+          else
+            git add RELEASE_NOTES.md
+          fi
+
           changed=1
 
           git add -A
@@ -171,9 +180,7 @@ jobs:
           set -euo pipefail
           v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.16
           tag="v${v}"
-          # Ensure file exists so --prepend is idempotent
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
-          # Collect unreleased since previous tag and prepend under ${tag}
           git-cliff --tag "${tag}" -u --prepend CHANGELOG.md
           git add CHANGELOG.md || true
 
@@ -226,7 +233,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Create/extend a snapshot entry without bumping fixed version
           gbp dch \
             --snapshot \
             --distribution UNRELEASED \
@@ -240,9 +246,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Create a notes file for current HEAD without tagging
           git-cliff --unreleased -o RELEASE_NOTES.md
-          git add RELEASE_NOTES.md || true
+          if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
+            echo "::warning title=Empty release notes::git-cliff produced no entries for UNRELEASED; not staging."
+            git restore --staged --worktree --quiet -- RELEASE_NOTES.md || true
+          else
+            git add RELEASE_NOTES.md || true
+          fi
 
       - name: 🦀 Install Rust (stable)
         if: steps.ver.outputs.mode == 'maintenance'
@@ -254,7 +264,6 @@ jobs:
         run: |
           set -euo pipefail
           cargo generate-lockfile
-          # Stage only if it actually changed
           if ! git diff --quiet -- Cargo.lock; then
             git add Cargo.lock
           fi
