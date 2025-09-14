@@ -128,17 +128,35 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Guard artifacts exist
+      - name: Debug: list downloaded artifact contents
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Downloaded files:"
+          find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
+
+      - name: Guard: expected release payload present (.deb and notes)
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           files=(artifacts/*)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No artifacts found in ./artifacts"
+            echo "::error::No files in artifacts/ (expected release-artifacts)."
             exit 1
           fi
+
+          debs=(artifacts/*.deb)
+          if [ ${#debs[@]} -eq 0 ]; then
+            echo "::error::No .deb files found in artifacts/."
+            echo "Contents:"
+            find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+            exit 1
+          fi
+
           echo "Artifacts downloaded:"
-          find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
+          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       # If build didn't provide notes, generate with git-cliff (using -u)
       - name: Checkout full history (for changelog generation)

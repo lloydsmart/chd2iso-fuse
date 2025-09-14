@@ -145,6 +145,22 @@ jobs:
           if compgen -G "artifacts/*" > /dev/null; then
             (cd artifacts && sha256sum * > SHA256SUMS)
           fi
+          
+      - name: Guard: at least one .deb was built
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          debs=(artifacts/*.deb)
+          if [ ${#debs[@]} -eq 0 ]; then
+            echo "::error::No .deb files found in artifacts/. Build or packaging likely failed."
+            echo "Listing artifacts dir for debugging:"
+            ls -la artifacts || true
+            exit 1
+          fi
+          echo "Found ${#debs[@]} .deb file(s):"
+          printf ' - %s\n' "${debs[@]}"
 
       # Generate release notes when either (a) this is a real tag event, or (b) release_mode is forced by caller
       - name: Generate release notes (git-cliff) for release
@@ -182,7 +198,6 @@ jobs:
           else
             echo "val=chd2iso-fuse-${{ inputs.lane }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           fi
-          echo "Artifact name: $(cat "$GITHUB_OUTPUT" | sed -n 's/^val=//p')"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -190,3 +205,11 @@ jobs:
           name: ${{ steps.aname.outputs.val }}
           path: artifacts/
           if-no-files-found: error
+
+      - name: Debug: list artifact contents
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Local artifacts/ contents prior to upload:"
+          find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
