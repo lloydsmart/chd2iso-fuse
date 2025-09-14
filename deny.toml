@@ -30,26 +30,42 @@ yanked       = "warn"       # one of: deny | warn | allow
 # If new licenses appear in your dependencies, you can add them here.
 # Avoid leaving unused licenses in the list, as this causes
 # `license-not-encountered` warnings in CI.
+#
+# Docs: https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
 # ---------------------------------------------------------------------
 
 [licenses]
-# Allow any OSI-approved and FSF-free license (includes GPL, LGPL, MPL, EPL, etc.)
-allow-osi-fsf-free = "both"
+# Only licenses listed here are allowed (everything else is denied).
+# GNU licenses must be listed explicitly (pedantic handling ≥ 0.18.4).
 
-# Explicit allowlist still applies alongside the OSI/FSF rule.
-# These are the main licenses we actively expect in this project.
 allow = [
+  # Permissive
   "Apache-2.0",
   "BSD-3-Clause",
   "MIT",
+
+  # Copyleft (GPL/LGPL) — prefer “-or-later” where appropriate
+  "GPL-2.0-or-later",
+  "GPL-3.0-or-later",
+  "LGPL-2.1-or-later",
+  "LGPL-3.0-or-later",
+
+  # Other common FOSS licenses
+  "MPL-2.0",
+  "EPL-2.0"
 ]
 
-# Fail on unlicensed or unknown licenses
-default = "deny"
-unlicensed = "deny"
-
+# Keep the detector strict enough to be useful
 confidence-threshold = 0.8
+
+# Don’t fail CI if something is left in allow but not currently used
 unused-allowed-license = "warn"
+
+# (Optional) If you need to allow a license for a single crate only:
+# [[licenses.exceptions]]
+# crate = "some-crate"
+# allow = ["CDDL-1.0"]
+
 
 ########################################
 # Bans (optional hygiene)
