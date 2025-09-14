@@ -117,6 +117,7 @@ jobs:
     timeout-minutes: 20
 
     env:
+      # Optional comma-separated allowlist for cargo-audit
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
@@ -182,7 +183,7 @@ jobs:
           cargo-deny --locked check licenses   --format json > reports/cargo-deny-licenses.json
 
       # ---- cargo-audit ----
-      - name: No-op (non-code PR; skip cargo-audit)
+      - name: No-op (non-code PR: skip cargo-audit)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust/package changes in this PR; skipping cargo-audit."
 
@@ -248,10 +249,11 @@ jobs:
 
             const okBadge = (ok) => ok ? '✅' : '❌';
 
-            const summary = `
-<!-- security-checks-summary -->
-### Security checks summary
+            const marker = '<!-- security-checks-summary -->';
+            const heading = 'Security checks summary';
+            const statusLine = `**Status**: ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})`;
 
+            const table = `
 **cargo-deny**
 | Check       | Errors | Warnings | Notes |
 |-------------|:------:|:--------:|:-----:|
@@ -264,11 +266,26 @@ jobs:
 - vulnerabilities: **${auditSum.vulns}**
 - warnings: **${auditSum.warnings}**
 
-**Status**: ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})
+${statusLine}
 `;
 
-            core.summary.addRaw(summary).write();
+            // Job summary (always expanded in Actions UI)
+            const summaryMd = `
+### ${heading}
 
+${table}
+`;
+            core.summary.addRaw(summaryMd).write();
+
+            // Collapsible PR comment body
+            const commentBody = `${marker}
+<details>
+<summary><strong>${heading}</strong> — ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (click to expand)</summary>
+
+${table}
+</details>`;
+
+            // Create/update PR comment
             const {owner, repo} = context.repo;
             const issue_number = context.issue.number;
 
@@ -279,19 +296,19 @@ jobs:
             const existing = comments.find(c =>
               c.user?.type === 'Bot' &&
               typeof c.body === 'string' &&
-              c.body.includes('<!-- security-checks-summary -->')
+              c.body.includes(marker)
             );
 
             if (existing) {
               await github.rest.issues.updateComment({
                 owner, repo,
                 comment_id: existing.id,
-                body: summary
+                body: commentBody
               });
             } else {
               await github.rest.issues.createComment({
                 owner, repo, issue_number,
-                body: summary
+                body: commentBody
               });
             }
 
