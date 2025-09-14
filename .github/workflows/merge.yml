@@ -234,7 +234,6 @@ jobs:
           echo "ahead_by:      ${{ steps.compare.outputs.ahead_by }}"
           echo "behind_by:     ${{ steps.compare.outputs.behind_by }}"
 
-      # NEW: broaden condition + echo decision
       - name: Decide if back-merge is needed
         id: gate
         env:
@@ -336,14 +335,15 @@ jobs:
             const prId = pr.node_id;
 
             try {
+              // Hardcode mergeMethod to avoid forbidden variable name "method"
               await github.graphql(`
-                mutation($prId: ID!, $method: PullRequestMergeMethod!) {
+                mutation($prId: ID!) {
                   enablePullRequestAutoMerge(input: {
                     pullRequestId: $prId,
                     mergeMethod: MERGE
                   }) { clientMutationId }
                 }
-              `, { prId, method: "MERGE" });
+              `, { prId });
               core.info(`Auto-merge enabled on PR #${prNumber}.`);
               core.setOutput('auto_merge_enabled', 'true');
             } catch (e) {
@@ -364,8 +364,7 @@ jobs:
             const autoEnabled = process.env.AUTO_ENABLED === 'true';
 
             if (!shouldBackmerge || !prnumStr || autoEnabled) {
-              core.info('Fallback not required '
-                + `(shouldBackmerge=${shouldBackmerge}, prnum=${!!prnumStr}, autoEnabled=${autoEnabled}). Skipping.`);
+              core.info(`Fallback not required (shouldBackmerge=${shouldBackmerge}, prnum=${!!prnumStr}, autoEnabled=${autoEnabled}). Skipping.`);
               return;
             }
 
@@ -373,42 +372,49 @@ jobs:
             const prNumber = parseInt(prnumStr, 10);
             const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+            function summarizeRuns(checks) {
+              const buckets = { queued:0, in_progress:0, success:0, neutral:0, skipped:0, failure:0, cancelled:0, timed_out:0, action_required:0, unknown:0 };
+              for (const cr of checks.data.check_runs) {
+                const c = cr.conclusion || '';
+                if (c in buckets) buckets[c]++; else if (!cr.conclusion) buckets.in_progress++; else buckets.unknown++;
+              }
+              return Object.entries(buckets).filter(([,v])=>v>0).map(([k,v])=>`${k}:${v}`).join(', ');
+            }
+
             for (let i = 1; i <= 30; i++) {
               const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
-              core.info('Attempt ' + i
-                + ': mergeable=' + pr.mergeable
-                + ' state=' + pr.mergeable_state
-                + ' draft=' + pr.draft);
+              core.info(`Attempt ${i}: mergeable=${pr.mergeable} state=${pr.mergeable_state} draft=${pr.draft}`);
 
               if (pr.draft) { core.setFailed('PR is draft; not merging.'); return; }
-              if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
-                core.setFailed('PR has conflicts; not merging.'); return;
+              if (pr.mergeable_state === 'blocked') {
+                core.info('PR is blocked (required reviews/contexts). Waiting…');
               }
 
               const sha = pr.head.sha;
 
-              // Checks v3 API
+              // Check runs + legacy statuses (for visibility only)
               const checks = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
-              const allCheckRunsOK = checks.data.check_runs.every(cr =>
-                ['success','neutral','skipped'].includes(cr.conclusion || '')
-              );
-
-              // Combined statuses (legacy)
+              const runsSummary = summarizeRuns(checks);
               const statuses = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha });
-              const statusesOK = statuses.data.state === 'success' || statuses.data.state === 'none';
+              core.info(`Check runs: ${runsSummary || 'none'} | combined statuses: ${statuses.data.state}`);
 
-              const isClean = (pr.mergeable === true || pr.mergeable_state === 'clean');
-              if (isClean && allCheckRunsOK && statusesOK) {
-                await github.rest.pulls.merge({
-                  owner, repo, pull_number: prNumber, merge_method: 'merge',
-                  commit_title: pr.title,
-                  commit_message: 'Auto-merged clean back-merge PR #' + prNumber + ' (main -> develop)'
-                });
-                core.info('Merged PR #' + prNumber + '.');
-                return;
+              // Try to merge when GitHub says it's mergeable and not explicitly blocked.
+              const canAttempt = pr.mergeable === true && pr.mergeable_state !== 'blocked';
+              if (canAttempt) {
+                try {
+                  await github.rest.pulls.merge({
+                    owner, repo, pull_number: prNumber, merge_method: 'merge',
+                    commit_title: pr.title,
+                    commit_message: 'Auto-merged back-merge PR #' + prNumber + ' (main -> develop)'
+                  });
+                  core.info('Merged PR #' + prNumber + '.');
+                  return;
+                } catch (e) {
+                  core.info(`Merge attempt failed (will retry): ${e.status || ''} ${e.message}`);
+                }
               }
 
               await sleep(20000);
             }
 
-            core.setFailed('Timed out waiting for PR to become clean & mergeable.');
+            core.setFailed('Timed out waiting for PR to become mergeable or for protections to clear.');
