@@ -128,15 +128,34 @@ jobs:
         id: export_pr
         shell: bash
         run: |
+          set -euo pipefail
+          # FORCE_FULL if title/labels explicitly request a full run
           FORCE_FULL="$(
             jq -r '
-              [
-                (.pull_request.title // "" | test("(?i)\\[full ci\\]|full[- ]?ci")),
-                ((.pull_request.labels // []) | tostring | test("(?i)full-ci|full ci"))
-              ] | any
-            ' <<< '${{ toJson(github.event) }}'
-          )'
+              def has_force_label:
+                (map(.name) // [])
+                | map(ascii_downcase)
+                | any(
+                    . == "full-ci" or
+                    . == "full ci" or
+                    . == "force-ci" or
+                    . == "force ci" or
+                    . == "ci:full"
+                  );
 
+              [
+                # Title contains [full ci] or [ci full] or the phrase full[- ]ci
+                ((.pull_request.title // "")
+                  | test("(?i)\\[(full[- ]?ci|ci[- ]?full)\\]") or
+                    test("(?i)(^|\\s)full[- ]?ci(\\s|$)")
+                 ),
+                # Labels include any of: full-ci, full ci, force-ci, force ci, ci:full
+                ((.pull_request.labels // []) | has_force_label)
+              ] | any
+            ' "$GITHUB_EVENT_PATH"
+          )"
+
+          # Non-backmerge PRs normally run heavy CI if relevant files changed (or FORCE_FULL)
           if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
             if [[ "$FORCE_FULL" == "true" || \
                   "${{ steps.paths.outputs.rust }}" == "true" || \
@@ -150,6 +169,7 @@ jobs:
             exit 0
           fi
 
+          # Back-merge PRs: only run if conflicts, develop is ahead, or FORCE_FULL
           A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
           C="${{ steps.probe.outputs.conflicts || 'false' }}"
           if [[ "$C" == "true" || "$A" -gt 0 || "$FORCE_FULL" == "true" ]]; then
@@ -224,7 +244,7 @@ jobs:
             echo "Using sccache GHAC backend"
           else
             echo "backend=filesystem" >> "$GITHUB_OUTPUT"
-            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"            # <-- set off
+            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"
             echo "SCCACHE_DIR=$HOME/.cache/sccache" >> "$GITHUB_ENV"
             mkdir -p "$HOME/.cache/sccache"
             echo "Falling back to sccache filesystem backend"
@@ -330,7 +350,7 @@ jobs:
             echo "Using sccache GHAC backend (container)"
           else
             echo "backend=filesystem" >> "$GITHUB_OUTPUT"
-            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"           # <-- set off
+            echo "SCCACHE_GHA_ENABLED=off" >> "$GITHUB_ENV"
             echo "SCCACHE_DIR=/root/.cache/sccache" >> "$GITHUB_ENV"
             mkdir -p /root/.cache/sccache
             echo "Falling back to sccache filesystem backend (container)"
