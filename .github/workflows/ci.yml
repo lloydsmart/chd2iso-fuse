@@ -1,4 +1,4 @@
-name: CI (Build & Test)
+name: CI (Build & Test) 🛠️⚡
 
 on:
   pull_request:
@@ -24,12 +24,12 @@ concurrency:
 jobs:
   # GATE: decide whether heavy CI is needed for PRs (incl. conflict probe)
   gate:
-    name: Decide if heavy CI is needed (PRs)
+    name: 🚦 Decide if heavy CI is needed (PRs)
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
     steps:
-      - name: Mode
+      - name: 🧰 Mode
         id: mode
         shell: bash
         run: |
@@ -40,13 +40,13 @@ jobs:
           fi
 
       # Non-PR paths (i.e., push): always run
-      - name: Export for push
+      - name: 📤 Export for push
         if: steps.mode.outputs.is_pr == 'false'
         id: export_push
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
       # Identify back-merge PR (main → develop)
-      - name: Identify back-merge PR
+      - name: 🔎 Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         shell: bash
@@ -59,13 +59,13 @@ jobs:
           fi
 
       # For back-merge evaluation we need full refs
-      - name: Checkout (full)
+      - name: 📥 Checkout (full)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Compare develop…main (ahead/behind)
+      - name: 🔀 Compare develop…main (ahead/behind)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: compare
         shell: bash
@@ -79,7 +79,7 @@ jobs:
           echo "ahead_on_develop=${A}" >>"$GITHUB_OUTPUT"
           echo "behind_on_main=${B}"  >>"$GITHUB_OUTPUT"
 
-      - name: Conflict probe (simulate merge main → develop)
+      - name: 🧪 Conflict probe (simulate merge main → develop)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: probe
         shell: bash
@@ -94,7 +94,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide (PR)
+      - name: 🧮 Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         shell: bash
@@ -112,7 +112,7 @@ jobs:
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export final
+      - name: 📤 Export final
         id: export
         shell: bash
         run: |
@@ -124,36 +124,36 @@ jobs:
 
   # Always-on quick sanity for PRs (even if heavy CI is skipped)
   quick_sanity:
-    name: Quick sanity (fmt + check)
+    name: 🧪 Quick sanity (fmt + check)
     needs: gate
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (shallow)
+      - name: 📥 Checkout (shallow)
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Install system deps (minimal)
+      - name: 🧩 Install system deps (minimal)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
-      - name: Setup Rust (stable, rustfmt)
+      - name: 🦀 Setup Rust (stable, rustfmt)
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: rustfmt
 
-      - name: fmt
+      - name: 🎯 fmt
         run: cargo fmt --all -- --check
 
-      - name: Smoke compile (fast)
+      - name: 🚬 Smoke compile (fast)
         env: { CARGO_TERM_COLOR: always }
         run: cargo check --workspace --locked --all-features
 
   build_test:
-    name: Build & Test (Linux)
+    name: 🛠️ Build & Test (Linux)
     needs: gate
     # Skip heavy CI for back-merge PRs (manual or auto)
     if: |
@@ -168,11 +168,11 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Hash Cargo.lock
+      - name: 🔐 Hash Cargo.lock
         id: lock
         run: |
           if [ -f Cargo.lock ]; then
@@ -181,47 +181,47 @@ jobs:
             echo "val=none" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup Rust (stable)
+      - name: 🦀 Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: clippy, rustfmt
 
-      - name: Prepare cargo cache dirs
+      - name: 📦 Prepare cargo cache dirs
         run: |
           set -euo pipefail
           mkdir -p ~/.cargo/registry
           mkdir -p ~/.cargo/git
 
-      - name: Cache cargo registry
+      - name: 🗃️ Cache cargo registry
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: cargo-registry-${{ runner.os }}-${{ steps.lock.outputs.val }}
 
-      - name: Cache cargo git
+      - name: 🗄️ Cache cargo git
         uses: actions/cache@v4
         with:
           path: ~/.cargo/git
           key: cargo-git-${{ runner.os }}-${{ steps.lock.outputs.val }}
 
-      - name: Install system deps (minimal)
+      - name: 🧩 Install system deps (minimal)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
-      - name: fmt
+      - name: 🎯 fmt
         run: cargo fmt --all -- --check
 
-      - name: clippy
+      - name: 🔎 clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Test
+      - name: ✅ Test
         env: { CARGO_TERM_COLOR: always }
         run: cargo test --workspace --locked --all-features
 
   package_deb:
-    name: Debian package (push only)
+    name: 📦 Debian package (push only)
     needs: build_test
     if: |
       !(
@@ -246,20 +246,20 @@ jobs:
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
     steps:
-      - name: Install git for checkout
+      - name: 🧰 Install git for checkout
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates
 
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Configure git trust
+      - name: 🔏 Configure git trust
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Install build deps
+      - name: 🧰 Install build deps
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
@@ -268,7 +268,7 @@ jobs:
             rust-all \
             debhelper devscripts dh-cargo lintian
 
-      - name: Build .deb (nocheck)
+      - name: 🏗️ Build .deb (nocheck)
         env:
           DEB_BUILD_OPTIONS: nocheck
         run: |
@@ -277,14 +277,14 @@ jobs:
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
           (cd artifacts && sha256sum * > SHA256SUMS || true)
 
-      - name: Lintian (non-fatal)
+      - name: 🔍 Lintian (non-fatal)
         continue-on-error: true
         run: |
           if compgen -G "artifacts/*.deb" > /dev/null; then
             lintian artifacts/*.deb || true
           fi
 
-      - name: Upload artifacts
+      - name: ⬆️ Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: chd2iso-fuse-${{ github.sha }}
