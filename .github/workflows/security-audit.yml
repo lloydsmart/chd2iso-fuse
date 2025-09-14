@@ -1,4 +1,4 @@
-name: Security checks (cargo-deny & cargo-audit)
+name: Security checks 🚫🔍 (cargo-deny & cargo-audit)
 
 on:
   push:
@@ -19,12 +19,12 @@ concurrency:
 
 jobs:
   gate:
-    name: Decide if checks are needed (PRs)
+    name: Decide if checks are needed (PRs) 🧭
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
     steps:
-      - name: Mode
+      - name: Mode 🔎
         id: mode
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -33,12 +33,12 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export for non PR
+      - name: Export for non PR ✅
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back merge PR main to develop
+      - name: Identify back merge PR (main -> develop) 🔁
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -49,13 +49,13 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout full only for back merge eval
+      - name: Checkout full only for back merge eval 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Compare and conflict probe only for back merge PRs
+      - name: Compare and conflict probe for back merge PRs 🧪
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -75,7 +75,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide PR
+      - name: Decide PR 🧮
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -91,7 +91,7 @@ jobs:
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export final
+      - name: Export final 📤
         id: export
         run: |
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
@@ -101,7 +101,7 @@ jobs:
           fi
 
   security:
-    name: cargo-deny and cargo-audit
+    name: Security checks run 🚫🔍
     needs: gate
     if: |
       !(
@@ -121,12 +121,12 @@ jobs:
       CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout shallow
+      - name: Checkout shallow 📥
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
-      - name: Determine if Rust or package files changed
+      - name: Detect Rust/package changes 🧩
         id: paths
         uses: dorny/paths-filter@v3
         with:
@@ -139,25 +139,27 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: Install cargo deny prebuilt
+      # Prebuilt binaries — no Rust toolchain needed
+      - name: Install cargo-deny 🚫
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@latest
-      - name: cargo deny version
+      - name: cargo-deny version 🧾
         run: cargo-deny --version
 
-      - name: Install cargo audit prebuilt
+      - name: Install cargo-audit 🔍
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@latest
-      - name: cargo audit version
+      - name: cargo-audit version 🧾
         run: cargo audit --version
 
-      - name: Day key
+      # Shared DAILY cache for RustSec advisory DB
+      - name: Day key 🗝️
         id: day
         run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache RustSec advisory DB
+      - name: Cache RustSec advisory DB 🧰
         uses: actions/cache@v4
         with:
           path: ~/.cargo/advisory-db
@@ -165,41 +167,42 @@ jobs:
           restore-keys: |
             rustsec-db-${{ runner.os }}-
 
-      # cargo-deny
-      - name: Fetch advisory DB warm up
+      # ---- cargo-deny ----
+      - name: Fetch advisory DB 🔄
         run: cargo-deny fetch
 
-      - name: Check advisories locked
+      - name: Check advisories 🚨
         run: cargo-deny --locked check advisories
 
-      - name: Check bans and licenses locked
+      - name: Check bans & licenses 📜
         run: cargo-deny --locked check bans licenses
 
-      - name: Export cargo deny reports
+      - name: Export cargo-deny reports 📝
         run: |
           mkdir -p reports
           cargo-deny --locked check advisories --format json > reports/cargo-deny-advisories.json
           cargo-deny --locked check bans       --format json > reports/cargo-deny-bans.json
           cargo-deny --locked check licenses   --format json > reports/cargo-deny-licenses.json
 
-      # cargo-audit
-      - name: No op non code PR skip cargo audit
+      # ---- cargo-audit ----
+      - name: Skip cargo-audit on non-code PRs ⏭️
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust or package changes in this PR; skipping cargo-audit."
 
-      - name: Ensure Cargo lock exists
+      - name: Ensure Cargo.lock exists 🔐
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           set -euo pipefail
           [ -f Cargo.lock ] || cargo generate-lockfile
 
-      - name: Run cargo audit JSON
+      - name: Run cargo-audit (JSON) 🔍
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           mkdir -p reports
           cargo audit -D warnings --json > reports/cargo-audit.json
 
-      - name: Summarize and comment on PR
+      # ---- PR comment summary (only on PRs) ----
+      - name: Summarize & comment on PR 📝
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
@@ -253,17 +256,17 @@ jobs:
             const bAudit  = badge('cargo--audit', 'vulns:' + auditSum.vulns, colorAudit);
 
             const lines = [];
-            lines.push('**cargo-deny**');
-            lines.push('| Check | Errors | Warnings | Notes |');
-            lines.push('|-------------|:------:|:--------:|:-----:|');
-            lines.push('| advisories  | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |');
-            lines.push('| bans        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |');
-            lines.push('| licenses    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' |');
-            lines.push('| **total**   | **' + totalErr + '** | **' + totalWarn + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |');
+            lines.push('**cargo-deny 🚫**');
+            lines.push('| Check         | Errors | Warnings | Notes |');
+            lines.push('|---------------|:------:|:--------:|:-----:|');
+            lines.push('| advisories 🚨 | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |');
+            lines.push('| bans ❌        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |');
+            lines.push('| licenses 📜    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' |');
+            lines.push('| **total**     | **' + totalErr + '** | **' + totalWarn + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |');
             lines.push('');
-            lines.push('**cargo-audit**');
+            lines.push('**cargo-audit 🔍**');
             lines.push('- vulnerabilities: **' + auditSum.vulns + '**');
-            lines.push('- warnings: **' + auditSum.warnings + '**');
+            lines.push('- warnings ⚠️: **' + auditSum.warnings + '**');
             lines.push('');
             lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalErr + ', vulns: ' + auditSum.vulns + ')');
             const table = lines.join('\n');
@@ -296,7 +299,7 @@ jobs:
               await github.rest.issues.createComment({ owner, repo, issue_number, body: commentBody });
             }
 
-      - name: Upload security reports
+      - name: Upload security reports 📦
         if: always()
         uses: actions/upload-artifact@v4
         with:
