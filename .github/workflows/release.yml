@@ -122,7 +122,7 @@ jobs:
       - name: Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
 
-      # NEW: assert the build uploaded the expected artifact
+      # Assert the build uploaded the expected artifact
       - name: Assert build artifact 'release-artifacts' exists in this run
         uses: actions/github-script@v7
         with:
@@ -238,24 +238,45 @@ jobs:
               -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
           gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 
-      - name: Assemble asset list
+      # ===== NEW: assemble assets as a STEP OUTPUT (explicit files only) =====
+      - name: Assemble release asset list (explicit)
         id: assets
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
+
+          # Pick only what we want to publish
+          wanted=( artifacts/*.deb artifacts/SHA256SUMS artifacts/SHA256SUMS.asc artifacts/CHANGELOG.md artifacts/RELEASE_NOTES.md )
           files=()
-          for f in artifacts/*; do
-            [ -e "$f" ] || continue
-            # Copy alongside RELEASE_NOTES.md for simple upload globs
-            cp -v "$f" .
-            files+=("$(basename "$f")")
+          for f in "${wanted[@]}"; do
+            for x in $f; do
+              [ -f "$x" ] || continue
+              cp -v "$x" .
+              files+=("$(basename "$x")")
+            done
           done
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No release asset files were gathered."
+            echo "Artifacts dir contents (depth 2):"
+            find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+            exit 1
+          fi
+
+          printf 'Will upload %d file(s):\n' "${#files[@]}"
+          printf ' - %s\n' "${files[@]}"
+
           {
-            echo 'ASSET_FILES<<EOF'
+            echo "files<<EOF"
             printf '%s\n' "${files[@]}"
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
-          echo "Prepared ${{ env.ASSET_FILES }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Echo files to upload (debug)
+        run: |
+          echo "Files:"
+          echo "${{ steps.assets.outputs.files }}" | sed 's/^/  - /'
 
       - name: Create draft release and upload
         uses: softprops/action-gh-release@v2
@@ -266,7 +287,7 @@ jobs:
           generate_release_notes: false
           draft: true
           fail_on_unmatched_files: true
-          files: ${{ env.ASSET_FILES }}
+          files: ${{ steps.assets.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -277,6 +298,17 @@ jobs:
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: verify assets attached to the release
+      - name: Verify release assets (debug)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = `${{ needs.resolve_tag.outputs.tag }}`;
+            const rel = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const names = rel.data.assets.map(a => a.name);
+            core.info('Release assets: ' + JSON.stringify(names));
 
       - name: Reconcile release title with tag (safety net)
         uses: actions/github-script@v7
