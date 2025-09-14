@@ -85,7 +85,7 @@ jobs:
     with:
       lane: main
       nightly: false
-      release_mode: true   # <— NEW: force release behavior even on workflow_dispatch
+      release_mode: true   # force release behavior even on workflow_dispatch
     secrets: inherit
 
   verify_versions:
@@ -121,6 +121,24 @@ jobs:
 
       - name: Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
+
+      # NEW: assert the build uploaded the expected artifact
+      - name: Assert build artifact 'release-artifacts' exists in this run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const run_id = context.runId;
+            const arts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner, repo, run_id, per_page: 100
+            });
+            const names = arts.map(a => a.name);
+            core.info('Artifacts on this run: ' + JSON.stringify(names));
+            const found = arts.find(a => a.name === 'release-artifacts');
+            if (!found) {
+              core.setFailed("Missing expected artifact 'release-artifacts'. " +
+                "Check the _build.yml logs (did the .deb guard fire? did upload-artifact run?)");
+            }
 
       - name: Download build artifacts (release-artifacts)
         uses: actions/download-artifact@v4
@@ -186,7 +204,7 @@ jobs:
         with:
           tool: git-cliff
 
-      # NEW: also prepend to CHANGELOG.md and generate RELEASE_NOTES.md using -u
+      # also prepend to CHANGELOG.md and generate RELEASE_NOTES.md using -u
       - name: Generate changelog and notes with git-cliff (-u)
         if: steps.notes.outputs.source == 'cliff'
         run: |

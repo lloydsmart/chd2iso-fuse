@@ -234,18 +234,22 @@ jobs:
           echo "ahead_by:      ${{ steps.compare.outputs.ahead_by }}"
           echo "behind_by:     ${{ steps.compare.outputs.behind_by }}"
 
+      # NEW: broaden condition + echo decision
       - name: Decide if back-merge is needed
         id: gate
         env:
           STATUS: ${{ steps.compare.outputs.status }}
+          AHEAD:  ${{ steps.compare.outputs.ahead_by }}
+          BEHIND: ${{ steps.compare.outputs.behind_by }}
         run: |
           set -euo pipefail
-          if [[ "$STATUS" == "behind" || "$STATUS" == "diverged" ]]; then
+          echo "Compare summary: status=${STATUS} ahead_by=${AHEAD} behind_by=${BEHIND}"
+          # Open a back-merge whenever branches are NOT identical
+          if [[ "${STATUS}" != "identical" ]]; then
             echo "should_backmerge=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_backmerge=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "Status: $STATUS"
 
       - name: Check for existing open PR main -> develop
         id: existing
@@ -266,9 +270,16 @@ jobs:
               core.info('No existing PR main -> develop');
             }
 
+      - name: Debug decision
+        if: always()
+        run: |
+          echo "gate.should_backmerge=${{ steps.gate.outputs.should_backmerge }}"
+          echo "existing.exists=${{ steps.existing.outputs.exists }}"
+          echo "existing.number=${{ steps.existing.outputs.number }}"
+
       - name: No back-merge needed
         if: ${{ steps.gate.outputs.should_backmerge != 'true' }}
-        run: echo "Develop is not behind; skipping PR."
+        run: echo "Develop is not behind/diverged; skipping PR."
 
       - name: Open PR main -> develop
         id: create_pr
