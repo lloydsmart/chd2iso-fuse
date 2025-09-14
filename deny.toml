@@ -33,13 +33,18 @@ yanked       = "warn"       # one of: deny | warn | allow
 # ---------------------------------------------------------------------
 
 [licenses]
+# Allow any OSI-approved and FSF-free license (includes GPL, LGPL, MPL, EPL, etc.)
+allow-osi-fsf-free = "both"
+
+# Explicit allowlist still applies alongside the OSI/FSF rule.
+# These are the main licenses we actively expect in this project.
 allow = [
   "Apache-2.0",
   "BSD-3-Clause",
   "MIT",
 ]
 
-# Fail on unknown/unclassified licenses and on unlicensed crates
+# Fail on unlicensed or unknown licenses
 default = "deny"
 unlicensed = "deny"
 
