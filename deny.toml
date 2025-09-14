@@ -23,13 +23,8 @@ yanked       = "warn"       # one of: deny | warn | allow
 # Allow common permissive + Unicode licenses used by deps
 allow = [
   "Apache-2.0",
-  "MIT",
-  "BSD-2-Clause",
   "BSD-3-Clause",
-  "ISC",
-  "Unicode-DFS-2016",
-  "Unicode-3.0",      # needed by unicode-ident’s "(MIT OR Apache-2.0) AND Unicode-3.0"
-  "Zlib",
+  "MIT",
 ]
 
 confidence-threshold = 0.8
