@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: sec-checks-${{ github.ref }}
@@ -49,8 +50,9 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v5
+      - name: Checkout (full, only for back-merge eval)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
+        uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
       - name: Compare & conflict probe (only for back-merge PRs)
@@ -115,17 +117,14 @@ jobs:
     timeout-minutes: 20
 
     env:
-      # Optional comma-separated allowlist for cargo-audit
-      # e.g. "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout
+      - name: Checkout (shallow)
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 1 }
 
-      # Only used to optionally skip cargo-audit on doc-only PRs, etc.
       - name: Determine if Rust/package files changed (for cargo-audit skip)
         id: paths
         uses: dorny/paths-filter@v3
@@ -139,12 +138,7 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-        # Prebuilt, checksummed binaries (fast)
+      # Prebuilt binaries — no Rust toolchain needed
       - name: Install cargo-deny (prebuilt)
         uses: taiki-e/install-action@v2
         with:
@@ -157,7 +151,7 @@ jobs:
           tool: cargo-audit@latest
       - run: cargo audit --version
 
-      # One shared DAILY cache for the RustSec advisory DB
+      # One shared DAILY cache for RustSec advisory DB
       - name: Day key
         id: day
         run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
@@ -174,14 +168,21 @@ jobs:
       - name: Fetch advisory DB (warm-up)
         run: cargo-deny fetch
 
-      - name: Check advisories (enforces per-waiver expiry)
-        run: cargo-deny check advisories
+      - name: Check advisories (locked; enforces per-waiver expiry)
+        run: cargo-deny --locked check advisories
 
-      - name: Check bans & licenses (policy hygiene)
-        run: cargo-deny check bans licenses
+      - name: Check bans & licenses (policy hygiene; locked)
+        run: cargo-deny --locked check bans licenses
+
+      - name: Export cargo-deny reports
+        run: |
+          mkdir -p reports
+          cargo-deny --locked check advisories --format json > reports/cargo-deny-advisories.json
+          cargo-deny --locked check bans       --format json > reports/cargo-deny-bans.json
+          cargo-deny --locked check licenses   --format json > reports/cargo-deny-licenses.json
 
       # ---- cargo-audit ----
-      - name: No-op (non-code PR: skip cargo-audit)
+      - name: No-op (non-code PR; skip cargo-audit)
         if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
         run: echo "No Rust/package changes in this PR; skipping cargo-audit."
 
@@ -191,26 +192,113 @@ jobs:
           set -euo pipefail
           [ -f Cargo.lock ] || cargo generate-lockfile
 
-      - name: Run cargo-audit
+      - name: Run cargo-audit (JSON)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        shell: bash
         run: |
-          set -euo pipefail
+          mkdir -p reports
+          cargo audit -D warnings --json > reports/cargo-audit.json
 
-          args=( -D warnings )
+      # ---- PR comment summary (only on PRs) ----
+      - name: Summarize & comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
 
-          # Respect user-provided ACCEPTED list (comma-separated).
-          if [[ -n "${ACCEPTED}" ]]; then
-            IFS=',' read -ra ids <<< "${ACCEPTED}"
-            for id in "${ids[@]}"; do
-              id_trimmed="$(echo "$id" | xargs)"
-              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
-            done
-          fi
+            function readJsonSafe(path) {
+              try {
+                if (!fs.existsSync(path)) return null;
+                const raw = fs.readFileSync(path, 'utf8').trim();
+                if (!raw) return null;
+                return JSON.parse(raw);
+              } catch (e) {
+                return null;
+              }
+            }
 
-          # Ignore long-standing fuser advisory unless already accepted.
-          if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
-            args+=( --ignore RUSTSEC-2021-0154 )
-          fi
+            function countDeny(file) {
+              const data = readJsonSafe(file);
+              if (!data || !Array.isArray(data)) return {errors: 0, warnings: 0, notes: 0};
+              let errors = 0, warnings = 0, notes = 0;
+              for (const item of data) {
+                const lvl = (item.level || '').toLowerCase();
+                if (lvl === 'error') errors++;
+                else if (lvl === 'warning') warnings++;
+                else if (lvl === 'note') notes++;
+              }
+              return {errors, warnings, notes};
+            }
 
-          cargo audit "${args[@]}"
+            function summarizeAudit(file) {
+              const data = readJsonSafe(file);
+              if (!data || !data.vulnerabilities) return {vulns: 0, warnings: 0};
+              const vulns = data.vulnerabilities.count || 0;
+              const warnings = Array.isArray(data.warnings) ? data.warnings.length : 0;
+              return {vulns, warnings};
+            }
+
+            const denyAdv = countDeny('reports/cargo-deny-advisories.json');
+            const denyBans = countDeny('reports/cargo-deny-bans.json');
+            const denyLic  = countDeny('reports/cargo-deny-licenses.json');
+            const auditSum = summarizeAudit('reports/cargo-audit.json');
+
+            const totalDenyErrors   = denyAdv.errors + denyBans.errors + denyLic.errors;
+            const totalDenyWarnings = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
+
+            const okBadge = (ok) => ok ? '✅' : '❌';
+
+            const summary = `
+<!-- security-checks-summary -->
+### Security checks summary
+
+**cargo-deny**
+| Check       | Errors | Warnings | Notes |
+|-------------|:------:|:--------:|:-----:|
+| advisories  | ${denyAdv.errors} | ${denyAdv.warnings} | ${denyAdv.notes} |
+| bans        | ${denyBans.errors} | ${denyBans.warnings} | ${denyBans.notes} |
+| licenses    | ${denyLic.errors} | ${denyLic.warnings} | ${denyLic.notes} |
+| **total**   | **${totalDenyErrors}** | **${totalDenyWarnings}** | **${denyAdv.notes + denyBans.notes + denyLic.notes}** |
+
+**cargo-audit**
+- vulnerabilities: **${auditSum.vulns}**
+- warnings: **${auditSum.warnings}**
+
+**Status**: ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})
+`;
+
+            core.summary.addRaw(summary).write();
+
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100
+            });
+
+            const existing = comments.find(c =>
+              c.user?.type === 'Bot' &&
+              typeof c.body === 'string' &&
+              c.body.includes('<!-- security-checks-summary -->')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo,
+                comment_id: existing.id,
+                body: summary
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: summary
+              });
+            }
+
+      # Upload all JSON reports
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: reports/*.json
