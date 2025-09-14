@@ -182,7 +182,7 @@ jobs:
           git-cliff --tag "${TAG}" -u --output RELEASE_NOTES.md
           sed -n '1,120p' RELEASE_NOTES.md || true
 
-      - name: 🛡️ Guard: release notes must be non-empty
+      - name: "🛡️ Guard: release notes must be non-empty"
         run: |
           set -euo pipefail
           if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
