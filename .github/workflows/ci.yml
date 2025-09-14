@@ -64,7 +64,6 @@ jobs:
         id: paths
         uses: dorny/paths-filter@v3
         with:
-          # If none of these change, we can usually skip heavy CI on PRs
           filters: |
             rust:
               - 'src/**'
@@ -79,7 +78,6 @@ jobs:
             scripts:
               - 'scripts/**'
 
-      # Identify back-merge PR (main → develop)
       - name: 🔎 Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
@@ -92,7 +90,6 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      # For back-merge evaluation we need full refs
       - name: 📥 Checkout (full) for merge probe
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
@@ -128,7 +125,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: 🧮 Decide (PR)
+      - name: 🤔 Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         shell: bash
@@ -198,7 +195,6 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt
-          # profile is minimal by default in this action
 
       - name: 🎯 fmt
         run: cargo fmt --all -- --check
@@ -214,30 +210,19 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
-      SCCACHE_GHA_ENABLED: "true"   # Enable saving stats to logs
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache          # ✅ ensure sccache is used
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      # sccache (compiler cache) — big wins across runs
       - name: ⚡ Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.3
 
-      - name: 🦀 Setup Rust (stable + clippy)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          components: clippy,rustfmt
+      - name: 🗂️ Ensure sccache dir
+        run: mkdir -p ~/.cache/sccache   # ✅ pre-create dir so cache step always has a path
 
-      # Rust cache (handles target/ + cargo registries/gits intelligently)
-      - name: 🗃️ Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          # Tie to lockfile + toolchain; restores across branches
-          key: ${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
-
-      # Optional: also persist sccache contents between runs
       - name: 🗃️ Cache sccache store
         uses: actions/cache@v4
         with:
@@ -245,6 +230,18 @@ jobs:
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
           restore-keys: |
             sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
+          save-always: true              # ✅ avoid post-job "Path Validation Error" warnings
+
+      - name: 🦀 Setup Rust (stable + clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy,rustfmt
+
+      - name: 🗃️ Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
       - name: 🧩 Install system deps (minimal)
         run: |
@@ -257,15 +254,13 @@ jobs:
       - name: 🔎 clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # nextest: much faster parallel test runner
       - name: 📦 Install nextest
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
 
       - name: ✅ Test (nextest, parallel)
-        run: |
-          cargo nextest run --workspace --locked --all-features --no-fail-fast
+        run: cargo nextest run --workspace --locked --all-features --no-fail-fast
 
   package_deb:
     name: 📦 Debian package (push only)
@@ -299,11 +294,13 @@ jobs:
       - name: 🔏 Configure git trust
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # Install sccache inside the container and cache it
       - name: 🧰 Install sccache
         run: |
           apt-get update
           apt-get install -y --no-install-recommends sccache
+
+      - name: 🗂️ Ensure sccache dir
+        run: mkdir -p /root/.cache/sccache   # ✅ container path
 
       - name: 🗃️ Cache sccache store (container)
         uses: actions/cache@v4
@@ -312,6 +309,7 @@ jobs:
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
           restore-keys: |
             sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
+          save-always: true                  # ✅ avoid post-job warnings
 
       - name: ⚙️ Install build deps
         run: |
