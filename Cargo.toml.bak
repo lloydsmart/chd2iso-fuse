@@ -1,6 +1,6 @@
 [package]
 name = "chd2iso-fuse"
-version = "0.2.25"
+version = "0.2.26"
 edition = "2021"
 authors = ["Lloyd Smart <lloydsmart@users.noreply.github.com>"]
 description = "FUSE filesystem to mount CHD images as ISO/BIN on the fly"
