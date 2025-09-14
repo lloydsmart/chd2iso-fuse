@@ -1,5 +1,8 @@
 # Changelog
-### Chore
+### Fixes
+- fix(release): reliably attach .deb + checksums to GitHub Release (b760320)### Other
+- Back-merge main -> develop (post-release) (2683939)
+- PR #145: fix(release): reliably attach .deb + checksums to GitHub Release (a615216)### Chore
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (a54abe7)### Fixes
 - fix(merge): repair auto-merge GraphQL + fallback merge logic (197c4db)### Other
 - PR #140: Back-merge main -> develop (post-release) (fe6a5cb)
