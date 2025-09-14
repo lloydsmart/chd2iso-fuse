@@ -1,8 +1,8 @@
-name: Nightly build (develop)
+name: 🌙 Nightly build (develop)
 
 on:
   schedule:
-    - cron: "15 2 * * *"   # 02:15 Europe/London
+    - cron: "15 2 * * *"   # 🕑 02:15 Europe/London
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-develop-nightly:
-    name: Build develop (nightly)
+    name: 🛠️ Build develop (nightly)
     uses: ./.github/workflows/_build.yml
     with:
       lane: develop

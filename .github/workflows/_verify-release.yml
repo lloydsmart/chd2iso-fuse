@@ -1,4 +1,4 @@
-name: Reusable - Verify release
+name: Reusable – Verify release 🔍✅
 
 on:
   workflow_call: {}
@@ -12,18 +12,18 @@ defaults:
 
 jobs:
   verify:
-    name: Verify versions (Cargo.toml / debian / binary)
+    name: 🔎 Verify versions (Cargo.toml / debian / binary)
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
       options: --init
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install minimal deps
+      - name: 🛠️ Install minimal deps
         run: |
           set -euo pipefail
           apt-get update
@@ -33,7 +33,7 @@ jobs:
             rust-all rust-clippy rustfmt \
             debhelper devscripts dh-cargo dpkg-dev
 
-      - name: Read Cargo.toml version
+      - name: 📖 Read Cargo.toml version
         id: cargo
         run: |
           set -euo pipefail
@@ -46,17 +46,17 @@ jobs:
 
           # Disallow -dev suffix on release/hotfix
           if [[ "${CARGO_VER}" == *-dev* ]]; then
-            echo "ERROR: Cargo.toml has a -dev suffix on a release lane: ${CARGO_VER}"
+            echo "❌ ERROR: Cargo.toml has a -dev suffix on a release lane: ${CARGO_VER}"
             exit 1
           fi
 
-      - name: Read Debian upstream version
+      - name: 📖 Read Debian upstream version
         id: deb
         run: |
           set -euo pipefail
           DEB_FULL="$(dpkg-parsechangelog -SVersion || true)"
           if [[ -z "${DEB_FULL}" ]]; then
-            echo "ERROR: Could not parse debian/changelog. Did you update it for this release lane?"; exit 1
+            echo "❌ ERROR: Could not parse debian/changelog. Did you update it for this release lane?"; exit 1
           fi
           UPSTREAM="${DEB_FULL%%-*}"
           echo "full=${DEB_FULL}"     >> "$GITHUB_OUTPUT"
@@ -64,7 +64,7 @@ jobs:
           echo "Debian version (full): ${DEB_FULL}"
           echo "Debian upstream:       ${UPSTREAM}"
 
-      - name: Compare Cargo vs Debian upstream (supports RC mapping)
+      - name: 🔍 Compare Cargo vs Debian upstream (supports RC mapping)
         env:
           CARGO_VER: ${{ steps.cargo.outputs.version }}
           DEB_UP:    ${{ steps.deb.outputs.upstream }}
@@ -78,28 +78,28 @@ jobs:
 
           echo "Expect Debian upstream: ${EXPECT}"
           if [[ "${DEB_UP}" != "${EXPECT}" ]]; then
-            echo "ERROR: debian/changelog upstream (${DEB_UP}) != expected (${EXPECT})"
+            echo "❌ ERROR: debian/changelog upstream (${DEB_UP}) != expected (${EXPECT})"
             exit 1
           fi
 
-      - name: Build release binary (for version check)
+      - name: 🏗️ Build release binary (for version check)
         run: cargo build --release --locked
 
-      - name: Verify binary --version matches Cargo.toml
+      - name: 🧪 Verify binary --version matches Cargo.toml
         env:
           CARGO_VER: ${{ steps.cargo.outputs.version }}
         run: |
           set -euo pipefail
           BIN="./target/release/chd2iso-fuse"
-          test -x "$BIN" || { echo "Binary not found at ${BIN}"; exit 1; }
+          test -x "$BIN" || { echo "❌ Binary not found at ${BIN}"; exit 1; }
           BIN_VER="$("$BIN" --version | awk '{print $2}')"
           echo "Binary --version: ${BIN_VER}"
           if [[ "${BIN_VER}" != "${CARGO_VER}" ]]; then
-            echo "ERROR: Binary version (${BIN_VER}) != Cargo.toml version (${CARGO_VER})"
+            echo "❌ ERROR: Binary version (${BIN_VER}) != Cargo.toml version (${CARGO_VER})"
             exit 1
           fi
 
-      - name: Summary
+      - name: 📝 Summary
         run: |
           echo "✅ Version checks passed:"
           echo " - Cargo.toml:       ${{ steps.cargo.outputs.version }}"

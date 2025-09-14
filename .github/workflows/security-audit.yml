@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   gate:
-    name: Decide if checks are needed (PRs) 🧭
+    name: Decide if checks are needed (PRs) 🤔
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
@@ -33,12 +33,12 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export for non PR ✅
+      - name: Export for non-PR ✅
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back merge PR (main -> develop) 🔁
+      - name: Identify back-merge PR (main -> develop) 🔁
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -49,13 +49,13 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout full only for back merge eval 📥
+      - name: Checkout (for back-merge eval) 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Compare and conflict probe for back merge PRs 🧪
+      - name: Compare & conflict probe (back-merge PRs) 🧪
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -75,7 +75,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide PR 🧮
+      - name: Decide (PR) 🤔
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -122,7 +122,7 @@ jobs:
       CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout shallow 📥
+      - name: Checkout (shallow) 📥
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
