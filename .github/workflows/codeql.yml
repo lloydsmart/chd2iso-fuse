@@ -38,7 +38,8 @@ jobs:
       - name: 📤 Export for non-PR
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
-        run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
+        run: |
+          echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
       - name: 🔄 Identify back-merge PR
         if: steps.mode.outputs.is_pr == 'true'
@@ -76,7 +77,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: 🧮 Decide (PR)
+      - name: 🤔 Decide (PR)
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -130,10 +131,11 @@ jobs:
 
       - name: 📤 Export rust_changed
         id: pathout
-        run: echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
+        run: |
+          echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
 
   analyze:
-    name: "🧩 Analyze (CodeQL: ${{ matrix.variant }})""
+    name: "🧩 Analyze (CodeQL: ${{ matrix.variant }})"
     needs: gate
     if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
     runs-on: ubuntu-latest
