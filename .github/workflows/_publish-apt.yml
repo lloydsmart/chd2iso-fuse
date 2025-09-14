@@ -1,4 +1,4 @@
-name: Reusable — Publish APT (stub)
+name: Reusable — Publish APT 📦➡️🖥️ (stub)
 
 on:
   workflow_call:
@@ -26,12 +26,12 @@ permissions:
 
 jobs:
   stub:
-    name: Stub publish to ${{ inputs.channel }}
+    name: 🚧 Stub publish to APT channel: ${{ inputs.channel }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.channel }}   # approvals per channel, if configured
     steps:
-      - name: Explain gating
+      - name: 📢 Explain gating 🔒
         run: |
           echo "🔒 APT publishing is currently gated (no-op)."
           echo "Requested channel: ${{ inputs.channel }}"
@@ -39,4 +39,24 @@ jobs:
           echo "Component:         ${{ inputs.component }}"
           echo "Arch:              ${{ inputs.arch }}"
           echo
-          echo "When ready to go live, implement reprepro/aptly steps here."
+          echo "When ready to go live, implement reprepro/aptly steps here. 🚀"
+
+      # 🗂️ Repo management (future)
+      #   - name: 🗂️ Setup reprepro/aptly
+      #     run: |
+      #       echo "Install and configure reprepro/aptly here"
+
+      # 📦 Package import (future)
+      #   - name: 📦 Import Debian packages
+      #     run: |
+      #       echo "Add .deb files into repo pool"
+
+      # 🔑 Signing (future)
+      #   - name: 🔑 Sign Release files
+      #     run: |
+      #       echo "Sign repository metadata with GPG key"
+
+      # 🚀 Publish (future)
+      #   - name: 🚀 Push repo to storage/backend
+      #     run: |
+      #       echo "Upload repo to S3, web server, or Azure Blob"
