@@ -1,3 +1,17 @@
+chd2iso-fuse (0.2.19-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(release): ensure .deb + checksums uploaded and back-merge PR created
+  * fix(ci): typo
+  * fix(ci): typo
+  * fix(ci): typo. Remove invalid character.
+  * ci: flip fail_on_unmatched_files to true
+  * ci: update cliff.toml tag pattern to include -rcN
+  * ci(release): fetch tags & lock artifact name for deterministic releases
+  * chore: update cargo lock
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 12:44:24 +0000
+
 chd2iso-fuse (0.2.18-1) trixie; urgency=medium
 
   [ lloydsmart ]

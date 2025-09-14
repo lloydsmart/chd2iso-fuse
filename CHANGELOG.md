@@ -1,5 +1,15 @@
 # Changelog
 ### CI
+- ci: flip fail_on_unmatched_files to true (7745c61)
+- ci: update cliff.toml tag pattern to include -rcN (3848162)
+- ci(release): fetch tags & lock artifact name for deterministic releases (ce1c3b1)### Chore
+- chore: update cargo lock (eeb3ebf)### Fixes
+- fix(release): ensure .deb + checksums uploaded and back-merge PR created (c26cb53)
+- fix(ci): typo (0f63d3f)
+- fix(ci): typo (98980a2)
+- fix(ci): typo. Remove invalid character. (388aa4a)### Other
+- PR #134: Back-merge (e2ff6ce)
+- PR #135: Bugfix/ci release (be4cef8)### CI
 - ci(back-merge): skip heavy checks on main→develop back-merge PRs (7beab84)
 - ci: restore missing gate (76db874)
 - ci(cache): pre-create cache directories to avoid “Path Validation Error” (5852cd8)

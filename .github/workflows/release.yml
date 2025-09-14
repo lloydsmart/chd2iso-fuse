@@ -50,10 +50,11 @@ jobs:
     needs: [resolve_tag]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: Checkout full history + tags
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Debug refs
         run: |
@@ -121,30 +122,48 @@ jobs:
       - name: Debug tag
         run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
 
-      - name: Download build artifacts (all)
+      - name: Download build artifacts (release-artifacts)
         uses: actions/download-artifact@v4
         with:
-          pattern: '*'
+          name: release-artifacts
           path: artifacts
-          merge-multiple: true
 
-      - name: Guard artifacts exist
+      - name: Debug list downloaded artifact contents
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Downloaded files:"
+          find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
+
+      - name: Guard expected release payload present (.deb and notes)
+        shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           files=(artifacts/*)
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No artifacts found in ./artifacts"
+            echo "::error::No files in artifacts/ (expected release-artifacts)."
             exit 1
           fi
+
+          debs=(artifacts/*.deb)
+          if [ ${#debs[@]} -eq 0 ]; then
+            echo "::error::No .deb files found in artifacts/."
+            echo "Contents:"
+            find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
+            exit 1
+          fi
+
           echo "Artifacts downloaded:"
-          find "artifacts" -maxdepth 2 -type f -printf '%P\n' | sort || true
+          find artifacts -maxdepth 2 -type f -printf '%P\n' | sort || true
 
       # If build didn't provide notes, generate with git-cliff (using -u)
-      - name: Checkout full history (for changelog generation)
+      - name: Checkout full history + tags (for changelog generation)
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff)
         id: notes
@@ -228,7 +247,7 @@ jobs:
           body_path: "RELEASE_NOTES.md"
           generate_release_notes: false
           draft: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           files: ${{ env.ASSET_FILES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
