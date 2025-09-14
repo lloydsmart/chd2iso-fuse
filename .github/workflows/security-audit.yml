@@ -239,6 +239,7 @@ jobs:
               return {vulns, warnings};
             }
 
+            // Load results
             const denyAdv = countDeny('reports/cargo-deny-advisories.json');
             const denyBans = countDeny('reports/cargo-deny-bans.json');
             const denyLic  = countDeny('reports/cargo-deny-licenses.json');
@@ -247,12 +248,25 @@ jobs:
             const totalDenyErrors   = denyAdv.errors + denyBans.errors + denyLic.errors;
             const totalDenyWarnings = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
 
+            const pass = (totalDenyErrors === 0 && auditSum.vulns === 0);
             const okBadge = (ok) => ok ? '✅' : '❌';
 
-            const marker = '<!-- security-checks-summary -->';
-            const heading = 'Security checks summary';
-            const statusLine = `**Status**: ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})`;
+            // ---- Badge helpers (shields.io) ----
+            const esc = encodeURIComponent;
+            const badge = (label, message, color) =>
+              `https://img.shields.io/badge/${esc(label)}-${esc(message)}-${esc(color)}?style=for-the-badge`;
 
+            // Colors
+            const colorStatus = pass ? 'success' : 'critical';
+            const colorDeny   = totalDenyErrors > 0 ? 'critical' : (totalDenyWarnings > 0 ? 'important' : 'success');
+            const colorAudit  = auditSum.vulns > 0 ? 'critical' : 'success';
+
+            // Badge URLs
+            const bStatus = badge('Security', pass ? 'passing' : 'failing', colorStatus);
+            const bDeny   = badge('cargo--deny', `errors:${totalDenyErrors} | warn:${totalDenyWarnings}`, colorDeny);
+            const bAudit  = badge('cargo--audit', `vulns:${auditSum.vulns}`, colorAudit);
+
+            // Tables and text
             const table = `
 **cargo-deny**
 | Check       | Errors | Warnings | Notes |
@@ -266,21 +280,24 @@ jobs:
 - vulnerabilities: **${auditSum.vulns}**
 - warnings: **${auditSum.warnings}**
 
-${statusLine}
+**Status**: ${okBadge(pass)} (errors: ${totalDenyErrors}, vulns: ${auditSum.vulns})
 `;
 
-            // Job summary (always expanded in Actions UI)
+            // Job summary in Actions UI (expanded)
             const summaryMd = `
-### ${heading}
+### Security checks summary
+
+![status](${bStatus}) ![deny](${bDeny}) ![audit](${bAudit})
 
 ${table}
 `;
             core.summary.addRaw(summaryMd).write();
 
-            // Collapsible PR comment body
+            // Collapsible PR comment with badges in the header
+            const marker = '<!-- security-checks-summary -->';
             const commentBody = `${marker}
 <details>
-<summary><strong>${heading}</strong> — ${okBadge(totalDenyErrors === 0 && auditSum.vulns === 0)} (click to expand)</summary>
+<summary><strong>Security checks</strong> — <img alt="status" src="${bStatus}" height="20"> <img alt="cargo-deny" src="${bDeny}" height="20"> <img alt="cargo-audit" src="${bAudit}" height="20"> (click to expand)</summary>
 
 ${table}
 </details>`;
