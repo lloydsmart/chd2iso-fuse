@@ -32,15 +32,14 @@ jobs:
           fetch-tags: true
           persist-credentials: true
 
-      # --- Speedup: cache APT lists + archives between runs ---
+      # --- Speedup: cache APT lists + archives between runs (keyed to package list file) ---
       - name: ♻️ Cache APT (lists + archives)
         uses: actions/cache@v4
         with:
           path: |
             /var/cache/apt/archives
             /var/lib/apt/lists
-          # Use a stable key; bump the suffix to invalidate if package set changes
-          key: ${{ runner.os }}-apt-debtools-v1
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/apt-packages.txt') }}
           restore-keys: |
             ${{ runner.os }}-apt-
 
@@ -51,18 +50,9 @@ jobs:
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
 
-          # 1) Install Debian packaging toolchain (quiet + retries; benefits from cache)
+          # 1) Install Debian packaging toolchain from tracked list (quiet + retries; uses cache above)
           sudo apt-get -o Acquire::Retries=3 update -yqq
-          sudo apt-get -o Dpkg::Use-Pty=0 install -yqq --no-install-recommends \
-            git-buildpackage \
-            devscripts \
-            python3-debian \
-            debhelper \
-            fakeroot \
-            libdistro-info-perl \
-            ca-certificates \
-            jq \
-            curl
+          sudo apt-get -o Dpkg::Use-Pty=0 install -yqq --no-install-recommends $(tr '\n' ' ' < .github/apt-packages.txt)
 
           # 2) Install git-cliff via prebuilt release binary (much faster than Cargo)
           if ! command -v git-cliff >/dev/null 2>&1; then
