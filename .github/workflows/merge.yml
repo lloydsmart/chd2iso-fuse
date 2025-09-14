@@ -36,7 +36,6 @@ jobs:
                 );
                 const pr = prs.find(p => p.merged_at && p.base?.ref === 'main');
                 if (pr) return pr;
-                // brief backoff to allow GitHub to index associations
                 await new Promise(r => setTimeout(r, 2000));
               }
               return null;
