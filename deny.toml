@@ -39,10 +39,12 @@ allow = [
   "MIT",
 ]
 
+# Fail on unknown/unclassified licenses and on unlicensed crates
+default = "deny"
+unlicensed = "deny"
+
 confidence-threshold = 0.8
-unlicensed = "deny"     # fail if a dependency has no license
-unknown    = "deny"     # fail if cargo-deny can't classify a license
-unused-allowed-license = "warn"   # <— correct key; avoid failing on unused allows
+unused-allowed-license = "warn"
 
 ########################################
 # Bans (optional hygiene)
