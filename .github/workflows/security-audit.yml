@@ -181,9 +181,9 @@ jobs:
       - name: Export cargo-deny reports 📝
         run: |
           mkdir -p reports
-          cargo-deny --locked check advisories -- --format json > reports/cargo-deny-advisories.json
-          cargo-deny --locked check bans       -- --format json > reports/cargo-deny-bans.json
-          cargo-deny --locked check licenses   -- --format json > reports/cargo-deny-licenses.json
+          cargo-deny --format json --locked check advisories > reports/cargo-deny-advisories.json
+          cargo-deny --format json --locked check bans       > reports/cargo-deny-bans.json
+          cargo-deny --format json --locked check licenses   > reports/cargo-deny-licenses.json
 
       # ---- cargo-audit ----
       - name: Skip cargo-audit on non-code PRs ⏭️
