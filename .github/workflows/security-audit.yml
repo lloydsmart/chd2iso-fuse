@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # GATE: PRs only; push/schedule/manual always run
   gate:
+    # PRs only; push/schedule/manual always run
     name: Decide if checks are needed (PRs)
     runs-on: ubuntu-latest
     outputs:
@@ -39,7 +39,7 @@ jobs:
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back-merge PR (main → develop)
+      - name: Identify back-merge PR (main -> develop)
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -53,7 +53,8 @@ jobs:
       - name: Checkout (full, only for back-merge eval)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - name: Compare & conflict probe (only for back-merge PRs)
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
@@ -124,7 +125,8 @@ jobs:
     steps:
       - name: Checkout (shallow)
         uses: actions/checkout@v5
-        with: { fetch-depth: 1 }
+        with:
+          fetch-depth: 1
 
       - name: Determine if Rust/package files changed (for cargo-audit skip)
         id: paths
@@ -144,13 +146,15 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@latest
-      - run: cargo-deny --version
+      - name: cargo-deny version
+        run: cargo-deny --version
 
       - name: Install cargo-audit (prebuilt)
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@latest
-      - run: cargo audit --version
+      - name: cargo-audit version
+        run: cargo audit --version
 
       # One shared DAILY cache for RustSec advisory DB
       - name: Day key
@@ -329,7 +333,6 @@ ${table}
               });
             }
 
-      # Upload all JSON reports
       - name: Upload security reports
         if: always()
         uses: actions/upload-artifact@v4
