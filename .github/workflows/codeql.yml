@@ -117,7 +117,6 @@ jobs:
         id: paths
         uses: dorny/paths-filter@v3
         with:
-          # Auto-detect base/ref for push/PR; explicit range for schedule/dispatch
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
           filters: |
@@ -143,7 +142,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [ minimal, default, all-features ]
+        # PRs: just "default" | schedule/dispatch: all 3
+        variant: ${{ fromJSON(github.event_name == 'pull_request' && '["default"]' || '["minimal","default","all-features"]') }}
 
     steps:
       - name: 📥 Checkout
@@ -190,10 +190,19 @@ jobs:
             echo "✅ Cargo.lock up to date."
           fi
 
-      - name: 🧰 Initialize CodeQL
+      # 🔧 IMPORTANT: Manual, traced build for Rust so CodeQL sees proc-macros, build.rs, etc.
+      - name: 🧹 Disable rustc wrappers/caches (ensure tracer sees rustc)
+        run: |
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
+          echo "SCCACHE_BUCKET=" >> "$GITHUB_ENV"
+          echo "SCCACHE_ENDPOINT=" >> "$GITHUB_ENV"
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+
+      - name: 🧰 Initialize CodeQL (manual build mode)
         uses: github/codeql-action/init@v3
         with:
           languages: rust
+          build-mode: manual
           queries: +security-and-quality
 
       - name: 🏗️ Build (${{ matrix.variant }})
@@ -202,16 +211,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo fetch --locked
+          # Ensure deps resolve (fallback if lockfile missing)
+          if [ -f Cargo.lock ]; then
+            cargo fetch --locked || cargo fetch
+          else
+            cargo generate-lockfile
+            cargo fetch
+          fi
+
           case "${{ matrix.variant }}" in
             minimal)
-              cargo build --locked --all-targets --no-default-features
+              cargo build --workspace --all-targets --no-default-features --locked || cargo build --workspace --all-targets --no-default-features
               ;;
             default)
-              cargo build --locked --all-targets
+              cargo build --workspace --all-targets --locked || cargo build --workspace --all-targets
               ;;
             all-features)
-              cargo build --locked --all-targets --all-features
+              cargo build --workspace --all-targets --all-features --locked || cargo build --workspace --all-targets --all-features
               ;;
           esac
 
