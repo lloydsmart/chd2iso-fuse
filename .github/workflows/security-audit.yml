@@ -1,4 +1,4 @@
-name: Security audit (cargo-audit)
+name: Security checks 🚫🔍 (cargo-deny & cargo-audit)
 
 on:
   push:
@@ -6,25 +6,25 @@ on:
   pull_request:
     branches: [ develop, main ]
   schedule:
-    - cron: "45 3 * * 1"
+    - cron: "30 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
-  group: sec-audit-${{ github.ref }}
+  group: sec-checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # GATE: only affects PRs; push/schedule/manual still run
   gate:
-    name: Decide if audit is needed (PRs)
+    name: Decide if checks are needed (PRs) 🧭
     runs-on: ubuntu-latest
     outputs:
       needs_ci: ${{ steps.export.outputs.needs_ci }}
     steps:
-      - name: Mode
+      - name: Mode 🔎
         id: mode
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -33,12 +33,12 @@ jobs:
             echo "is_pr=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export for non-PR
+      - name: Export for non PR ✅
         if: steps.mode.outputs.is_pr == 'false'
         id: export_nonpr
         run: echo "needs_ci=true" >>"$GITHUB_OUTPUT"
 
-      - name: Identify back-merge PR
+      - name: Identify back merge PR (main -> develop) 🔁
         if: steps.mode.outputs.is_pr == 'true'
         id: bm
         run: |
@@ -49,11 +49,13 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v5
+      - name: Checkout full only for back merge eval 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        with: { fetch-depth: 0 }
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Compare & probe (only for back-merge PRs)
+      - name: Compare and conflict probe for back merge PRs 🧪
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
         id: diff
         run: |
@@ -73,7 +75,7 @@ jobs:
             git merge --abort || true
           fi
 
-      - name: Decide (PR)
+      - name: Decide PR 🧮
         if: steps.mode.outputs.is_pr == 'true'
         id: export_pr
         run: |
@@ -89,7 +91,7 @@ jobs:
             echo "needs_ci=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Export final
+      - name: Export final 📤
         id: export
         run: |
           if [[ "${{ steps.mode.outputs.is_pr }}" == "true" ]]; then
@@ -98,8 +100,8 @@ jobs:
             echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
-  cargo-audit:
-    name: cargo-audit
+  security:
+    name: Security checks run 🚫🔍
     needs: gate
     if: |
       !(
@@ -112,20 +114,20 @@ jobs:
         )
       )
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     env:
-      # Optional comma-separated allowlist via repo/org vars or secrets.
-      # Example: "RUSTSEC-2021-0154,RUSTSEC-2020-0053"
+      # Optional comma-separated allowlist for cargo-audit suppressions
       ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout
+      - name: Checkout shallow 📥
         uses: actions/checkout@v5
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 1
 
-      - name: Determine if Rust/package files changed
+      - name: Detect Rust/package changes 🧩
         id: paths
         uses: dorny/paths-filter@v3
         with:
@@ -138,68 +140,199 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping cargo-audit."
-
-      - name: Install Rust (stable)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        uses: dtolnay/rust-toolchain@stable
+      # Prebuilt binaries — no Rust toolchain needed
+      - name: Install cargo-deny 🚫
+        uses: taiki-e/install-action@v2
         with:
-          toolchain: stable
+          tool: cargo-deny@latest
+      - name: cargo-deny version 🧾
+        run: cargo-deny --version
 
-      # FAST: install prebuilt cargo-audit binary
-      - name: Install cargo-audit (prebuilt)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: Install cargo-audit 🔍
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit@latest
-          # fallback: none   # uncomment to fail instead of building from source
-      - run: cargo audit --version
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: cargo-audit version 🧾
+        run: cargo audit --version
 
-      # Optional: warm cache for the RustSec advisory DB (refresh weekly)
-      - name: Week key
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        id: wk
-        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      # Shared DAILY cache for RustSec advisory DB
+      - name: Day key 🗝️
+        id: day
+        run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache RustSec advisory DB
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
+      - name: Cache RustSec advisory DB 🧰
         uses: actions/cache@v4
         with:
           path: ~/.cargo/advisory-db
-          key: rustsec-db-${{ runner.os }}-${{ steps.wk.outputs.week }}
+          key: rustsec-db-${{ runner.os }}-${{ steps.day.outputs.day }}
           restore-keys: |
             rustsec-db-${{ runner.os }}-
 
-      - name: Ensure Cargo.lock exists
+      # ---- cargo-deny ----
+      - name: Fetch advisory DB 🔄
+        run: cargo-deny fetch
+
+      - name: Check advisories 🚨
+        run: cargo-deny --locked check advisories
+
+      - name: Check bans & licenses 📜
+        run: cargo-deny --locked check bans licenses
+
+      - name: Export cargo-deny reports 📝
+        run: |
+          mkdir -p reports
+          cargo-deny --format json --locked check advisories > reports/cargo-deny-advisories.json
+          cargo-deny --format json --locked check bans       > reports/cargo-deny-bans.json
+          cargo-deny --format json --locked check licenses   > reports/cargo-deny-licenses.json
+
+      # ---- cargo-audit ----
+      - name: Skip cargo-audit on non-code PRs ⏭️
+        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
+        run: echo "No Rust or package changes in this PR; skipping cargo-audit."
+
+      - name: Ensure Cargo.lock exists 🔐
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           set -euo pipefail
           [ -f Cargo.lock ] || cargo generate-lockfile
 
-      - name: Run cargo-audit
+      - name: Run cargo-audit (JSON) 🔍
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
-        shell: bash
         run: |
-          set -euo pipefail
+          mkdir -p reports
+          cargo audit -D warnings --json > reports/cargo-audit.json
 
-          args=( -D warnings )
+      # ---- PR comment summary (only on PRs) ----
+      - name: Summarize & comment on PR 📝
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
 
-          # Respect user-provided ACCEPTED list (comma-separated).
-          if [[ -n "${ACCEPTED}" ]]; then
-            IFS=',' read -ra ids <<< "${ACCEPTED}"
-            for id in "${ids[@]}"; do
-              id_trimmed="$(echo "$id" | xargs)"
-              [[ -n "$id_trimmed" ]] && args+=( --ignore "$id_trimmed" )
-            done
-          fi
+            const readJsonSafe = (p) => {
+              try {
+                if (!fs.existsSync(p)) return {ok:false, data:null};
+                const raw = fs.readFileSync(p, 'utf8').trim();
+                if (!raw) return {ok:false, data:null};
+                return {ok:true, data: JSON.parse(raw)};
+              } catch { return {ok:false, data:null}; }
+            };
 
-          # Also ignore the long-standing fuser advisory unless already accepted.
-          # RUSTSEC-2021-0154 (unsoundness) has no patched release; our usage doesn't process untrusted input.
-          if [[ ",${ACCEPTED}," != *",RUSTSEC-2021-0154,"* ]]; then
-            args+=( --ignore RUSTSEC-2021-0154 )
-          fi
+            // Parse cargo-deny results; also collect per-check details (esp. licenses)
+            const analyzeDeny = (file, kindFilter = null) => {
+              const {ok, data} = readJsonSafe(file);
+              if (!ok || !Array.isArray(data)) return {errors:0,warnings:0,notes:0,details:[],ok:false};
+              let e=0,w=0,n=0;
+              const details=[];
+              for (const it of data) {
+                const lvl=(it.level||'').toLowerCase();
+                const kind = it.kind || (it.code && it.code.code) || it.type || '';
+                if (lvl==='error') e++; else if (lvl==='warning') w++; else if (lvl==='note') n++;
+                if (lvl==='error' && (!kindFilter || kind===kindFilter)) {
+                  // Try to surface license + crate if present, else fall back to message-ish
+                  const lic = it.license || (it.licenses && it.licenses.join(', ')) || null;
+                  const crt = it.crate || it.package || (it.krate && (it.krate.name || it.krate)) || null;
+                  let msg = '';
+                  if (lic && crt) msg = `❌ ${lic} (crate: ${crt})`;
+                  else if (lic)    msg = `❌ ${lic}`;
+                  else if (crt)    msg = `❌ crate: ${crt}`;
+                  else             msg = it.message || it.note || '❌ violation';
+                  details.push(msg);
+                }
+              }
+              return {errors:e,warnings:w,notes:n,details,ok:true};
+            };
 
-          cargo audit "${args[@]}"
+            const summarizeAudit = (file) => {
+              const {ok, data} = readJsonSafe(file);
+              if (!ok || !data || !data.vulnerabilities) return {vulns:0,warnings:0, ok:false};
+              return {vulns: data.vulnerabilities.count||0, warnings: Array.isArray(data.warnings)?data.warnings.length:0, ok:true};
+            };
+
+            // Load results
+            const denyAdv = analyzeDeny('reports/cargo-deny-advisories.json');     // kind varies
+            const denyBans = analyzeDeny('reports/cargo-deny-bans.json', 'ban');   // kind might be 'ban' or 'bans'
+            const denyLic  = analyzeDeny('reports/cargo-deny-licenses.json', 'license');
+            const auditSum = summarizeAudit('reports/cargo-audit.json');
+
+            const totalDenyErrors   = denyAdv.errors + denyBans.errors + denyLic.errors;
+            const totalDenyWarnings = denyAdv.warnings + denyBans.warnings + denyLic.warnings;
+            const pass = (totalDenyErrors === 0 && auditSum.vulns === 0);
+            const ok = (x) => x ? '✅' : '❌';
+
+            // Badges
+            const esc = encodeURIComponent;
+            const badge = (label, msg, color) =>
+              'https://img.shields.io/badge/' + esc(label) + '-' + esc(msg) + '-' + esc(color) + '?style=for-the-badge';
+            const colorStatus = pass ? 'success' : 'critical';
+            const colorDeny   = totalDenyErrors > 0 ? 'critical' : (totalDenyWarnings > 0 ? 'important' : 'success');
+            const colorAudit  = auditSum.vulns > 0 ? 'critical' : 'success';
+            const bStatus = badge('Security', pass ? 'passing' : 'failing', colorStatus);
+            const bDeny   = badge('cargo--deny', 'errors:' + totalDenyErrors + ' | warn:' + totalDenyWarnings, colorDeny);
+            const bAudit  = badge('cargo--audit', 'vulns:' + auditSum.vulns, colorAudit);
+
+            // Build table with a Details column (esp. for license issues)
+            const detLic = denyLic.details.length ? denyLic.details.slice(0,5).join('<br>') + (denyLic.details.length>5 ? '<br>…' : '') : '';
+            const lines = [];
+            lines.push('**cargo-deny 🚫**');
+            lines.push('| Check         | Errors | Warnings | Notes | Details |');
+            lines.push('|---------------|:------:|:--------:|:-----:|---------|');
+            lines.push('| advisories 🚨 | ' + denyAdv.errors + ' | ' + denyAdv.warnings + ' | ' + denyAdv.notes + ' |  |');
+            lines.push('| bans ❌        | ' + denyBans.errors + ' | ' + denyBans.warnings + ' | ' + denyBans.notes + ' |  |');
+            lines.push('| licenses 📜    | ' + denyLic.errors + ' | ' + denyLic.warnings + ' | ' + denyLic.notes + ' | ' + detLic + ' |');
+            lines.push('| **total**     | **' + (denyAdv.errors+denyBans.errors+denyLic.errors) + '** | **' + (denyAdv.warnings+denyBans.warnings+denyLic.warnings) + '** | **' + (denyAdv.notes+denyBans.notes+denyLic.notes) + '** |  |');
+            lines.push('');
+            lines.push('**cargo-audit 🔍**');
+            lines.push('- vulnerabilities: **' + auditSum.vulns + '**');
+            lines.push('- warnings ⚠️: **' + auditSum.warnings + '**');
+            if (!denyAdv.ok || !denyBans.ok || !denyLic.ok || !auditSum.ok) {
+              lines.push('');
+              const missing = [
+                !denyAdv.ok ? 'cargo-deny advisories' : null,
+                !denyBans.ok ? 'cargo-deny bans' : null,
+                !denyLic.ok  ? 'cargo-deny licenses' : null,
+                !auditSum.ok ? 'cargo-audit' : null,
+              ].filter(Boolean).join(', ');
+              lines.push('_Note: one or more reports were unavailable (' + missing + '); counts shown as 0._');
+            }
+            lines.push('');
+            lines.push('**Status**: ' + ok(pass) + ' (errors: ' + totalDenyErrors + ', vulns: ' + auditSum.vulns + ')');
+            const table = lines.join('\n');
+
+            // Job summary
+            const summaryMd =
+              '### Security checks summary\n\n' +
+              '![status](' + bStatus + ') ![deny](' + bDeny + ') ![audit](' + bAudit + ')\n\n' +
+              table + '\n';
+            core.summary.addRaw(summaryMd).write();
+
+            // Collapsible PR comment
+            const marker = '<!-- security-checks-summary -->';
+            const commentBody =
+              marker + '\n' +
+              '<details>\n' +
+              '<summary><strong>Security checks</strong> — ' +
+              '<img alt="status" src="' + bStatus + '" height="20"> ' +
+              '<img alt="cargo-deny" src="' + bDeny + '" height="20"> ' +
+              '<img alt="cargo-audit" src="' + bAudit + '" height="20"> (click to expand)</summary>\n\n' +
+              table + '\n' +
+              '</details>';
+
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find(c => c.user?.type === 'Bot' && typeof c.body === 'string' && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: commentBody });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: commentBody });
+            }
+
+      - name: Upload security reports 📦
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: reports/*.json
