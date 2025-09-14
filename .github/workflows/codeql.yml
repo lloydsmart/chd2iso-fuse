@@ -18,12 +18,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 🛡️ GATE: only affects PRs; push/schedule/manual still run
+  # 🛡️ GATE: decides if CodeQL should run & whether Rust changed
   gate:
-    name: Decide if CodeQL is needed (PRs) ⚖️
+    name: Decide if CodeQL is needed (PRs & changes) ⚖️
     runs-on: ubuntu-latest
     outputs:
-      needs_ci: ${{ steps.export.outputs.needs_ci }}
+      needs_ci:     ${{ steps.export.outputs.needs_ci }}
+      rust_changed: ${{ steps.pathout.outputs.rust_changed }}
     steps:
       - name: Mode 🔎
         id: mode
@@ -50,9 +51,10 @@ jobs:
             echo "is_backmerge=false" >>"$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v5
-        if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        with: { fetch-depth: 0 }
+      - name: Checkout (for diff & change detection) 📥
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Compare & probe (only for back-merge PRs) 🧪
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
@@ -99,32 +101,6 @@ jobs:
             echo "needs_ci=${{ steps.export_nonpr.outputs.needs_ci }}" >>"$GITHUB_OUTPUT"
           fi
 
-  analyze:
-    name: "Analyze (CodeQL: ${{ matrix.variant }}) 🧩"
-    needs: gate
-    if: |
-      !(
-        github.event_name == 'pull_request' &&
-        (
-          (github.base_ref == 'develop' && github.head_ref == 'main') ||
-          contains(github.event.pull_request.title, 'Back-merge') ||
-          contains(github.event.pull_request.title, 'back-merge') ||
-          contains(toJson(github.event.pull_request.labels), 'back-merge')
-        )
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [ minimal, default, all-features ]
-
-    steps:
-      - name: Checkout 📥
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
       - name: Compute base/ref for paths-filter (manual/scheduled) 🧮
         id: range
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
@@ -140,6 +116,7 @@ jobs:
         id: paths
         uses: dorny/paths-filter@v3
         with:
+          # Auto-detect base/ref for push/PR; use explicit range for schedule/dispatch
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
           filters: |
@@ -151,25 +128,41 @@ jobs:
               - 'build.rs'
               - 'debian/**'
 
-      - name: No-op (non-code PR) 🚫
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' }}
-        run: echo "No Rust/package changes in this PR; skipping heavy CodeQL steps."
+      - name: Export rust_changed
+        id: pathout
+        run: echo "rust_changed=${{ steps.paths.outputs.rust || 'false' }}" >>"$GITHUB_OUTPUT"
+
+  analyze:
+    name: "Analyze (CodeQL: ${{ matrix.variant }}) 🧩"
+    needs: gate
+    # Run if CI is needed AND either schedule/manual OR Rust-related changes detected
+    if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ minimal, default, all-features ]
+
+    steps:
+      - name: Checkout 📥
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Install system deps 🛠️
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libfuse3-dev
 
       - name: Setup Rust 🦀
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
       # ✅ Same-repo PRs: auto-fix & push
       - name: Autofix Cargo.lock 🔒✨
-        if: github.event_name == 'pull_request' && steps.paths.outputs.rust == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set -euo pipefail
           cargo update -w
@@ -186,13 +179,12 @@ jobs:
 
       # 🧯 Fork PRs: warn & fail (no push permissions)
       - name: Check Cargo.lock (fork PRs) 🚨
-        if: github.event_name == 'pull_request' && steps.paths.outputs.rust == 'true' && github.event.pull_request.head.repo.full_name != github.repository
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
           set -euo pipefail
           cargo update -w
           if ! git diff --quiet -- Cargo.lock; then
-            echo "::error file=Cargo.lock,title=Lockfile out of date::This PR comes from a fork, so CI cannot push fixes. Please run 'cargo update -w' locally and commit the updated Cargo.lock."
-            echo "---- Diff (first 200 lines) ----"
+            echo "::error file=Cargo.lock,title=Lockfile out of date::This PR comes from a fork, so CI cannot push fixes. Please run 'cargo update - w' locally and commit the updated Cargo.lock."
             git --no-pager diff -- Cargo.lock | sed -n '1,200p' || true
             exit 1
           else
@@ -200,14 +192,12 @@ jobs:
           fi
 
       - name: Initialize CodeQL 🧰
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
 
       - name: Build (${{ matrix.variant }}) 🏗️
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         env:
           CARGO_TERM_COLOR: always
         shell: bash
@@ -227,7 +217,6 @@ jobs:
           esac
 
       - name: Analyze 🔬
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' }}
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
