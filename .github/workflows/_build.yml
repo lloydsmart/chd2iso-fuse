@@ -1,3 +1,4 @@
+# .github/workflows/_build.yml
 name: Reusable – Build 📦🛠️
 
 on:
@@ -13,6 +14,10 @@ on:
       release_mode:
         type: boolean
         default: false
+      # NEW: canonical tag to generate notes/CHANGELOG once
+      tag:
+        type: string
+        required: false
     secrets: {}
 
 # Ensure every run: step executes with Bash (fixes shopt/compgen)
@@ -44,9 +49,10 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             bash git ca-certificates
 
-      - name: 📥 Checkout (with tags)
-        uses: actions/checkout@v4
+      - name: 📥 Checkout (with tags; use provided tag if any)
+        uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.tag || '' }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -62,11 +68,12 @@ jobs:
           if [ -f Cargo.lock ]; then
             echo "val=$(sha256sum Cargo.lock | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           else
-            echo "val=none" >> "$GITHUBOUTPUT"
+            echo "val=none" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 🗂️ Determine if Rust/package files changed
         id: paths
+        if: ${{ github.ref_type != 'tag' }}   # avoid noisy 'before' warning on tag events
         uses: dorny/paths-filter@v3
         with:
           filters: |
@@ -81,7 +88,7 @@ jobs:
 
       # PR only: allow noop when nothing relevant changed
       - name: 💤 No-op (non-code PR)
-        if: ${{ steps.paths.outputs.rust != 'true' && github.event_name == 'pull_request' && !inputs.release_mode && github.ref_type != 'tag' }}
+        if: ${{ github.event_name == 'pull_request' && !inputs.release_mode && github.ref_type != 'tag' && steps.paths.outputs.rust != 'true' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
 
       - name: 🛠️ Install toolchain & deps
@@ -163,21 +170,58 @@ jobs:
           echo "Found ${#debs[@]} .deb file(s):"
           printf ' - %s\n' "${debs[@]}"
 
-      # Generate release notes when either (a) this is a real tag event, or (b) release_mode is forced by caller
-      - name: 📝 Generate release notes (git-cliff) for release
+      # Canonical one-time generation of RELEASE_NOTES.md and CHANGELOG.md
+      - name: 📝 Generate release notes & CHANGELOG (git-cliff) — canonical
         if: ${{ inputs.release_mode || github.ref_type == 'tag' }}
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          apt-get update && apt-get install -y --no-install-recommends cargo
-          cargo install git-cliff --locked || true
-          mkdir -p artifacts
-          tag="${GITHUB_REF_NAME:-}"
-          if [ -n "$tag" ] && [[ "$tag" == v* ]]; then
-            git-cliff --tag "$tag" -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
-          else
-            git-cliff -o artifacts/RELEASE_NOTES.md || echo "(no notes)" > artifacts/RELEASE_NOTES.md
+          # Ensure curl available (installed above). Install git-cliff prebuilt binary.
+          if ! command -v git-cliff >/dev/null 2>&1; then
+            echo "Installing git-cliff…"
+            curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh \
+              | bash -s -- -b /usr/local/bin git-cliff
           fi
-          sed -n '1,80p' artifacts/RELEASE_NOTES.md || true
+
+          [[ -n "${TAG}" ]] || { echo "::error::No TAG provided to _build.yml for release_mode build."; exit 1; }
+
+          NOTES="RELEASE_NOTES.md"
+          : > "$NOTES"
+
+          # Previous tag using semver order, excluding current
+          PREV="$(git tag --list 'v*' --sort=-v:refname | grep -Fvx "$TAG" | head -n1 || true)"
+
+          if [[ -n "${PREV}" ]]; then
+            COUNT="$(git rev-list --count "${PREV}..${TAG}" || echo 0)"
+            echo "Prev tag: ${PREV} — commits in range: ${COUNT}"
+            if [[ "${COUNT}" -eq 0 ]]; then
+              echo "::error::No commits between ${PREV} and ${TAG}."
+              exit 1
+            fi
+            git-cliff --from "${PREV}" --to "${TAG}" --output "$NOTES"
+          else
+            echo "::warning::No previous tag found; generating for ${TAG} only."
+            git-cliff --tag "${TAG}" --output "$NOTES"
+          fi
+
+          if [[ ! -s "$NOTES" ]] || grep -qiE '^\s*\(no notes\)\s*$' "$NOTES"; then
+            echo "::error::Generated notes are empty or '(no notes)'."
+            exit 1
+          fi
+
+          # Build/ensure CHANGELOG.md and prepend this section
+          [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
+          new="$(mktemp)"
+          awk -v sec="$NOTES" '
+            NR==1 { print; print ""; system("cat " sec); next }
+            { print }
+          ' CHANGELOG.md > "$new"
+          mv "$new" CHANGELOG.md
+
+          # Stage canonical copies into artifacts/
+          mkdir -p artifacts
+          cp -v RELEASE_NOTES.md CHANGELOG.md artifacts/
 
       - name: 🔍 Lintian (non-fatal)
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}

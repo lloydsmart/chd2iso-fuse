@@ -22,7 +22,7 @@ jobs:
       pr_number:  ${{ steps.out.outputs.pr_number }}
     steps:
       - id: out
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -97,7 +97,7 @@ jobs:
           if [ $missing -eq 1 ]; then echo "Required secrets missing; cannot proceed."; exit 1; fi
 
       - name: 📥 Checkout main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -217,7 +217,7 @@ jobs:
     steps:
       - name: 🔍 Compare branches (is develop behind main?)
         id: compare
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -253,7 +253,7 @@ jobs:
       - name: 🔎 Check for existing open PR main -> develop
         id: existing
         if: ${{ steps.gate.outputs.should_backmerge == 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -283,7 +283,7 @@ jobs:
       - name: ➕ Open PR main -> develop
         id: create_pr
         if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.existing.outputs.exists == 'false' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -325,7 +325,7 @@ jobs:
       - name: 🤖 Enable native Auto-merge (merge commit)
         id: enable_auto_merge
         if: ${{ steps.gate.outputs.should_backmerge == 'true' && steps.prnum.outputs.number }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         continue-on-error: true
         with:
           script: |
@@ -352,7 +352,7 @@ jobs:
             }
 
       - name: ⏳ "Fallback; wait until clean & merge (10 min max)"
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           SHOULD_BACKMERGE: ${{ steps.gate.outputs.should_backmerge }}
           PRNUM: ${{ steps.prnum.outputs.number }}

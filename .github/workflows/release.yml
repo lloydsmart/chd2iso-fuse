@@ -1,3 +1,4 @@
+# .github/workflows/release.yml
 name: 🚀 Release (on tag)
 
 on:
@@ -84,6 +85,7 @@ jobs:
       lane: main
       nightly: false
       release_mode: true
+      tag: ${{ needs.resolve_tag.outputs.tag }}   # generate notes/CHANGELOG once here
     secrets: inherit
 
   verify_versions:
@@ -106,12 +108,13 @@ jobs:
           if [ "${HAS_AUTHOR_NAME}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_NAME is not set (will use default)."; fi
           if [ "${HAS_AUTHOR_EMAIL}" != "true" ]; then echo "::warning::Variable GIT_AUTHOR_EMAIL is not set (will use default)."; fi
 
-      - name: 📥 Checkout full history + tags (for changelog generation)
+      - name: 📥 Checkout tag (full history + tags)
         uses: actions/checkout@v5
         with:
+          ref: ${{ needs.resolve_tag.outputs.tag }}   # keep tag context consistent for all steps
           fetch-depth: 0
           fetch-tags: true
-          clean: false   # keep downloaded artifacts if any
+          clean: false
 
       - name: 👤 Configure git identity (from Actions Variables)
         run: |
@@ -124,14 +127,26 @@ jobs:
           git config --global user.email "${EMAIL}"
           echo "Using git identity: ${NAME} <${EMAIL}>"
 
-      - name: 🐛 Debug tag
-        run: echo "tag=${{ needs.resolve_tag.outputs.tag }}"
+      - name: 🐛 Debug git context
+        run: |
+          set -euo pipefail
+          echo "HEAD -> $(git --no-pager show -s --decorate --oneline)"
+          echo "Describe: $(git describe --tags --always || true)"
+          echo "Latest tags:"
+          git --no-pager tag -l --sort=-v:refname | head -n 10
 
       - name: 📥 Download build artifacts (release-artifacts)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-artifacts
-          path: artifacts
+        # default path is ./release-artifacts; force ours for consistency:
+      - name: 🚚 Move downloaded artifacts to ./artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          shopt -s nullglob
+          mv release-artifacts/* artifacts/ || true
+          rmdir release-artifacts 2>/dev/null || true
 
       - name: 🐛 Debug list downloaded artifact contents
         if: always()
@@ -151,77 +166,35 @@ jobs:
             exit 1
           fi
 
-      - name: 📝 Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff with explicit from/to)
-        id: notes
+      - name: "🛡️ Guard: RELEASE_NOTES.md must come from artifacts and be non-empty"
+        id: guard_notes
         run: |
           set -euo pipefail
-          TAG="${{ needs.resolve_tag.outputs.tag }}"
-
-          if [ -f artifacts/RELEASE_NOTES.md ]; then
-            cp artifacts/RELEASE_NOTES.md RELEASE_NOTES.md
-            echo "source=artifact" >> "$GITHUB_OUTPUT"
-          else
-            echo "No notes artifact found; generating with git-cliff…"
-            echo "source=cliff" >> "$GITHUB_OUTPUT"
-
-            PREV="$(git describe --tags --abbrev=0 --match 'v*' "${TAG}^" 2>/dev/null || true)"
-            echo "Resolved TAG=$TAG"
-            echo "Previous tag=${PREV:-<none>}"
-
-            # Show candidate commits
-            if [[ -n "${PREV}" ]]; then
-              echo "== Commits in ${PREV}..${TAG} =="
-              git log --oneline --no-decorate "${PREV}..${TAG}" || true
-            else
-              echo "== Recent commits up to ${TAG} (no previous tag found) =="
-              git log --oneline --no-decorate -20 "${TAG}" || true
-            fi
-
-            # Ensure git-cliff is available (no pinning)
-            if ! command -v git-cliff >/dev/null 2>&1; then
-              echo "Installing git-cliff…"
-              curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh | bash -s -- -b /usr/local/bin git-cliff
-            fi
-
-            # Generate notes for this release
-            if [[ -n "${PREV}" ]]; then
-              echo "Using explicit bounds: --from ${PREV} --to ${TAG}"
-              git-cliff --from "${PREV}" --to "${TAG}" --output RELEASE_NOTES.md
-            else
-              git-cliff --tag "${TAG}" --output RELEASE_NOTES.md
-            fi
-
-            # Build/ensure CHANGELOG.md and prepend the generated section after the header
-            if [[ -s RELEASE_NOTES.md ]] && ! grep -qxF '(no notes)' RELEASE_NOTES.md; then
-              [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
-              new="$(mktemp)"
-              awk -v sec="RELEASE_NOTES.md" '
-                NR==1 { print; print ""; system("cat " sec); next }
-                { print }
-              ' CHANGELOG.md > "${new}"
-              mv "${new}" CHANGELOG.md
-            fi
-          fi
-
-      - name: "🛡️ Guard: release notes must be non-empty"
-        run: |
-          set -euo pipefail
-          if [[ ! -s RELEASE_NOTES.md ]] || grep -qxF '(no notes)' RELEASE_NOTES.md; then
-            echo "::error title=Empty release notes::RELEASE_NOTES.md is empty or '(no notes)'."
-            PREV="$(git describe --tags --abbrev=0 --match 'v*' "${{ needs.resolve_tag.outputs.tag }}^" 2>/dev/null || true)"
-            if [[ -n "${PREV}" ]]; then
-              echo "== Commits in ${PREV}..${{ needs.resolve_tag.outputs.tag }} =="
-              git log --oneline --no-decorate "${PREV}..${{ needs.resolve_tag.outputs.tag }}" || true
-            fi
+          NOTES="artifacts/RELEASE_NOTES.md"
+          if [[ ! -f "$NOTES" ]]; then
+            echo "::error::Missing $NOTES from build artifacts. Notes must be produced by build."
             exit 1
           fi
+          if [[ ! -s "$NOTES" ]]; then
+            echo "::error::$NOTES exists but is empty."
+            exit 1
+          fi
+          if grep -qiE '^\s*\(no notes\)\s*$' "$NOTES"; then
+            echo "::error::$NOTES contains '(no notes)'; investigate generator in build job."
+            exit 1
+          fi
+          # Copy to workspace root for gh -F convenience
+          cp "$NOTES" RELEASE_NOTES.md
+          echo "notes_path=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
 
       - name: 🧾 Job summary (notes preview)
         run: |
           {
-            echo "### Release notes preview for ${{ needs.resolve_tag.outputs.tag }}"
+            echo "### Release notes (from artifacts) for ${{ needs.resolve_tag.outputs.tag }}"
             echo
             sed -n '1,80p' RELEASE_NOTES.md
+            echo
+            echo "_…truncated preview — full notes attached to the release._"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 🔐 Import GPG (for checksums signing)
@@ -236,6 +209,8 @@ jobs:
         run: |
           set -euo pipefail
           gpg --batch --yes --detach-sign --armor \
+              -o artifacts/SHA256SUMS.asc artifacts.SHA256SUMS 2>/dev/null || \
+          gpg --batch --yes --detach-sign --armor \
               -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
           gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 
@@ -244,7 +219,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          wanted=( artifacts/*.deb artifacts/SHA256SUMS artifacts/SHA256SUMS.asc artifacts/CHANGELOG.md artifacts/RELEASE_NOTES.md )
+          wanted=( artifacts/*.deb artifacts/SHA256SUMS artifacts/SHA256SUMS.asc artifacts/CHANGELOG.md "${{ steps.guard_notes.outputs.notes_path }}" )
           files=()
           for f in "${wanted[@]}"; do
             for x in $f; do
@@ -276,7 +251,6 @@ jobs:
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
           else
-            # Ensure the body is updated from RELEASE_NOTES.md if a draft already existed
             gh release edit "${TAG}" --notes-file RELEASE_NOTES.md
           fi
 
@@ -301,7 +275,7 @@ jobs:
           gh release edit "${TAG}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -311,7 +285,7 @@ jobs:
             core.info('Release assets: ' + JSON.stringify(names));
 
       - name: 📝 Reconcile release title with tag (safety net)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const tag = `${{ needs.resolve_tag.outputs.tag }}`;
@@ -323,6 +297,7 @@ jobs:
               core.info(`Updated release title to '${desired}'`);
             } else {
               core.info('Release title already correct.');
+            }
 
   release_lane:
     name: 🛣️ Release lane and optional APT

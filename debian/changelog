@@ -1,11 +1,38 @@
-chd2iso-fuse (0.2.28-1ubuntu1~1.gbp50698b) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.29-1) trixie; urgency=medium
 
   ** SNAPSHOT build @50698b56d5249e0136f228842c71de9449d36b4d **
 
   [ lloydsmart ]
   * fix(ci): remove stray redirection in release notes guard
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 12:33:26 +0000
+  [ dependabot[bot] ]
+  * chore(deps): bump mozilla-actions/sccache-action from 0.0.3 to 0.0.9
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump fuser from 0.15.1 to 0.16.0 in the routine group
+  * fix(ci): remove stray redirection in release notes guard
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(release): require RELEASE_NOTES.md from artifacts; remove in-workflow generation
+  * ci(release): single-source generation of RELEASE_NOTES & CHANGELOG in build job
+  * fix(ci): typo. Quote name string.
+
+  [ dependabot[bot] ]
+  * chore(deps): bump fuser in the cargo group across 1 directory
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 19:27:11 +0000
 
 chd2iso-fuse (0.2.28-1) trixie; urgency=medium
 
