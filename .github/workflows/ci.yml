@@ -33,7 +33,7 @@ jobs:
       lock_hash: ${{ steps.lock.outputs.val }}
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -227,7 +227,7 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
       - name: ⚡ Setup sccache
@@ -328,7 +328,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl pkg-config
 
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with: { fetch-depth: 0 }
 
       - name: 🔏 Configure git trust
