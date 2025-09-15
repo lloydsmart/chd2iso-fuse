@@ -4,9 +4,13 @@ tag_pattern = "^v\\d+\\.\\d+\\.\\d+(-rc\\d+)?$"
 # We don't force Conventional Commits; messages still work fine.
 conventional_commits = false
 
+# Helpful when sorting mixed lightweight/annotated tags:
+sort_tags = "semver"   # requires recent git-cliff
+
 # Normalize merge commits into a single-line title
 commit_preprocessors = [
-  { pattern = "(?s)Merge pull request #(\\d+) from [^\\n]+\\n\\n(.+)", replace = "PR #$1: $2" }
+  { pattern = "(?is)Merge pull request #(\\d+) from [^\\n]+\\n\\n(.+)", replace = "PR #$1: $2" },
+  { pattern = "(?i)^(feat|fix|perf|refactor|docs|ci|chore|test)([^\\n]*?)\\s*\\(#(\\d+)\\)", replace = "$1$2 — PR #$3" }
 ]
 
 # Grouping rules (tweak as you like)
