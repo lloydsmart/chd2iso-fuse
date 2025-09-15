@@ -172,16 +172,38 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — NO '-u'
+      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — manual prepend (no --prepend)
       - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
         run: |
           set -euo pipefail
-          v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.16
+          v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.28
           tag="v${v}"
+
+          # Generate section to a temp file
+          tmp="$(mktemp)"
+          git-cliff --tag "${tag}" --output "${tmp}"
+
+          # If empty or '(no notes)', do not touch CHANGELOG.md
+          if [[ ! -s "${tmp}" ]] || grep -qx '(no notes)' "${tmp}"; then
+            echo "::warning title=No changelog section::git-cliff produced no entries for ${tag}; not modifying CHANGELOG.md."
+            rm -f "${tmp}"
+            exit 0
+          fi
+
+          # Ensure file exists with header
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
-          git-cliff --tag "${tag}" --prepend CHANGELOG.md
+
+          # Prepend the new section *after* the header line
+          new="$(mktemp)"
+          awk -v sec="${tmp}" '
+            NR==1 { print; print ""; system("cat " sec); next }
+            { print }
+          ' CHANGELOG.md > "${new}"
+
+          mv "${new}" CHANGELOG.md
+          rm -f "${tmp}"
           git add CHANGELOG.md || true
 
       - name: 🔍 Detect if Cargo.toml changed in this run
