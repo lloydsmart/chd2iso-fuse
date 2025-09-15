@@ -196,7 +196,8 @@ jobs:
               echo "::error::No commits between ${PREV} and ${TAG}."
               exit 1
             fi
-            git-cliff --from "${PREV}" --to "${TAG}" --output "$NOTES"
+            # Use positional RANGE for broad git-cliff compatibility
+            git-cliff --tag "${TAG}" --output "$NOTES" "${PREV}..${TAG}"
           else
             echo "::warning::No previous tag found; generating for ${TAG} only."
             git-cliff --tag "${TAG}" --output "$NOTES"
