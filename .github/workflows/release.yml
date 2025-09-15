@@ -168,7 +168,7 @@ jobs:
             echo "Resolved TAG=$TAG"
             echo "Previous tag=${PREV:-<none>}"
 
-            # Debug: show candidate commits
+            # Show candidate commits
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${TAG} =="
               git log --oneline --no-decorate "${PREV}..${TAG}" || true
@@ -203,13 +203,6 @@ jobs:
             fi
           fi
 
-      # Optional: also ensure via action (no version pinning)
-      - name: 📦 Ensure git-cliff is available
-        if: steps.notes.outputs.source == 'cliff'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: git-cliff
-
       - name: "🛡️ Guard: release notes must be non-empty"
         run: |
           set -euo pipefail
@@ -218,7 +211,7 @@ jobs:
             PREV="$(git describe --tags --abbrev=0 "${{ needs.resolve_tag.outputs.tag }}^" 2>/dev/null || true)"
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${{ needs.resolve_tag.outputs.tag }} =="; git log --oneline --no-decorate "${PREV}..${{ needs.resolve_tag.outputs.tag }}" || true
-            fi
+            fi>
             exit 1
           fi
 
@@ -282,6 +275,7 @@ jobs:
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
           else
+            # Ensure the body is updated from RELEASE_NOTES.md if a draft already existed
             gh release edit "${TAG}" --notes-file RELEASE_NOTES.md
           fi
 
@@ -300,9 +294,10 @@ jobs:
       - name: 🚀 Publish the release (gh)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve_tag.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
+          gh release edit "${TAG}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v7
