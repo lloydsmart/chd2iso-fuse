@@ -166,7 +166,7 @@ jobs:
             exit 1
           fi
 
-      - name: 🛡️ Guard: RELEASE_NOTES.md must come from artifacts and be non-empty
+      - name: "🛡️ Guard: RELEASE_NOTES.md must come from artifacts and be non-empty"
         id: guard_notes
         run: |
           set -euo pipefail
