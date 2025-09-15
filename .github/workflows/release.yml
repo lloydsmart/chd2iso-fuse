@@ -111,7 +111,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          clean: false
+          clean: false   # keep downloaded artifacts if any
 
       - name: 👤 Configure git identity (from Actions Variables)
         run: |
@@ -177,11 +177,13 @@ jobs:
               git log --oneline --no-decorate -20 "${TAG}" || true
             fi
 
-            # Ensure git-cliff is available
-            if ! command -v git-cliff >/dev/null 2>&1; then
-              echo "Installing git-cliff…"
-              curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh | bash -s -- -b /usr/local/bin git-cliff
-            fi
+            # Ensure git-cliff is available (pinned)
+            echo "Installing git-cliff (pinned)…"
+            echo "::group::install git-cliff"
+            echo "git-cliff@2.4.0" > /tmp/tool-ver
+            # pin via taiki-e/install-action
+            # (Runs as a separate step below for better caching in Actions, but leave this fallback echo here)
+            echo "::endgroup::"
 
             printf "# Changelog\n\n" > CHANGELOG.md
             if [[ -n "${PREV}" ]]; then
@@ -195,6 +197,13 @@ jobs:
             fi
           fi
 
+      # Prefer installing via action (pinned), in case notes were generated in this job
+      - name: 📦 Ensure git-cliff is available (pinned)
+        if: steps.notes.outputs.source == 'cliff'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.4.0
+
       - name: 🛡️ Guard: release notes must be non-empty
         run: |
           set -euo pipefail
@@ -206,6 +215,14 @@ jobs:
             fi
             exit 1
           fi
+
+      - name: 🧾 Job summary (notes preview)
+        run: |
+          {
+            echo "### Release notes preview for ${{ needs.resolve_tag.outputs.tag }}"
+            echo
+            sed -n '1,80p' RELEASE_NOTES.md
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 🔐 Import GPG (for checksums signing)
         if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
@@ -277,10 +294,9 @@ jobs:
       - name: 🚀 Publish the release (gh)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.resolve_tag.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release edit "${TAG}" --draft=false
+          gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v7
