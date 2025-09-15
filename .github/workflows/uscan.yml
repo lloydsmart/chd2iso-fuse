@@ -13,6 +13,10 @@ jobs:
   uscan:
     name: 👀 Watch upstream (dehs)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: uscan-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: 📥 Checkout (with tags)
         uses: actions/checkout@v5
@@ -22,40 +26,106 @@ jobs:
       - name: 🛠️ Install devscripts (for uscan)
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends devscripts ca-certificates
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends devscripts ca-certificates
 
       - name: 🔎 Run uscan
         id: scan
         run: |
           set -euo pipefail
-          uscan --dehs --verbose --timeout 30 | tee uscan.xml
-          if grep -q '<status>newer</status>' uscan.xml; then
-            ver=$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)
-            echo "newer=true" >> "$GITHUB_OUTPUT"
-            echo "version=$ver" >> "$GITHUB_OUTPUT"
-          else
-            echo "newer=false" >> "$GITHUB_OUTPUT"
+          : "${GITHUB_OUTPUT:=/dev/null}"
+
+          # Run uscan but allow rc=1 (up-to-date)
+          set +e
+          { uscan --dehs --verbose --timeout 30 1>uscan.xml 2>uscan.log; }
+          rc=$?
+          set -e
+
+          if [[ $rc -ne 0 && $rc -ne 1 ]]; then
+            echo "uscan failed with exit code $rc" >&2
+            sed -n '1,200p' uscan.log || true
+            exit "$rc"
           fi
 
-      - name: 🆕 Create issue (new upstream)
+          if grep -q '<status>newer</status>' uscan.xml; then
+            newver=$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)
+            oldver=$(dpkg-parsechangelog -S Version | sed 's/-.*//' || echo unknown)
+            echo "newer=true"        >> "$GITHUB_OUTPUT"
+            echo "version=$newver"   >> "$GITHUB_OUTPUT"
+            echo "oldversion=$oldver" >> "$GITHUB_OUTPUT"
+          else
+            echo "newer=false"       >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 📎 Upload uscan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uscan-${{ github.run_id }}
+          path: |
+            uscan.xml
+            uscan.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 🧹 Skip duplicate issues for same version
+        id: dupecheck
         if: steps.scan.outputs.newer == 'true'
         uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const ver = '${{ steps.scan.outputs.version }}';
+            const { data: issues } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "New upstream release detected: ${ver}"`
+            });
+            core.setOutput('exists', issues.total_count > 0 ? 'true' : 'false');
+
+      - name: 🆕 Create issue (new upstream)
+        if: steps.scan.outputs.newer == 'true' && steps.dupecheck.outputs.exists != 'true'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const newver = '${{ steps.scan.outputs.version }}';
+            const oldver = '${{ steps.scan.outputs.oldversion }}';
+
+            async function findTag(ver) {
+              if (!ver || ver === 'unknown') return null;
+              const candidates = [`v${ver}`, `${ver}`];
+              for (const tag of candidates) {
+                try {
+                  await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` });
+                  return tag; // first one that exists
+                } catch (e) {
+                  // continue to next candidate
+                }
+              }
+              return null;
+            }
+
+            const [oldTag, newTag] = await Promise.all([findTag(oldver), findTag(newver)]);
+            const compare = (oldTag && newTag)
+              ? `🔗 [View changes](https://github.com/${owner}/${repo}/compare/${oldTag}...${newTag})`
+              : '';
+
             await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `New upstream release detected: ${ver}`,
+              owner,
+              repo,
+              title: `New upstream release detected: ${newver}`,
               body: [
-                `uscan detected a newer upstream release **${ver}**.`,
+                `uscan detected a newer upstream release **${newver}**.`,
+                ``,
+                compare, // only shown when both tags exist
+                ``,
+                `Artifacts: check the attached **uscan.xml** and **uscan.log** from this workflow run.`,
                 ``,
                 `Next steps:`,
-                `1) Update \`debian/changelog\` (e.g. \`dch -v ${ver}-1 "New upstream release"\`).`,
+                `1) Update \`debian/changelog\` (e.g. \`dch -v ${newver}-1 "New upstream release"\`).`,
                 `2) Build per suite (sbuild for bookworm/trixie).`,
-                `3) Add to aptly/reprepro repo and publish snapshot.`,
-              ].join('\n'),
+                `3) Publish to the APT repo (aptly/reprepro).`,
+              ].filter(Boolean).join('\n'),
               labels: ['uscan', 'packaging']
             });
