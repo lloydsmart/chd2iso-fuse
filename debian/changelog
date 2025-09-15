@@ -1,3 +1,10 @@
+chd2iso-fuse (0.2.32-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(release): use git-cliff positional range instead of --from/--to
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 20:22:51 +0000
+
 chd2iso-fuse (0.2.31-1) trixie; urgency=medium
 
   [ lloydsmart ]
