@@ -1,3 +1,12 @@
+chd2iso-fuse (0.2.28-1ubuntu1~1.gbp50698b) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @50698b56d5249e0136f228842c71de9449d36b4d **
+
+  [ lloydsmart ]
+  * fix(ci): remove stray redirection in release notes guard
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 12:33:26 +0000
+
 chd2iso-fuse (0.2.28-1) trixie; urgency=medium
 
   [ lloydsmart ]
