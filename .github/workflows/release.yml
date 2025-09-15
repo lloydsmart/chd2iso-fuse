@@ -85,7 +85,7 @@ jobs:
       lane: main
       nightly: false
       release_mode: true
-      tag: ${{ needs.resolve_tag.outputs.tag }}   # ← pass tag so notes/CHANGELOG are generated once here
+      tag: ${{ needs.resolve_tag.outputs.tag }}   # generate notes/CHANGELOG once here
     secrets: inherit
 
   verify_versions:
@@ -139,7 +139,14 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: release-artifacts
-          path: artifacts
+        # default path is ./release-artifacts; force ours for consistency:
+      - name: 🚚 Move downloaded artifacts to ./artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          shopt -s nullglob
+          mv release-artifacts/* artifacts/ || true
+          rmdir release-artifacts 2>/dev/null || true
 
       - name: 🐛 Debug list downloaded artifact contents
         if: always()
@@ -257,7 +264,7 @@ jobs:
           if [ "${#files[@]}" -eq 0 ]; then
             echo "::error::No files to upload"; exit 1
           fi
-          gh release upload "${TAG}" "${files[@]}" --clobber"
+          gh release upload "${TAG}" "${files[@]}" --clobber
 
       - name: 🚀 Publish the release (gh)
         env:
@@ -290,6 +297,7 @@ jobs:
               core.info(`Updated release title to '${desired}'`);
             } else {
               core.info('Release title already correct.');
+            }
 
   release_lane:
     name: 🛣️ Release lane and optional APT
