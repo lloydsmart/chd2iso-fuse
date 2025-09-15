@@ -152,8 +152,8 @@ jobs:
           fi
           changed=1
 
-          # 3) Release notes tagged as v$v (collect commits since previous tag) — NO '-u'
-          git-cliff --tag "v${v}" -o RELEASE_NOTES.md
+          # 3) Release notes tagged as v$v (collect unreleased since previous tag)
+          git-cliff --tag "v${v}" -u -o RELEASE_NOTES.md
 
           # Guard: don't let "(no notes)" be committed
           if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
@@ -172,7 +172,7 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — NO '-u'
+      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch)
       - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -181,7 +181,7 @@ jobs:
           v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.16
           tag="v${v}"
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
-          git-cliff --tag "${tag}" --prepend CHANGELOG.md
+          git-cliff --tag "${tag}" -u --prepend CHANGELOG.md
           git add CHANGELOG.md || true
 
       - name: 🔍 Detect if Cargo.toml changed in this run
