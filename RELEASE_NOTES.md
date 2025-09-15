@@ -1,8 +1,13 @@
 # Changelog
-### Fixes
+### CI
+- ci(release): wire build to resolve_tag + log TAG in notes generation (cdff78f)### Other
+- Back-merge main -> develop (post-release) (87cad97)
+- PR #200: ci(release): wire build to resolve_tag + log TAG in notes generation (a052a34)### Chore
+- chore(release): prepare v0.2.30 [skip ci] (bad8598)### Fixes
 - fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags; robust TAG fallback (1e52ad4)### Other
 - Back-merge main -> develop (post-release) (2223f43)
-- PR #197: fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags (fa3203f)### CI
+- PR #197: fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags (fa3203f)
+- PR #198: Release/0.2.30 (45afc52)### CI
 - ci(release): single-source generation of RELEASE_NOTES & CHANGELOG in build job (0f2713c)### Chore
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (925f55b)
 - chore(deps): bump fuser in the cargo group across 1 directory (c828e5c)

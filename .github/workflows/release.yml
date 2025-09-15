@@ -79,7 +79,7 @@ jobs:
 
   build:
     name: 🛠️ Build for tag
-    needs: [guard_tag_on_main]
+    needs: [guard_tag_on_main, resolve_tag]   # ← include resolve_tag so outputs are available
     uses: ./.github/workflows/_build.yml
     with:
       lane: main
@@ -261,10 +261,9 @@ jobs:
       - name: 🚀 Publish the release (gh)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.resolve_tag.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release edit "${TAG}" --draft=false
+          gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v8
@@ -289,7 +288,6 @@ jobs:
               core.info(`Updated release title to '${desired}'`);
             } else {
               core.info('Release title already correct.');
-            }
 
   release_lane:
     name: 🛣️ Release lane and optional APT

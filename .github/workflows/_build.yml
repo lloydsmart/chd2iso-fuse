@@ -164,11 +164,9 @@ jobs:
           echo "Found ${#debs[@]} .deb file(s):"
           printf ' - %s\n' "${debs[@]}"
 
-      # Install git-cliff once via the official action (no curl)
       - name: 🧰 Set up git-cliff
         if: ${{ inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
-        uses: taiki-e/install-action@git-cliff  # recommended by git-cliff docs
-        # refs: https://git-cliff.org/docs/github-actions/taiki-e-install-action/
+        uses: taiki-e/install-action@git-cliff
 
       # Canonical one-time generation of RELEASE_NOTES.md and CHANGELOG.md
       - name: 📝 Generate release notes & CHANGELOG (git-cliff) — canonical
@@ -185,6 +183,7 @@ jobs:
             echo "::error::No TAG provided to _build.yml for release_mode build."
             exit 1
           fi
+          echo "Using TAG: $TAG"
 
           NOTES="RELEASE_NOTES.md"
           : > "$NOTES"
