@@ -1,8 +1,13 @@
 # Changelog
 ### CI
-- ci(release): wire build to resolve_tag + log TAG in notes generation (cdff78f)### Other
+- ci(release): use git-cliff positional range instead of --from/--to (7230e1a)### Other
+- Back-merge main -> develop (post-release) (2c81d49)
+- PR #203: ci(release): use git-cliff positional range instead of --from/--to (9f59089)### CI
+- ci(release): wire build to resolve_tag + log TAG in notes generation (cdff78f)### Chore
+- chore(release): prepare v0.2.31 [skip ci] (84b88ce)### Other
 - Back-merge main -> develop (post-release) (87cad97)
-- PR #200: ci(release): wire build to resolve_tag + log TAG in notes generation (a052a34)### Chore
+- PR #200: ci(release): wire build to resolve_tag + log TAG in notes generation (a052a34)
+- PR #201: Release/0.2.31 (1204893)### Chore
 - chore(release): prepare v0.2.30 [skip ci] (bad8598)### Fixes
 - fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags; robust TAG fallback (1e52ad4)### Other
 - Back-merge main -> develop (post-release) (2223f43)
