@@ -1,6 +1,6 @@
-chd2iso-fuse (0.2.27-1ubuntu1~2.gbp95c7ef) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.27-1ubuntu1~3.gbp52ff83) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @95c7efe448ddb993793092cca9a03a615b975d46 **
+  ** SNAPSHOT build @52ff83e57e0dd1abc5bb8449931d9acfc91149d6 **
 
   [ lloydsmart ]
   * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
@@ -11,7 +11,16 @@ chd2iso-fuse (0.2.27-1ubuntu1~2.gbp95c7ef) UNRELEASED; urgency=medium
   [ lloydsmart ]
   * ci(codeql): remove APT cache usage (Option A) to avoid post-job tar permission errors
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 14 Sep 2025 23:54:54 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): make git-cliff use explicit PREV..TAG range in release workflow
+  * fix(ci): escape colon
+  * ci(git): make maintenance commit push step robust against non-fast-forward rejections
+  * fix(ci): indent error
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 00:05:54 +0000
 
 chd2iso-fuse (0.2.27-1) trixie; urgency=medium
 
