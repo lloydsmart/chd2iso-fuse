@@ -268,47 +268,47 @@ jobs:
             git add Cargo.lock
           fi
 
-- name: 🧹 Commit & push maintenance changes
-  shell: bash
-  run: |
-    set -euo pipefail
+      - name: 🧹 Commit & push maintenance changes
+        shell: bash
+        run: |
+          set -euo pipefail
 
-    # Figure out branch name even if we're on a detached HEAD
-    BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-    if [[ -z "${BRANCH}" || "${BRANCH}" == "HEAD" ]]; then
-      BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-    fi
+          # Figure out branch name even if we're on a detached HEAD
+          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          if [[ -z "${BRANCH}" || "${BRANCH}" == "HEAD" ]]; then
+            BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+          fi
 
-    # Only continue if we actually staged something
-    if git diff --cached --quiet; then
-      echo "No staged maintenance changes; nothing to commit."
-      exit 0
-    fi
+          # Only continue if we actually staged something
+          if git diff --cached --quiet; then
+            echo "No staged maintenance changes; nothing to commit."
+            exit 0
+          fi
 
-    git config user.name  "Lloyd Smart"
-    git config user.email "lloydsmart@users.noreply.github.com"
-    git commit -m "chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]"
+          git config user.name  "Lloyd Smart"
+          git config user.email "lloydsmart@users.noreply.github.com"
+          git commit -m "chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]"
 
-    # Fetch latest remote state to avoid non-fast-forward
-    git remote set-url origin "https://github.com/${{ github.repository }}.git"
-    git fetch --prune origin +refs/heads/*:refs/remotes/origin/*
+          # Fetch latest remote state to avoid non-fast-forward
+          git remote set-url origin "https://github.com/${{ github.repository }}.git"
+          git fetch --prune origin +refs/heads/*:refs/remotes/origin/*
 
-    # Ensure we have a local branch tracking the remote
-    git checkout -B "${BRANCH}"
+          # Ensure we have a local branch tracking the remote
+          git checkout -B "${BRANCH}"
 
-    # Try push; if rejected, rebase onto the remote and retry (up to 3 times)
-    for attempt in 1 2 3; do
-      if git push origin HEAD:"${BRANCH}"; then
-        echo "✅ Pushed on attempt ${attempt}"
-        exit 0
-      fi
-      echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
-      # Rebase with autostash; if it fails, abort and retry once more
-      if ! git pull --rebase --autostash origin "${BRANCH}"; then
-        git rebase --abort || true
-      fi
-      sleep $((attempt * 3))
-    done
+          # Try push; if rejected, rebase onto the remote and retry (up to 3 times)
+          for attempt in 1 2 3; do
+            if git push origin HEAD:"${BRANCH}"; then
+              echo "✅ Pushed on attempt ${attempt}"
+              exit 0
+            fi
+            echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
+            # Rebase with autostash; if it fails, abort and retry once more
+            if ! git pull --rebase --autostash origin "${BRANCH}"; then
+              git rebase --abort || true
+            fi
+            sleep $((attempt * 3))
+          done
 
-    echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
-    exit 1
+          echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
+          exit 1
