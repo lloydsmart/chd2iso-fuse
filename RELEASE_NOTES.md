@@ -1,8 +1,12 @@
 # Changelog
-### CI
+### Fixes
+- fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags; robust TAG fallback (1e52ad4)### Other
+- Back-merge main -> develop (post-release) (2223f43)
+- PR #197: fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags (fa3203f)### CI
 - ci(release): single-source generation of RELEASE_NOTES & CHANGELOG in build job (0f2713c)### Chore
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (925f55b)
-- chore(deps): bump fuser in the cargo group across 1 directory (c828e5c)### Fixes
+- chore(deps): bump fuser in the cargo group across 1 directory (c828e5c)
+- chore(release): prepare v0.2.29 [skip ci] (34c6a58)### Fixes
 - fix(release): require RELEASE_NOTES.md from artifacts; remove in-workflow generation (fd5121f)
 - fix(ci): remove stray redirection in release notes guard (50698b5)
 - fix(ci): typo. Quote name string. (8f7450d)### Other
@@ -12,7 +16,8 @@
 - Merge branch 'develop' into bugfix/build-notes (1490092)
 - PR #192: Bugfix/build notes (2bfc235)
 - PR #193: chore(deps): bump fuser from 0.15.1 to 0.16.0 in the cargo group across 1 directory (32a357f)
-- PR #194: Back-merge (3171d9c)### CI
+- PR #194: Back-merge (3171d9c)
+- PR #195: Release/0.2.29 (5003a7a)### CI
 - ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources (56f8b0e)
 - ci(codeql): remove APT cache usage (Option A) to avoid post-job tar permission errors (95c7efe)
 - ci(git): make maintenance commit push step robust against non-fast-forward rejections (be4657f)### Chore

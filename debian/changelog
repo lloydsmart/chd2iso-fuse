@@ -1,3 +1,10 @@
+chd2iso-fuse (0.2.30-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(ci): install git-cliff via taiki-e action; guard paths-filter on tags; robust TAG fallback
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 19:48:36 +0000
+
 chd2iso-fuse (0.2.29-1) trixie; urgency=medium
 
   ** SNAPSHOT build @50698b56d5249e0136f228842c71de9449d36b4d **
