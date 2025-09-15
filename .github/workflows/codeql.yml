@@ -151,6 +151,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      # ⬇️ No APT caching — just install what we need
       - name: 🛠️ Install system deps
         run: |
           sudo apt-get update
@@ -190,11 +191,10 @@ jobs:
             echo "✅ Cargo.lock up to date."
           fi
 
-      # 👉 Build FIRST so build-script outputs exist for the extractor to pick up
+      # Build first so generated sources exist for CodeQL's Rust extractor
       - name: 🧱 Build Rust (${{ matrix.variant }}) to materialize generated sources
         env:
           CARGO_TERM_COLOR: always
-          # Avoid wrappers that might perturb builds during analysis prep
           RUSTC_WRAPPER: ""
           SCCACHE_BUCKET: ""
           SCCACHE_ENDPOINT: ""
@@ -208,7 +208,6 @@ jobs:
             cargo generate-lockfile
             cargo fetch
           fi
-
           case "${{ matrix.variant }}" in
             minimal)
               cargo build --workspace --all-targets --no-default-features --locked || cargo build --workspace --all-targets --no-default-features
@@ -221,7 +220,6 @@ jobs:
               ;;
           esac
 
-      # Initialize CodeQL (no manual mode for Rust)
       - name: 🧰 Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -232,12 +230,3 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
-
-      - name: 📤 Upload CodeQL logs (diagnostics)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: codeql-logs-${{ matrix.variant }}
-          path: |
-            /home/runner/work/_temp/codeql_databases/**/logs/**
-            /home/runner/work/_temp/*codeql*/logs/**
