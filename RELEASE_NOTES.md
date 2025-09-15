@@ -7,7 +7,8 @@
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (c75b674)
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (a1645d4)
 - chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci] (16efa35)
-- chore(ci): keep release notes preview; unpin git-cliff in release workflow (cd3b86a)### Features
+- chore(ci): keep release notes preview; unpin git-cliff in release workflow (cd3b86a)
+- chore(release): prepare v0.2.28 [skip ci] (8718f81)### Features
 - feat(ci): add GitHub compare link to uscan issues 🔗 (dedc139)### Fixes
 - fix(ci): make git-cliff use explicit PREV..TAG range in release workflow (efc2137)
 - fix(ci): escape colon (b911ca5)
@@ -25,7 +26,11 @@
 - PR #177: Hotfix/0.2.27.3 (f281b8c)
 - Back-merge main -> develop (post-release) (c76a25b)
 - PR #179: Bugfix/release notes (80d4576)
-- PR #182: Bugfix/uscan (f993815)### CI
+- PR #182: Bugfix/uscan (f993815)
+- PR #180: Bugfix/uscan (050a68b)
+- Revert "Bugfix/uscan" (05a2b7f)
+- PR #181: Revert "Bugfix/uscan" (791052b)
+- Merge branch 'main' into release/0.2.28 (2da9a9c)### CI
 - ci(autobump): speed up Debian tool install with APT cache + prebuilt git-cliff (05291a0)
 - ci(autobump): derive APT cache key from package list (hashFiles) (6c82aab)
 - ci(codeql): speed-up PRs while keeping high-quality analysis (f6c6846)### Chore
