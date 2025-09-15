@@ -168,7 +168,7 @@ jobs:
             echo "Resolved TAG=$TAG"
             echo "Previous tag=${PREV:-<none>}"
 
-            # Debug: show candidate commits
+            # Show candidate commits
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${TAG} =="
               git log --oneline --no-decorate "${PREV}..${TAG}" || true
@@ -183,24 +183,25 @@ jobs:
               curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh | bash -s -- -b /usr/local/bin git-cliff
             fi
 
-            printf "# Changelog\n\n" > CHANGELOG.md
+            # Generate notes for this release
             if [[ -n "${PREV}" ]]; then
               echo "Using explicit bounds: --from ${PREV} --to ${TAG}"
-              git-cliff --from "${PREV}" --to "${TAG}" --prepend CHANGELOG.md
               git-cliff --from "${PREV}" --to "${TAG}" --output RELEASE_NOTES.md
             else
-              # First release or no prior tag found; fall back to --tag
-              git-cliff --tag "${TAG}" --prepend CHANGELOG.md
               git-cliff --tag "${TAG}" --output RELEASE_NOTES.md
             fi
-          fi
 
-      # Optional: also ensure via action (no version pinning)
-      - name: 📦 Ensure git-cliff is available
-        if: steps.notes.outputs.source == 'cliff'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: git-cliff
+            # Build/ensure CHANGELOG.md and prepend the generated section after the header
+            if [[ -s RELEASE_NOTES.md ]] && ! grep -qx '(no notes)' RELEASE_NOTES.md; then
+              [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
+              new="$(mktemp)"
+              awk -v sec="RELEASE_NOTES.md" '
+                NR==1 { print; print ""; system("cat " sec); next }
+                { print }
+              ' CHANGELOG.md > "${new}"
+              mv "${new}" CHANGELOG.md
+            fi
+          fi
 
       - name: "🛡️ Guard: release notes must be non-empty"
         run: |
@@ -210,7 +211,7 @@ jobs:
             PREV="$(git describe --tags --abbrev=0 "${{ needs.resolve_tag.outputs.tag }}^" 2>/dev/null || true)"
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${{ needs.resolve_tag.outputs.tag }} =="; git log --oneline --no-decorate "${PREV}..${{ needs.resolve_tag.outputs.tag }}" || true
-            fi
+            fi>
             exit 1
           fi
 
@@ -268,12 +269,13 @@ jobs:
       - name: 📄 Create/ensure draft release (no assets yet)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.resolve_tag.outputs.tag }}
         run: |
           set -euo pipefail
+          TAG="${{ needs.resolve_tag.outputs.tag }}"
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
           else
+            # Ensure the body is updated from RELEASE_NOTES.md if a draft already existed
             gh release edit "${TAG}" --notes-file RELEASE_NOTES.md
           fi
 
@@ -292,9 +294,10 @@ jobs:
       - name: 🚀 Publish the release (gh)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve_tag.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
+          gh release edit "${TAG}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v8
