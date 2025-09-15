@@ -1,4 +1,51 @@
-chd2iso-fuse (0.2.27-1ubuntu1~4.gbpfdc866) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.28-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): remove APT cache usage (Option A) to avoid post-job tar permission errors
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): make git-cliff use explicit PREV..TAG range in release workflow
+  * fix(ci): escape colon
+  * ci(git): make maintenance commit push step robust against non-fast-forward rejections
+  * fix(ci): indent error
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): remove `-u/--unreleased` when generating notes for tagged ranges
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): generate release notes with `git-cliff --from PREV --to TAG`
+  * fix(ci): stop excluding tagged commits from notes in autobump workflow
+  * chore(ci): keep release notes preview; unpin git-cliff in release workflow
+  * fix(ci): tolerate uscan exit code 1 when package is up-to-date ✅
+  * feat(ci): add GitHub compare link to uscan issues 🔗
+
+  [ Lloyd Smart ]
+  * Revert "Bugfix/uscan"
+
+  [ lloydsmart ]
+  * fix(ci): remove git-cliff --prepend and manually prepend release notes to CHANGELOG
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.28 [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 12:16:04 +0000
+
+chd2iso-fuse (0.2.28-1) trixie; urgency=medium
 
   ** SNAPSHOT build @fdc866a2986000dcb604c237ea7a357d30fe1eb5 **
 
@@ -25,8 +72,41 @@ chd2iso-fuse (0.2.27-1ubuntu1~4.gbpfdc866) UNRELEASED; urgency=medium
 
   [ lloydsmart ]
   * fix(ci): remove `-u/--unreleased` when generating notes for tagged ranges
+  * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 00:15:44 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * ci(codeql): remove APT cache usage (Option A) to avoid post-job tar permission errors
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): make git-cliff use explicit PREV..TAG range in release workflow
+  * fix(ci): escape colon
+  * ci(git): make maintenance commit push step robust against non-fast-forward rejections
+  * fix(ci): indent error
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): remove `-u/--unreleased` when generating notes for tagged ranges
+
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): generate release notes with `git-cliff --from PREV --to TAG`
+  * fix(ci): stop excluding tagged commits from notes in autobump workflow
+  * chore(ci): keep release notes preview; unpin git-cliff in release workflow
+  * fix(ci): tolerate uscan exit code 1 when package is up-to-date ✅
+  * feat(ci): add GitHub compare link to uscan issues 🔗
+  * fix(ci): remove git-cliff --prepend and manually prepend release notes to CHANGELOG
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 12:06:21 +0000
 
 chd2iso-fuse (0.2.27-1) trixie; urgency=medium
 
