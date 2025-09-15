@@ -297,7 +297,7 @@ jobs:
           gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
 
       - name: 🐛 Verify release assets (debug)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -307,7 +307,7 @@ jobs:
             core.info('Release assets: ' + JSON.stringify(names));
 
       - name: 📝 Reconcile release title with tag (safety net)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const tag = `${{ needs.resolve_tag.outputs.tag }}`;
