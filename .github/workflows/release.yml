@@ -111,7 +111,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          clean: false   # keep downloaded artifacts if any
+          clean: false
 
       - name: 👤 Configure git identity (from Actions Variables)
         run: |
@@ -151,7 +151,7 @@ jobs:
             exit 1
           fi
 
-      - name: 📝 Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff with explicit range)
+      - name: 📝 Ensure RELEASE_NOTES.md (prefer provided; otherwise generate via git-cliff with explicit from/to)
         id: notes
         run: |
           set -euo pipefail
@@ -168,6 +168,7 @@ jobs:
             echo "Resolved TAG=$TAG"
             echo "Previous tag=${PREV:-<none>}"
 
+            # Debug: show candidate commits
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${TAG} =="
               git log --oneline --no-decorate "${PREV}..${TAG}" || true
@@ -176,6 +177,7 @@ jobs:
               git log --oneline --no-decorate -20 "${TAG}" || true
             fi
 
+            # Ensure git-cliff is available
             if ! command -v git-cliff >/dev/null 2>&1; then
               echo "Installing git-cliff…"
               curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh | bash -s -- -b /usr/local/bin git-cliff
@@ -183,10 +185,9 @@ jobs:
 
             printf "# Changelog\n\n" > CHANGELOG.md
             if [[ -n "${PREV}" ]]; then
-              RANGE="${PREV}..${TAG}"
-              echo "Using explicit range: ${RANGE}"
-              git-cliff --range "${RANGE}" --prepend CHANGELOG.md
-              git-cliff --range "${RANGE}" --output RELEASE_NOTES.md
+              echo "Using explicit bounds: --from ${PREV} --to ${TAG}"
+              git-cliff --from "${PREV}" --to "${TAG}" --prepend CHANGELOG.md
+              git-cliff --from "${PREV}" --to "${TAG}" --output RELEASE_NOTES.md
             else
               # First release or no prior tag found; fall back to --tag
               git-cliff --tag "${TAG}" --prepend CHANGELOG.md
@@ -194,7 +195,7 @@ jobs:
             fi
           fi
 
-      - name: "🛡️ Guard: release notes must be non-empty"
+      - name: 🛡️ Guard: release notes must be non-empty
         run: |
           set -euo pipefail
           if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
@@ -258,7 +259,6 @@ jobs:
           if ! gh release view "${TAG}" >/dev/null 2>&1; then
             gh release create "${TAG}" -t "chd2iso-fuse ${TAG}" -F RELEASE_NOTES.md --draft
           else
-            # Ensure the body is updated from RELEASE_NOTES.md if a draft already existed
             gh release edit "${TAG}" --notes-file RELEASE_NOTES.md
           fi
 
@@ -305,7 +305,6 @@ jobs:
               core.info(`Updated release title to '${desired}'`);
             } else {
               core.info('Release title already correct.');
-            }
 
   release_lane:
     name: 🛣️ Release lane and optional APT
