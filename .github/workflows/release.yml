@@ -111,7 +111,7 @@ jobs:
       - name: 📥 Checkout tag (full history + tags)
         uses: actions/checkout@v5
         with:
-          ref: ${{ needs.resolve_tag.outputs.tag }}   # keep tag context consistent for all steps
+          ref: ${{ needs.resolve_tag.outputs.tag }}
           fetch-depth: 0
           fetch-tags: true
           clean: false
@@ -139,14 +139,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: release-artifacts
-        # default path is ./release-artifacts; force ours for consistency:
-      - name: 🚚 Move downloaded artifacts to ./artifacts
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          shopt -s nullglob
-          mv release-artifacts/* artifacts/ || true
-          rmdir release-artifacts 2>/dev/null || true
+          path: artifacts
 
       - name: 🐛 Debug list downloaded artifact contents
         if: always()
@@ -183,7 +176,6 @@ jobs:
             echo "::error::$NOTES contains '(no notes)'; investigate generator in build job."
             exit 1
           fi
-          # Copy to workspace root for gh -F convenience
           cp "$NOTES" RELEASE_NOTES.md
           echo "notes_path=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
 

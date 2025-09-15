@@ -10,17 +10,14 @@ on:
       nightly:
         type: boolean
         default: false
-      # force tag-like behavior for artifact naming and notes generation
       release_mode:
         type: boolean
         default: false
-      # NEW: canonical tag to generate notes/CHANGELOG once
-      tag:
+      tag:                # canonical tag to generate notes/CHANGELOG once
         type: string
         required: false
     secrets: {}
 
-# Ensure every run: step executes with Bash (fixes shopt/compgen)
 defaults:
   run:
     shell: bash
@@ -73,7 +70,7 @@ jobs:
 
       - name: 🗂️ Determine if Rust/package files changed
         id: paths
-        if: ${{ github.ref_type != 'tag' }}   # avoid noisy 'before' warning on tag events
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}   # avoid warning on tag events
         uses: dorny/paths-filter@v3
         with:
           filters: |
@@ -86,13 +83,12 @@ jobs:
               - 'debian/**'
               - 'Makefile'
 
-      # PR only: allow noop when nothing relevant changed
       - name: 💤 No-op (non-code PR)
-        if: ${{ github.event_name == 'pull_request' && !inputs.release_mode && github.ref_type != 'tag' && steps.paths.outputs.rust != 'true' }}
+        if: ${{ github.event_name == 'pull_request' && !inputs.release_mode && !startsWith(github.ref, 'refs/tags/') && steps.paths.outputs.rust != 'true' }}
         run: echo "No Rust/package changes in this PR; skipping heavy build steps."
 
       - name: 🛠️ Install toolchain & deps
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: |
           set -euo pipefail
           apt-get update
@@ -113,13 +109,13 @@ jobs:
           rustc -V; cargo -V; sccache --version || true
 
       - name: 📂 Prepare sccache dir
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: |
           set -euo pipefail
           mkdir -p .sccache
 
       - name: 🗃️ Cache sccache
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         uses: actions/cache@v4
         with:
           path: .sccache
@@ -129,17 +125,17 @@ jobs:
             sccache-${{ runner.os }}-
 
       - name: 🎯 Rust fmt & clippy
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets -- -D warnings
 
       - name: 🧪 Rust tests
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: cargo test --workspace --locked --all-features
 
       - name: 🏗️ Debian build
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         env:
           DEB_BUILD_OPTIONS: nocheck
           RUSTC_WRAPPER: ${{ env.RUSTC_WRAPPER }}
@@ -153,45 +149,47 @@ jobs:
           if compgen -G "artifacts/*" > /dev/null; then
             (cd artifacts && sha256sum * > SHA256SUMS)
           fi
-          
+
       - name: 🔎 Guard at least one .deb was built
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
-        shell: bash
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: |
           set -euo pipefail
           shopt -s nullglob
           debs=(artifacts/*.deb)
           if [ ${#debs[@]} -eq 0 ]; then
             echo "::error::No .deb files found in artifacts/. Build or packaging likely failed."
-            echo "Listing artifacts dir for debugging:"
             ls -la artifacts || true
             exit 1
           fi
           echo "Found ${#debs[@]} .deb file(s):"
           printf ' - %s\n' "${debs[@]}"
 
+      # Install git-cliff once via the official action (no curl)
+      - name: 🧰 Set up git-cliff
+        if: ${{ inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
+        uses: taiki-e/install-action@git-cliff  # recommended by git-cliff docs
+        # refs: https://git-cliff.org/docs/github-actions/taiki-e-install-action/
+
       # Canonical one-time generation of RELEASE_NOTES.md and CHANGELOG.md
       - name: 📝 Generate release notes & CHANGELOG (git-cliff) — canonical
-        if: ${{ inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         env:
-          TAG: ${{ inputs.tag }}
+          TAG_IN: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          # Ensure curl available (installed above). Install git-cliff prebuilt binary.
-          if ! command -v git-cliff >/dev/null 2>&1; then
-            echo "Installing git-cliff…"
-            curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh \
-              | bash -s -- -b /usr/local/bin git-cliff
+          TAG="${TAG_IN}"
+          if [[ -z "$TAG" && "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF##refs/tags/}"
           fi
-
-          [[ -n "${TAG}" ]] || { echo "::error::No TAG provided to _build.yml for release_mode build."; exit 1; }
+          if [[ -z "$TAG" ]]; then
+            echo "::error::No TAG provided to _build.yml for release_mode build."
+            exit 1
+          fi
 
           NOTES="RELEASE_NOTES.md"
           : > "$NOTES"
 
-          # Previous tag using semver order, excluding current
           PREV="$(git tag --list 'v*' --sort=-v:refname | grep -Fvx "$TAG" | head -n1 || true)"
-
           if [[ -n "${PREV}" ]]; then
             COUNT="$(git rev-list --count "${PREV}..${TAG}" || echo 0)"
             echo "Prev tag: ${PREV} — commits in range: ${COUNT}"
@@ -210,7 +208,6 @@ jobs:
             exit 1
           fi
 
-          # Build/ensure CHANGELOG.md and prepend this section
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
           new="$(mktemp)"
           awk -v sec="$NOTES" '
@@ -219,24 +216,22 @@ jobs:
           ' CHANGELOG.md > "$new"
           mv "$new" CHANGELOG.md
 
-          # Stage canonical copies into artifacts/
           mkdir -p artifacts
           cp -v RELEASE_NOTES.md CHANGELOG.md artifacts/
 
       - name: 🔍 Lintian (non-fatal)
-        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || github.ref_type == 'tag' }}
+        if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         continue-on-error: true
         run: |
           if compgen -G "artifacts/*.deb" > /dev/null; then
             lintian artifacts/*.deb || true
           fi
 
-      # Deterministic artifact name for releases
       - name: 🏷️ Set artifact name
         id: aname
         run: |
           set -euo pipefail
-          if [ "${{ inputs.release_mode }}" = "true" ] || [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          if [ "${{ inputs.release_mode }}" = "true" ] || [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
             echo "val=release-artifacts" >> "$GITHUB_OUTPUT"
           elif [ "${{ inputs.nightly }}" = "true" ]; then
             echo "val=chd2iso-fuse-nightly-${GITHUB_RUN_ID}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
@@ -253,7 +248,6 @@ jobs:
 
       - name: 🧾 Debug list artifact contents
         if: always()
-        shell: bash
         run: |
           set -euo pipefail
           echo "Local artifacts/ contents prior to upload:"
