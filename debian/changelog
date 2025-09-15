@@ -1,6 +1,6 @@
-chd2iso-fuse (0.2.27-1ubuntu1~3.gbp52ff83) UNRELEASED; urgency=medium
+chd2iso-fuse (0.2.27-1ubuntu1~4.gbpfdc866) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @52ff83e57e0dd1abc5bb8449931d9acfc91149d6 **
+  ** SNAPSHOT build @fdc866a2986000dcb604c237ea7a357d30fe1eb5 **
 
   [ lloydsmart ]
   * ci(codeql-rust): drop unsupported manual mode; build before init to surface generated sources
@@ -20,7 +20,13 @@ chd2iso-fuse (0.2.27-1ubuntu1~3.gbp52ff83) UNRELEASED; urgency=medium
   * ci(git): make maintenance commit push step robust against non-fast-forward rejections
   * fix(ci): indent error
 
- -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 00:05:54 +0000
+  [ Lloyd Smart ]
+  * chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): remove `-u/--unreleased` when generating notes for tagged ranges
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Mon, 15 Sep 2025 00:15:44 +0000
 
 chd2iso-fuse (0.2.27-1) trixie; urgency=medium
 

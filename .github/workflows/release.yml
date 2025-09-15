@@ -164,12 +164,10 @@ jobs:
             echo "No notes artifact found; generating with git-cliff…"
             echo "source=cliff" >> "$GITHUB_OUTPUT"
 
-            # Compute previous tag explicitly and use a range
             PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
             echo "Resolved TAG=$TAG"
             echo "Previous tag=${PREV:-<none>}"
 
-            # Debug: show candidate commits
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${TAG} =="
               git log --oneline --no-decorate "${PREV}..${TAG}" || true
@@ -178,23 +176,21 @@ jobs:
               git log --oneline --no-decorate -20 "${TAG}" || true
             fi
 
-            # Ensure git-cliff is available
             if ! command -v git-cliff >/dev/null 2>&1; then
               echo "Installing git-cliff…"
               curl -sSfL https://raw.githubusercontent.com/taiki-e/install-action/main/install.sh | bash -s -- -b /usr/local/bin git-cliff
             fi
 
-            # Generate using explicit range when possible
             printf "# Changelog\n\n" > CHANGELOG.md
             if [[ -n "${PREV}" ]]; then
               RANGE="${PREV}..${TAG}"
               echo "Using explicit range: ${RANGE}"
-              git-cliff --range "${RANGE}" -u --prepend CHANGELOG.md
-              git-cliff --range "${RANGE}" -u --output RELEASE_NOTES.md
+              git-cliff --range "${RANGE}" --prepend CHANGELOG.md
+              git-cliff --range "${RANGE}" --output RELEASE_NOTES.md
             else
               # First release or no prior tag found; fall back to --tag
-              git-cliff --tag "${TAG}" -u --prepend CHANGELOG.md
-              git-cliff --tag "${TAG}" -u --output RELEASE_NOTES.md
+              git-cliff --tag "${TAG}" --prepend CHANGELOG.md
+              git-cliff --tag "${TAG}" --output RELEASE_NOTES.md
             fi
           fi
 
@@ -203,10 +199,6 @@ jobs:
           set -euo pipefail
           if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
             echo "::error title=Empty release notes::RELEASE_NOTES.md is empty or '(no notes)'."
-            echo "Check: commits between the resolved previous tag and ${{
-              needs.resolve_tag.outputs.tag
-            }}, and parser rules in cliff.toml."
-            # Helpful debug: echo the range again
             PREV="$(git describe --tags --abbrev=0 "${{ needs.resolve_tag.outputs.tag }}^" 2>/dev/null || true)"
             if [[ -n "${PREV}" ]]; then
               echo "== Commits in ${PREV}..${{ needs.resolve_tag.outputs.tag }} =="; git log --oneline --no-decorate "${PREV}..${{ needs.resolve_tag.outputs.tag }}" || true
