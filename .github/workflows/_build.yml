@@ -245,6 +245,7 @@ jobs:
           name: ${{ steps.aname.outputs.val }}
           path: artifacts/
           if-no-files-found: error
+          retention-days: 3 # <- keep short; we also delete after publish
 
       - name: 🧾 Debug list artifact contents
         if: always()
