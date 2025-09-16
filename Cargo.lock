@@ -145,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "chd2iso-fuse"
-version = "0.2.34"
+version = "0.2.35"
 dependencies = [
  "anyhow",
  "chd",

@@ -79,13 +79,13 @@ jobs:
 
   build:
     name: 🛠️ Build for tag
-    needs: [guard_tag_on_main, resolve_tag]   # include resolve_tag so outputs are available
+    needs: [guard_tag_on_main, resolve_tag]
     uses: ./.github/workflows/_build.yml
     with:
       lane: main
       nightly: false
       release_mode: true
-      tag: ${{ needs.resolve_tag.outputs.tag }}   # generate notes/CHANGELOG once here
+      tag: ${{ needs.resolve_tag.outputs.tag }}
     secrets: inherit
 
   verify_versions:
@@ -285,13 +285,24 @@ jobs:
           script: |
             const tag = `${{ needs.resolve_tag.outputs.tag }}`;
             const { owner, repo } = context.repo;
-            const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-            const desired = `chd2iso-fuse ${tag}`;
-            if (res.data.name !== desired) {
-              await github.rest.repos.updateRelease({ owner, repo, release_id: res.data.id, name: desired });
-              core.info(`Updated release title to '${desired}'`);
-            } else {
-              core.info('Release title already correct.');
+            try {
+              const res = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              const desired = `chd2iso-fuse ${tag}`;
+              if (res.data.name !== desired) {
+                await github.rest.repos.updateRelease({
+                  owner, repo, release_id: res.data.id, name: desired
+                });
+                core.info(`Updated release title to '${desired}'`);
+              } else {
+                core.info('Release title already correct.');
+              }
+            } catch (err) {
+              if (err.status === 404) {
+                core.warning(`Release with tag ${tag} not found yet (404).`);
+              } else {
+                throw err;
+              }
+            }
 
   release_lane:
     name: 🛣️ Release lane and optional APT
