@@ -173,7 +173,7 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — manual prepend (no --prepend)
+      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch)
       - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -250,6 +250,17 @@ jobs:
           git commit -m "chore(release): prepare v${{ steps.ver.outputs.value }} [skip ci]"
           git push
 
+      # ✅ Tick boxes right after preparing a versioned release
+      - name: ☑️ PR checklist — version & changelog (versioned)
+        if: steps.ver.outputs.mode == 'versioned'
+        uses: ./.github/workflows/_pr-checklist.yml
+        with:
+          items: |
+            Version bumped
+            Changelog updated
+          comment: "✅ Autobump + changelog complete for v${{ steps.ver.outputs.value }}."
+          remove_label: ""
+
       # ===== MAINTENANCE HOTFIX FLOW (NO VERSION BUMP) =====
       - name: 📝 Debian changelog snapshot (UNRELEASED)
         if: steps.ver.outputs.mode == 'maintenance'
@@ -292,6 +303,7 @@ jobs:
           fi
 
       - name: 🧹 Commit & push maintenance changes
+        if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
         run: |
           set -euo pipefail
@@ -326,7 +338,6 @@ jobs:
               exit 0
             fi
             echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
-            # Rebase with autostash; if it fails, abort and retry once more
             if ! git pull --rebase --autostash origin "${BRANCH}"; then
               git rebase --abort || true
             fi
@@ -336,40 +347,34 @@ jobs:
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-      - name: ✅ Mark PR “Ready for review”
-        if: success() && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
-        uses: actions/github-script@v8
+      # ✅ Tick box for maintenance changelog
+      - name: ☑️ PR checklist — changelog (maintenance)
+        if: steps.ver.outputs.mode == 'maintenance'
+        uses: ./.github/workflows/_pr-checklist.yml
         with:
-          script: |
-            const { owner, repo } = context.repo;
-            const head = context.ref.replace('refs/heads/', '');
+          items: |
+            Changelog updated
+          comment: "🧹 Maintenance changelog snapshot updated."
+          remove_label: ""
 
-            // Look up an open PR for this branch
-            const prs = await github.paginate(
-              github.rest.pulls.list,
-              { owner, repo, state: 'open', head: `${owner}:${head}` }
-            );
-            if (!prs.length) {
-              core.info(`No open PR found for ${owner}:${head}; nothing to do.`);
-              return;
-            }
-            const pr = prs[0];
-            if (!pr.draft) {
-              core.info(`PR #${pr.number} is already Ready for review.`);
-              return;
-            }
+      # ✅ Flip PR Ready (centralized here). Re-ticks (idempotent) and removes 'automated'
+      - name: ✅ Ready for review (versioned)
+        if: success() && steps.ver.outputs.mode == 'versioned' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
+        uses: ./.github/workflows/_pr-checklist.yml
+        with:
+          items: |
+            Version bumped
+            Changelog updated
+          comment: "✅ Autobump & changelog complete. Marking PR Ready for review."
+          remove_label: "automated"
+          ready: true
 
-            // Flip draft -> ready
-            await github.rest.pulls.update({
-              owner, repo, pull_number: pr.number, draft: false
-            });
-            core.info(`PR #${pr.number} marked Ready for review.`);
-
-            // Optional niceties: add a comment and adjust labels
-            await github.rest.issues.createComment({
-              owner, repo, issue_number: pr.number,
-              body: "✅ Autobump & changelog complete. CI passed — marking this PR **Ready for review**."
-            }).catch(() => {});
-            await github.rest.issues.removeLabel({
-              owner, repo, issue_number: pr.number, name: 'automated'
-            }).catch(() => {});
+      - name: ✅ Ready for review (maintenance)
+        if: success() && steps.ver.outputs.mode == 'maintenance' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
+        uses: ./.github/workflows/_pr-checklist.yml
+        with:
+          items: |
+            Changelog updated
+          comment: "✅ Maintenance prep complete. Marking PR Ready for review."
+          remove_label: "automated"
+          ready: true
