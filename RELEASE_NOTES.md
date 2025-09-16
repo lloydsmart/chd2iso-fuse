@@ -1,8 +1,15 @@
 # Changelog
 ### CI
-- ci(release): use git-cliff positional range instead of --from/--to (7230e1a)### Other
+- ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (5456455)### Fixes
+- fix(ci): prevent uscan false failures when package is up-to-date 🛡️ (de9bd21)### Other
+- Back-merge main -> develop (post-release) (92419af)
+- PR #206: fix(ci): prevent uscan false failures when package is up-to-date 🛡️ (25fc3b4)
+- PR #207: ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (1cc28fa)### CI
+- ci(release): use git-cliff positional range instead of --from/--to (7230e1a)### Chore
+- chore(release): prepare v0.2.32 [skip ci] (7b12039)### Other
 - Back-merge main -> develop (post-release) (2c81d49)
-- PR #203: ci(release): use git-cliff positional range instead of --from/--to (9f59089)### CI
+- PR #203: ci(release): use git-cliff positional range instead of --from/--to (9f59089)
+- PR #204: Release/0.2.32 (3369e3f)### CI
 - ci(release): wire build to resolve_tag + log TAG in notes generation (cdff78f)### Chore
 - chore(release): prepare v0.2.31 [skip ci] (84b88ce)### Other
 - Back-merge main -> develop (post-release) (87cad97)
