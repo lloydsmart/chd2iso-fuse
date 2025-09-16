@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   security-events: write
+  pull-requests: write
 
 concurrency:
   group: codeql-${{ github.ref }}
@@ -251,3 +252,12 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
+
+      - name: ☑️ PR checklist — CI green
+        if: success() && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
+        uses: ./.github/workflows/_pr-checklist.yml
+        with:
+          items: |
+            CI green
+          comment: "✅ ${{ github.workflow }} passed."
+          ready: false
