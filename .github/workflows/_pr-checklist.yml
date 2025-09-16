@@ -34,26 +34,44 @@ jobs:
         with:
           script: |
             function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
-            const { owner, repo } = context.repo;
-            const head = (context.ref || '').replace('refs/heads/', '');
-            if (!head) { core.info('No branch ref; skipping'); return; }
 
-            // Only operate for release/* or hotfix/*
-            if (!/^release\/|^hotfix\//.test(head)) {
-              core.info(`Branch '${head}' is not release/* or hotfix/*; skipping.`);
+            const { owner, repo } = context.repo;
+
+            // Derive head branch across PR/push/workflow_call contexts
+            const headRef =
+              context.payload.pull_request?.head?.ref ||
+              process.env.GITHUB_HEAD_REF ||
+              (context.ref || '').replace('refs/heads/', '');
+
+            if (!headRef) {
+              core.info('No head branch could be determined; skipping.');
               return;
             }
 
-            // Find PR
+            // Optional guard: operate only on release/* or hotfix/*
+            if (!/^release\//.test(headRef) && !/^hotfix\//.test(headRef)) {
+              core.info(`Branch '${headRef}' is not release/* or hotfix/*; skipping.`);
+              return;
+            }
+
+            // Find the open PR for this branch
             const prs = await github.paginate(
               github.rest.pulls.list,
-              { owner, repo, state: 'open', head: `${owner}:${head}` }
+              { owner, repo, state: 'open', head: `${owner}:${headRef}` }
             );
-            if (!prs.length) { core.info(`No open PR for ${owner}:${head}`); return; }
+            if (!prs.length) {
+              core.info(`No open PR found for ${owner}:${headRef}; nothing to do.`);
+              return;
+            }
             const pr = prs[0];
 
-            const rawItems = `{{ inputs.items }}`;
-            const items = rawItems.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+            // Inputs (use toJson to preserve newlines/quotes reliably)
+            const rawItems    = ${{ toJson(inputs.items) }};
+            const commentIn   = ${{ toJson(inputs.comment) }};
+            const removeLabel = ${{ toJson(inputs.remove_label) }};
+            const markReady   = ${{ inputs.ready }}; // boolean
+
+            const items = String(rawItems).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
             let body = pr.body || '';
             let changed = false;
@@ -61,7 +79,7 @@ jobs:
             for (const label of items){
               const unchecked = new RegExp(`(^|\\n)\\s*- \\[ \\] \\s*${escapeRegex(label)}(\\s*$)`, 'i');
               const checked   = new RegExp(`(^|\\n)\\s*- \\[x\\] \\s*${escapeRegex(label)}(\\s*$)`, 'i');
-              if (checked.test(body)) continue;
+              if (checked.test(body)) continue;                        // already checked
               if (unchecked.test(body)) {
                 body = body.replace(unchecked, (_m,p1,p2)=>`${p1}- [x] ${label}${p2}`);
                 changed = true;
@@ -75,21 +93,21 @@ jobs:
               core.info('Checklist already up-to-date or items not found.');
             }
 
-            const comment = `{{ inputs.comment }}`.trim();
+            const comment = String(commentIn).trim();
             if (comment) {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: pr.number, body: comment
               }).catch(() => {});
             }
 
-            const removeLabel = `{{ inputs.remove_label }}`.trim();
-            if (removeLabel) {
+            const labelToRemove = String(removeLabel).trim();
+            if (labelToRemove) {
               await github.rest.issues.removeLabel({
-                owner, repo, issue_number: pr.number, name: removeLabel
+                owner, repo, issue_number: pr.number, name: labelToRemove
               }).catch(() => {});
             }
 
-            if ({{ inputs.ready }}) {
+            if (markReady === true) {
               if (pr.draft) {
                 await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
                 core.info(`PR #${pr.number} marked Ready for review.`);

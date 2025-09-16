@@ -253,11 +253,19 @@ jobs:
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
 
-      - name: ☑️ PR checklist — CI green
-        if: success() && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
-        uses: ./.github/workflows/_pr-checklist.yml
-        with:
-          items: |
-            CI green
-          comment: "✅ ${{ github.workflow }} passed."
-          ready: false
+  tick_ci_green:
+    name: ☑️ PR checklist — CI green
+    needs: analyze
+    if: >
+      needs.analyze.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        CI green
+      comment: "✅ ${{ github.workflow }} passed."
+      ready: false
+    secrets: inherit
