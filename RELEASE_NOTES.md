@@ -2,9 +2,14 @@
 ### CI
 - ci(cleanup): add artifact retention + post-publish deletion + weekly prune (059e9c6)
 - ci(codeql): hybrid Rust scanning — fast PR autobuild + deep nightly manual build (4b2fe1d)
-- ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (c9acc07)### Chore
+- ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (c9acc07)
+- ci: wire autobump & CI to reusable PR checklist updater ☑️ (66605fe)
+- ci: add reusable PR checklist updater ☑️ (e8587b0)
+- ci: tick “CI green” from Build & Test and CodeQL via reusable checklist ☑️ (585b58d)
+- ci: tick “CI green” at end of Build & Test job ☑️ (3a584e6)### Chore
 - chore(ci): auto-open draft PR for release/hotfix branches 🧩 (ff5c1a3)
-- chore(release): prepare v0.2.36 [skip ci] (47cfb6b)### Fixes
+- chore(release): prepare v0.2.36 [skip ci] (47cfb6b)
+- chore(release): prepare v0.2.36 [skip ci] (7499e97)### Fixes
 - fix(ci): typo (18961fa)### Other
 - Back-merge main -> develop (post-release) (e2f5e33)
 - PR #216: ci(cleanup): add artifact retention + post-publish deletion + weekly prune (3af56f7)
@@ -12,7 +17,9 @@
 - PR #218: chore(ci): auto-open draft PR for release/hotfix branches 🧩 (85fb137)
 - PR #219: fix(ci): typo (e9af569)
 - PR #221: ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (a9fd223)
-- Merge remote-tracking branch 'origin/develop' into release/0.2.36 (476c688)### CI
+- Merge remote-tracking branch 'origin/develop' into release/0.2.36 (476c688)
+- PR #222: Feature/auto tick (a6d9b90)
+- Merge remote-tracking branch 'origin/develop' into release/0.2.36 (867c9d7)### CI
 - ci(release): fix github-script syntax and handle 404 gracefully (54d9fee)### Chore
 - chore(release): prepare v0.2.35 [skip ci] (e548cad)### Other
 - Back-merge main -> develop (post-release) (8943318)
