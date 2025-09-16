@@ -9,8 +9,10 @@
 - ci: tick “CI green” at end of Build & Test job ☑️ (3a584e6)### Chore
 - chore(ci): auto-open draft PR for release/hotfix branches 🧩 (ff5c1a3)
 - chore(release): prepare v0.2.36 [skip ci] (47cfb6b)
-- chore(release): prepare v0.2.36 [skip ci] (7499e97)### Fixes
-- fix(ci): typo (18961fa)### Other
+- chore(release): prepare v0.2.36 [skip ci] (7499e97)
+- chore(release): prepare v0.2.36 [skip ci] (54043d8)### Fixes
+- fix(ci): typo (18961fa)
+- fix(workflows): integrate and harden PR checklist automation (00efad4)### Other
 - Back-merge main -> develop (post-release) (e2f5e33)
 - PR #216: ci(cleanup): add artifact retention + post-publish deletion + weekly prune (3af56f7)
 - PR #217: ci(codeql): hybrid Rust scanning (fast PR autobuild + deep nightly manual build) (4152710)

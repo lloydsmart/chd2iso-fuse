@@ -21,6 +21,37 @@ chd2iso-fuse (0.2.36-1) trixie; urgency=medium
   * ci: tick “CI green” from Build & Test and CodeQL via reusable checklist ☑️
   * ci: tick “CI green” at end of Build & Test job ☑️
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.36 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): integrate and harden PR checklist automation
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 16 Sep 2025 17:31:41 +0000
+
+chd2iso-fuse (0.2.36-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(cleanup): add artifact retention + post-publish deletion + weekly prune
+  * ci(codeql): hybrid Rust scanning — fast PR autobuild + deep nightly manual build
+  * chore(ci): auto-open draft PR for release/hotfix branches 🧩
+  * fix(ci): typo
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.36 [skip ci]
+
+  [ lloydsmart ]
+  * ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.36 [skip ci]
+
+  [ lloydsmart ]
+  * ci: wire autobump & CI to reusable PR checklist updater ☑️
+  * ci: add reusable PR checklist updater ☑️ ci(autobump): tick checklist and flip PR Ready via reusable workflow ✅
+  * ci: tick “CI green” from Build & Test and CodeQL via reusable checklist ☑️
+  * ci: tick “CI green” at end of Build & Test job ☑️
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 16 Sep 2025 14:57:03 +0000
 
 chd2iso-fuse (0.2.36-1) trixie; urgency=medium
