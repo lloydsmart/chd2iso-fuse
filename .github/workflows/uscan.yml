@@ -29,13 +29,27 @@ jobs:
         id: scan
         run: |
           set -euo pipefail
-          uscan --dehs --verbose --timeout 30 | tee uscan.xml
+          : "${GITHUB_OUTPUT:=/dev/null}"
+
+          # Run uscan but allow rc=1 (up-to-date) without failing the step
+          set +e
+          { uscan --dehs --verbose --timeout 30 1>uscan.xml 2>uscan.log; }
+          rc=$?
+          set -e
+
+          # Only treat unexpected exit codes as fatal
+          if [[ $rc -ne 0 && $rc -ne 1 ]]; then
+            echo "uscan failed with exit code $rc" >&2
+            sed -n '1,200p' uscan.log || true
+            exit "$rc"
+          fi
+
           if grep -q '<status>newer</status>' uscan.xml; then
             ver=$(grep -oPm1 '(?<=<upstream-version>)[^<]+' uscan.xml || echo unknown)
-            echo "newer=true" >> "$GITHUB_OUTPUT"
+            echo "newer=true"   >> "$GITHUB_OUTPUT"
             echo "version=$ver" >> "$GITHUB_OUTPUT"
           else
-            echo "newer=false" >> "$GITHUB_OUTPUT"
+            echo "newer=false"  >> "$GITHUB_OUTPUT"
           fi
 
       - name: 🆕 Create issue (new upstream)
