@@ -1,0 +1,79 @@
+name: 🧹 Cleanup CI storage
+
+on:
+  schedule:
+    - cron: '20 3 * * 0'    # Sundays 03:20 UTC
+  workflow_dispatch: {}
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🧽 Delete old artifacts
+        uses: actions/github-script@v8
+        env:
+          ARTIFACT_DAYS: '14'            # delete artifacts older than X days
+          KEEP_NAMES: '[]'               # e.g. '["release-artifacts"]'
+        with:
+          script: |
+            const cutoffDays = parseInt(process.env.ARTIFACT_DAYS || '14', 10);
+            const cutoff = new Date(Date.now() - cutoffDays * 24*60*60*1000);
+            const keep = new Set(JSON.parse(process.env.KEEP_NAMES || '[]'));
+
+            const { owner, repo } = context.repo;
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner, repo, per_page: 100 }
+            );
+
+            let deleted = 0, kept = 0;
+            for (const a of artifacts) {
+              const created = new Date(a.created_at);
+              const keepByName = keep.has(a.name);
+              if (keepByName || created >= cutoff) { kept++; continue; }
+              try {
+                await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+                deleted++;
+                core.info(`Deleted artifact ${a.name} (#${a.id}) created ${a.created_at}`);
+              } catch (err) {
+                core.warning(`Could not delete artifact ${a.name} (#${a.id}): ${err.message}`);
+              }
+            }
+            core.info(`Artifacts: kept=${kept} deleted=${deleted}`);
+
+      - name: 🗑️ Delete old completed workflow runs
+        uses: actions/github-script@v8
+        env:
+          RUN_DAYS: '45'                  # delete runs older than X days
+        with:
+          script: |
+            const cutoffDays = parseInt(process.env.RUN_DAYS || '45', 10);
+            const cutoff = new Date(Date.now() - cutoffDays * 24*60*60*1000);
+            const { owner, repo } = context.repo;
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100, status: 'completed' }
+            );
+
+            let deleted = 0, kept = 0;
+            for (const r of runs) {
+              const created = new Date(r.created_at);
+              if (created >= cutoff) { kept++; continue; }
+              try {
+                await github.rest.actions.deleteWorkflowRun({ owner, repo, run_id: r.id });
+                deleted++;
+                core.info(`Deleted run #${r.id} (${r.name} @ ${r.head_branch}) created ${r.created_at}`);
+              } catch (err) {
+                core.warning(`Could not delete run #${r.id}: ${err.message}`);
+              }
+            }
+            core.info(`Runs: kept=${kept} deleted=${deleted}`);
