@@ -206,7 +206,7 @@ jobs:
               -o artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
           gpg --verify artifacts/SHA256SUMS.asc artifacts/SHA256SUMS
 
-      - name: 📦 Assemble release asset list (explicit)
+      - name: 📦 Assemble release asset list (explicit; avoid self-copy)
         id: assets
         run: |
           set -euo pipefail
@@ -218,6 +218,11 @@ jobs:
               [ -f "$x" ] || continue
               cp -v "$x" .
               files+=("$(basename "$x")")
+              # Only copy if the source isn't already the same file in the CWD
+              if [[ "$x" != "$dest" && "$x" != "./$dest" ]]; then
+                cp -v "$x" "$dest"
+              fi
+              files+=("dest")
             done
           done
           if [ ${#files[@]} -eq 0 ]; then
