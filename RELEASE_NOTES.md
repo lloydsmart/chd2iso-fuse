@@ -1,10 +1,15 @@
 # Changelog
 ### CI
-- ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (5456455)### Fixes
+- ci(release): fix asset assembly — define dest, skip self-copy, use guarded notes path (55adcb6)### Other
+- Back-merge main -> develop (post-release) (f021b72)
+- PR #210: ci(release): fix asset assembly — define dest, skip self-copy (0f56fcb)### CI
+- ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (5456455)### Chore
+- chore(release): prepare v0.2.33 [skip ci] (d82fa70)### Fixes
 - fix(ci): prevent uscan false failures when package is up-to-date 🛡️ (de9bd21)### Other
 - Back-merge main -> develop (post-release) (92419af)
 - PR #206: fix(ci): prevent uscan false failures when package is up-to-date 🛡️ (25fc3b4)
-- PR #207: ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (1cc28fa)### CI
+- PR #207: ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (1cc28fa)
+- PR #208: Release/0.2.33 (2f0e721)### CI
 - ci(release): use git-cliff positional range instead of --from/--to (7230e1a)### Chore
 - chore(release): prepare v0.2.32 [skip ci] (7b12039)### Other
 - Back-merge main -> develop (post-release) (2c81d49)
