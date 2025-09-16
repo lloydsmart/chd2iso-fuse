@@ -79,7 +79,7 @@ jobs:
 
   build:
     name: 🛠️ Build for tag
-    needs: [guard_tag_on_main, resolve_tag]   # ← include resolve_tag so outputs are available
+    needs: [guard_tag_on_main, resolve_tag]   # include resolve_tag so outputs are available
     uses: ./.github/workflows/_build.yml
     with:
       lane: main
@@ -216,13 +216,12 @@ jobs:
           for f in "${wanted[@]}"; do
             for x in $f; do
               [ -f "$x" ] || continue
-              cp -v "$x" .
-              files+=("$(basename "$x")")
-              # Only copy if the source isn't already the same file in the CWD
+              dest="$(basename "$x")"
+              # Only copy if the source isn't already the same file in CWD
               if [[ "$x" != "$dest" && "$x" != "./$dest" ]]; then
                 cp -v "$x" "$dest"
               fi
-              files+=("dest")
+              files+=("$dest")
             done
           done
           if [ ${#files[@]} -eq 0 ]; then
