@@ -1,8 +1,13 @@
 # Changelog
 ### CI
-- ci(release): fix asset assembly — define dest, skip self-copy, use guarded notes path (55adcb6)### Other
+- ci(release): fix github-script syntax and handle 404 gracefully (54d9fee)### Other
+- Back-merge main -> develop (post-release) (8943318)
+- PR #213: ci(release): fix github-script syntax and handle 404 gracefully (117fecf)### CI
+- ci(release): fix asset assembly — define dest, skip self-copy, use guarded notes path (55adcb6)### Chore
+- chore(release): prepare v0.2.34 [skip ci] (daed903)### Other
 - Back-merge main -> develop (post-release) (f021b72)
-- PR #210: ci(release): fix asset assembly — define dest, skip self-copy (0f56fcb)### CI
+- PR #210: ci(release): fix asset assembly — define dest, skip self-copy (0f56fcb)
+- PR #211: Release/0.2.34 (cec251a)### CI
 - ci(release): avoid copying RELEASE_NOTES.md onto itself in asset assembly (5456455)### Chore
 - chore(release): prepare v0.2.33 [skip ci] (d82fa70)### Fixes
 - fix(ci): prevent uscan false failures when package is up-to-date 🛡️ (de9bd21)### Other
