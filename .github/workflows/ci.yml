@@ -302,6 +302,15 @@ jobs:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
+      - name: ☑️ PR checklist — CI green
+        if: success() && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
+        uses: ./.github/workflows/_pr-checklist.yml
+        with:
+          items: |
+            CI green
+          comment: "✅ ${{ github.workflow }} passed."
+          ready: false
+
   package_deb:
     name: 📦 Debian package (push only)
     needs: [gate, build_test]
