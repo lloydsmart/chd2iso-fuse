@@ -1,5 +1,5 @@
 # .github/workflows/autocreate-pr.yml
-name: PR: Auto-open for release/hotfix branches 🧩
+name: "PR: Auto-open for release/hotfix branches 🧩"
 
 on:
   push:
