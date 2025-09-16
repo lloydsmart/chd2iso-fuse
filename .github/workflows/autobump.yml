@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: release-prep-${{ github.ref }}
@@ -334,3 +335,41 @@ jobs:
 
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
+
+      - name: ✅ Mark PR “Ready for review”
+        if: success() && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const head = context.ref.replace('refs/heads/', '');
+
+            // Look up an open PR for this branch
+            const prs = await github.paginate(
+              github.rest.pulls.list,
+              { owner, repo, state: 'open', head: `${owner}:${head}` }
+            );
+            if (!prs.length) {
+              core.info(`No open PR found for ${owner}:${head}; nothing to do.`);
+              return;
+            }
+            const pr = prs[0];
+            if (!pr.draft) {
+              core.info(`PR #${pr.number} is already Ready for review.`);
+              return;
+            }
+
+            // Flip draft -> ready
+            await github.rest.pulls.update({
+              owner, repo, pull_number: pr.number, draft: false
+            });
+            core.info(`PR #${pr.number} marked Ready for review.`);
+
+            // Optional niceties: add a comment and adjust labels
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr.number,
+              body: "✅ Autobump & changelog complete. CI passed — marking this PR **Ready for review**."
+            }).catch(() => {});
+            await github.rest.issues.removeLabel({
+              owner, repo, issue_number: pr.number, name: 'automated'
+            }).catch(() => {});
