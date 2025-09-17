@@ -19,6 +19,9 @@ jobs:
     name: 🛠️ Prepare (version & changelog)
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
+    outputs:
+      mode:    ${{ steps.ver.outputs.mode }}
+      version: ${{ steps.ver.outputs.value }}
 
     env:
       DEBEMAIL: lloydsmart@users.noreply.github.com
@@ -173,7 +176,7 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch)
+      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — manual prepend (no --prepend)
       - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
@@ -249,17 +252,6 @@ jobs:
           git config user.email "lloydsmart@users.noreply.github.com"
           git commit -m "chore(release): prepare v${{ steps.ver.outputs.value }} [skip ci]"
           git push
-
-      # ✅ Tick boxes right after preparing a versioned release
-      - name: ☑️ PR checklist — version & changelog (versioned)
-        if: steps.ver.outputs.mode == 'versioned'
-        uses: ./.github/workflows/_pr-checklist.yml
-        with:
-          items: |
-            Version bumped
-            Changelog updated
-          comment: "✅ Autobump + changelog complete for v${{ steps.ver.outputs.value }}."
-          remove_label: ""
 
       # ===== MAINTENANCE HOTFIX FLOW (NO VERSION BUMP) =====
       - name: 📝 Debian changelog snapshot (UNRELEASED)
@@ -338,6 +330,7 @@ jobs:
               exit 0
             fi
             echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
+            # Rebase with autostash; if it fails, abort and retry once more
             if ! git pull --rebase --autostash origin "${BRANCH}"; then
               git rebase --abort || true
             fi
@@ -347,34 +340,80 @@ jobs:
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-      # ✅ Tick box for maintenance changelog
-      - name: ☑️ PR checklist — changelog (maintenance)
-        if: steps.ver.outputs.mode == 'maintenance'
-        uses: ./.github/workflows/_pr-checklist.yml
-        with:
-          items: |
-            Changelog updated
-          comment: "🧹 Maintenance changelog snapshot updated."
-          remove_label: ""
+  pr_checklist_versioned:
+    name: ☑️ PR checklist — version & changelog (versioned)
+    needs: prep
+    if: >
+      needs.prep.result == 'success' &&
+      needs.prep.outputs.mode == 'versioned' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        Version bumped
+        Changelog updated
+      comment: "✅ Autobump + changelog complete for v${{ needs.prep.outputs.version }}."
+      remove_label: ""
+      ready: false
+    secrets: inherit
 
-      # ✅ Flip PR Ready (centralized here). Re-ticks (idempotent) and removes 'automated'
-      - name: ✅ Ready for review (versioned)
-        if: success() && steps.ver.outputs.mode == 'versioned' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
-        uses: ./.github/workflows/_pr-checklist.yml
-        with:
-          items: |
-            Version bumped
-            Changelog updated
-          comment: "✅ Autobump & changelog complete. Marking PR Ready for review."
-          remove_label: "automated"
-          ready: true
+  pr_checklist_maintenance:
+    name: ☑️ PR checklist — changelog (maintenance)
+    needs: prep
+    if: >
+      needs.prep.result == 'success' &&
+      needs.prep.outputs.mode == 'maintenance' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        Changelog updated
+      comment: "🧹 Maintenance changelog snapshot updated."
+      remove_label: ""
+      ready: false
+    secrets: inherit
 
-      - name: ✅ Ready for review (maintenance)
-        if: success() && steps.ver.outputs.mode == 'maintenance' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/'))
-        uses: ./.github/workflows/_pr-checklist.yml
-        with:
-          items: |
-            Changelog updated
-          comment: "✅ Maintenance prep complete. Marking PR Ready for review."
-          remove_label: "automated"
-          ready: true
+  pr_ready_versioned:
+    name: ✅ Ready for review (versioned)
+    needs: [prep, pr_checklist_versioned]
+    if: >
+      needs.prep.result == 'success' &&
+      needs.prep.outputs.mode == 'versioned' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        Version bumped
+        Changelog updated
+      comment: "✅ Autobump & changelog complete. Marking PR Ready for review."
+      remove_label: "automated"
+      ready: true
+    secrets: inherit
+
+  pr_ready_maintenance:
+    name: ✅ Ready for review (maintenance)
+    needs: [prep, pr_checklist_maintenance]
+    if: >
+      needs.prep.result == 'success' &&
+      needs.prep.outputs.mode == 'maintenance' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        Changelog updated
+      comment: "✅ Maintenance prep complete. Marking PR Ready for review."
+      remove_label: "automated"
+      ready: true
+    secrets: inherit
