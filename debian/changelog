@@ -1,3 +1,10 @@
+chd2iso-fuse (0.2.37-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 17 Sep 2025 09:56:23 +0000
+
 chd2iso-fuse (0.2.36-1) trixie; urgency=medium
 
   [ lloydsmart ]
