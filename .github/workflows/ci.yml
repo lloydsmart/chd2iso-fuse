@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -301,6 +302,23 @@ jobs:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
+  tick_ci_green_build:
+    name: ☑️ PR checklist — CI green (Build & Test)
+    needs: build_test
+    if: >
+      needs.build_test.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        CI green
+      comment: "✅ ${{ github.workflow }} passed."
+      ready: false
+    secrets: inherit
+
   package_deb:
     name: 📦 Debian package (push only)
     needs: [gate, build_test]
@@ -408,3 +426,20 @@ jobs:
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
+
+  tick_ci_green_deb:
+    name: ☑️ PR checklist — CI green (Debian package)
+    needs: package_deb
+    if: >
+      needs.package_deb.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        CI green
+      comment: "✅ ${{ github.workflow }} passed."
+      ready: false
+    secrets: inherit

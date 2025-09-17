@@ -268,6 +268,12 @@ jobs:
         run: |
           set -euo pipefail
           gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
+      
+      - name: 🧹 Delete build artifact bundle (release-artifacts)
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: release-artifacts
+        continue-on-error: true
 
       - name: 🐛 Verify release assets (debug)
         uses: actions/github-script@v8

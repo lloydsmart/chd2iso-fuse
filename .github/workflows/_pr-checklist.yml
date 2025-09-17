@@ -1,0 +1,163 @@
+name: Reusable — Update PR checklist ☑️
+
+on:
+  workflow_call:
+    inputs:
+      items:
+        description: "Checklist items to tick (one per line; matches are fuzzy)"
+        type: string
+        required: true
+      comment:
+        description: "Optional comment to post after updating checklist"
+        type: string
+        default: ""
+      remove_label:
+        description: "Optional label to remove after updating checklist"
+        type: string
+        default: ""
+      ready:
+        description: "Set PR draft=false (Ready for review) after update"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  update:
+    name: Tick checklist & update PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: ☑️ Update PR checklist
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // --- helpers -----------------------------------------------------
+            function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+            function stripMd(s){
+              // remove common markdown wrappers and excessive spacing
+              return String(s)
+                .replace(/`([^`]*)`/g, '$1')     // inline code
+                .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+                .replace(/\*([^*]+)\*/g, '$1')     // italic
+                .replace(/__([^_]+)__/g, '$1')     // bold alt
+                .replace(/_([^_]+)_/g, '$1')       // italic alt
+                .replace(/~~([^~]+)~~/g, '$1')     // strikethrough
+                .replace(/:\w+:/g, '')             // :emoji:
+                .replace(/[，、。！!?:;,.]+$/g, '') // trailing punct
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+            }
+
+            const { owner, repo } = context.repo;
+
+            // Derive head branch across PR/push/workflow_call
+            const headRef =
+              context.payload.pull_request?.head?.ref ||
+              process.env.GITHUB_HEAD_REF ||
+              (context.ref || '').replace('refs/heads/', '');
+
+            if (!headRef) {
+              core.info('No head branch could be determined; skipping.');
+              return;
+            }
+
+            // Guard (operate only on release/* or hotfix/*)
+            if (!/^release\//.test(headRef) && !/^hotfix\//.test(headRef)) {
+              core.info(`Branch '${headRef}' is not release/* or hotfix/*; skipping.`);
+              return;
+            }
+
+            // Find open PR for this branch
+            const prs = await github.paginate(
+              github.rest.pulls.list,
+              { owner, repo, state: 'open', head: `${owner}:${headRef}` }
+            );
+            if (!prs.length) {
+              core.info(`No open PR found for ${owner}:${headRef}; nothing to do.`);
+              return;
+            }
+            const pr = prs[0];
+
+            // Inputs (toJson to preserve newlines/quotes)
+            const rawItems    = ${{ toJson(inputs.items) }};
+            const commentIn   = ${{ toJson(inputs.comment) }};
+            const removeLabel = ${{ toJson(inputs.remove_label) }};
+            const markReady   = ${{ inputs.ready }}; // boolean
+
+            const wanted = String(rawItems)
+              .split(/\r?\n/)
+              .map(s => stripMd(s))
+              .filter(Boolean);
+
+            let body = pr.body || '';
+            if (!body) {
+              core.info('PR has empty body; nothing to tick.');
+            }
+
+            // Tick any "- [ ] ..." task-list line whose normalized text contains any wanted label
+            // We accept "- [ ]", "-   [ ]", "* [ ]", etc.
+            const lines = body.split(/\r?\n/);
+            let changed = false;
+
+            const taskRe = /^([*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // captures prefix, mark, suffix, text
+
+            for (let i = 0; i < lines.length; i++) {
+              const m = lines[i].match(taskRe);
+              if (!m) continue;
+
+              const prefix = m[1];
+              const mark   = m[2];
+              const suffix = m[3];
+              const text   = m[4];
+
+              // Already checked? skip
+              if (/[xX]/.test(mark)) continue;
+
+              const norm = stripMd(text);
+              const hit = wanted.some(w =>
+                norm === w ||                     // exact after normalization
+                norm.includes(w)                  // substring (tolerate extras like "**...**")
+              );
+
+              if (hit) {
+                lines[i] = `${prefix}x${suffix}${text}`;
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              body = lines.join('\n');
+              await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
+              core.info(`Updated checklist on PR #${pr.number}.`);
+            } else {
+              core.info('No matching checklist items found to tick (format/labels may differ).');
+            }
+
+            // Optional comment
+            const comment = String(commentIn).trim();
+            if (comment) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number, body: comment
+              }).catch(() => {});
+            }
+
+            // Optional label removal
+            const labelToRemove = String(removeLabel).trim();
+            if (labelToRemove) {
+              await github.rest.issues.removeLabel({
+                owner, repo, issue_number: pr.number, name: labelToRemove
+              }).catch(() => {});
+            }
+
+            // Flip draft → ready if requested, regardless of whether any boxes were ticked
+            if (markReady === true) {
+              if (pr.draft) {
+                await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
+                core.info(`PR #${pr.number} marked Ready for review.`);
+              } else {
+                core.info('PR already Ready for review.');
+              }
+            }

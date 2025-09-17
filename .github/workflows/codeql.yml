@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   security-events: write
+  pull-requests: write
 
 concurrency:
   group: codeql-${{ github.ref }}
@@ -151,7 +152,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # ⬇️ No APT caching — just install what we need
       - name: 🛠️ Install system deps
         run: |
           sudo apt-get update
@@ -162,6 +162,19 @@ jobs:
         with:
           toolchain: stable
 
+      # ---------------------- PRs (fast) — AUTOBUILD ----------------------
+      - name: 🔧 Initialize CodeQL (PR/autobuild)
+        if: github.event_name == 'pull_request'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          queries: +security-and-quality
+
+      - name: 🤖 CodeQL autobuild (Rust)
+        if: github.event_name == 'pull_request'
+        uses: github/codeql-action/autobuild@v3
+
+      # Keep your lockfile guard/fix for same-repo PRs
       - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
@@ -191,23 +204,34 @@ jobs:
             echo "✅ Cargo.lock up to date."
           fi
 
-      # Build first so generated sources exist for CodeQL's Rust extractor
-      - name: 🧱 Build Rust (${{ matrix.variant }}) to materialize generated sources
-        env:
-          CARGO_TERM_COLOR: always
-          RUSTC_WRAPPER: ""
-          SCCACHE_BUCKET: ""
-          SCCACHE_ENDPOINT: ""
-          CARGO_INCREMENTAL: "0"
-        shell: bash
+      # ---------------- Nightly/Dispatch (deep) — MANUAL BUILD ----------------
+      - name: 🔧 Initialize CodeQL (manual mode)
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          queries: +security-and-quality
+          build-mode: manual
+
+      - name: 📦 Pre-fetch dependencies
+        if: github.event_name != 'pull_request'
         run: |
-          set -euo pipefail
           if [ -f Cargo.lock ]; then
             cargo fetch --locked || cargo fetch
           else
             cargo generate-lockfile
             cargo fetch
           fi
+
+      - name: 🧱 Build Rust (${{ matrix.variant }}) — manual
+        if: github.event_name != 'pull_request'
+        env:
+          CARGO_TERM_COLOR: always
+          RUSTC_WRAPPER: ""
+          CARGO_INCREMENTAL: "0"
+        shell: bash
+        run: |
+          set -euo pipefail
           case "${{ matrix.variant }}" in
             minimal)
               cargo build --workspace --all-targets --no-default-features --locked || cargo build --workspace --all-targets --no-default-features
@@ -219,14 +243,29 @@ jobs:
               cargo build --workspace --all-targets --all-features --locked || cargo build --workspace --all-targets --all-features
               ;;
           esac
+          # Optional: capture benches without running
+          cargo test  --workspace --no-run --locked || true
+          cargo bench --workspace --no-run --locked || true
 
-      - name: 🧰 Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: rust
-          queries: +security-and-quality
-
+      # ---------------------- Analyze (both paths) ----------------------
       - name: 🔬 Analyze
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
+
+  tick_ci_green:
+    name: ☑️ PR checklist — CI green
+    needs: analyze
+    if: >
+      needs.analyze.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_pr-checklist.yml
+    with:
+      items: |
+        CI green
+      comment: "✅ ${{ github.workflow }} passed."
+      ready: false
+    secrets: inherit
