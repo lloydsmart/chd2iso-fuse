@@ -130,7 +130,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # FORCE_FULL if title/labels explicitly request a full run
           FORCE_FULL="$(
             jq -r '
               def has_force_label:
@@ -143,20 +142,16 @@ jobs:
                     . == "force ci" or
                     . == "ci:full"
                   );
-
               [
-                # Title contains [full ci] or [ci full] or the phrase full[- ]ci
                 ((.pull_request.title // "")
                   | test("(?i)\\[(full[- ]?ci|ci[- ]?full)\\]") or
                     test("(?i)(^|\\s)full[- ]?ci(\\s|$)")
                  ),
-                # Labels include any of: full-ci, full ci, force-ci, force ci, ci:full
                 ((.pull_request.labels // []) | has_force_label)
               ] | any
             ' "$GITHUB_EVENT_PATH"
           )"
 
-          # Non-backmerge PRs normally run heavy CI if relevant files changed (or FORCE_FULL)
           if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
             if [[ "$FORCE_FULL" == "true" || \
                   "${{ steps.paths.outputs.rust }}" == "true" || \
@@ -170,7 +165,6 @@ jobs:
             exit 0
           fi
 
-          # Back-merge PRs: only run if conflicts, develop is ahead, or FORCE_FULL
           A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
           C="${{ steps.probe.outputs.conflicts || 'false' }}"
           if [[ "$C" == "true" || "$A" -gt 0 || "$FORCE_FULL" == "true" ]]; then
@@ -302,8 +296,9 @@ jobs:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
-  tick_ci_green_build:
-    name: ☑️ PR checklist — CI green (Build & Test)
+  # ✅ New: tick the CI box using the reusable workflow
+  tick_release_ci_box:
+    name: ☑️ PR checklist — CI build & tests passed
     needs: build_test
     if: >
       needs.build_test.result == 'success' &&
@@ -311,12 +306,10 @@ jobs:
         (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
         (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
       )
-    uses: ./.github/workflows/_pr-checklist.yml
+    uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
-      items: |
-        CI green
-      comment: "✅ ${{ github.workflow }} passed."
-      ready: false
+      branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      box: ci
     secrets: inherit
 
   package_deb:
@@ -426,20 +419,3 @@ jobs:
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
-
-  tick_ci_green_deb:
-    name: ☑️ PR checklist — CI green (Debian package)
-    needs: package_deb
-    if: >
-      needs.package_deb.result == 'success' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        CI green
-      comment: "✅ ${{ github.workflow }} passed."
-      ready: false
-    secrets: inherit

@@ -340,80 +340,18 @@ jobs:
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-  pr_checklist_versioned:
-    name: ☑️ PR checklist — version & changelog (versioned)
+  # ✅ New: single job to tick the “bump & changelog” box
+  tick_release_bump_box:
+    name: ☑️ PR checklist — Version bump & changelog
     needs: prep
     if: >
       needs.prep.result == 'success' &&
-      needs.prep.outputs.mode == 'versioned' &&
       (
         (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
         (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
       )
-    uses: ./.github/workflows/_pr-checklist.yml
+    uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
-      items: |
-        Version bumped
-        Changelog updated
-      comment: "✅ Autobump + changelog complete for v${{ needs.prep.outputs.version }}."
-      remove_label: ""
-      ready: false
-    secrets: inherit
-
-  pr_checklist_maintenance:
-    name: ☑️ PR checklist — changelog (maintenance)
-    needs: prep
-    if: >
-      needs.prep.result == 'success' &&
-      needs.prep.outputs.mode == 'maintenance' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        Changelog updated
-      comment: "🧹 Maintenance changelog snapshot updated."
-      remove_label: ""
-      ready: false
-    secrets: inherit
-
-  pr_ready_versioned:
-    name: ✅ Ready for review (versioned)
-    needs: [prep, pr_checklist_versioned]
-    if: >
-      needs.prep.result == 'success' &&
-      needs.prep.outputs.mode == 'versioned' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        Version bumped
-        Changelog updated
-      comment: "✅ Autobump & changelog complete. Marking PR Ready for review."
-      remove_label: "automated"
-      ready: true
-    secrets: inherit
-
-  pr_ready_maintenance:
-    name: ✅ Ready for review (maintenance)
-    needs: [prep, pr_checklist_maintenance]
-    if: >
-      needs.prep.result == 'success' &&
-      needs.prep.outputs.mode == 'maintenance' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        Changelog updated
-      comment: "✅ Maintenance prep complete. Marking PR Ready for review."
-      remove_label: "automated"
-      ready: true
+      branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      box: bump
     secrets: inherit
