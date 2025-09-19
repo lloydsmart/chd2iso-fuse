@@ -30,9 +30,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            // branch & kind
             const branch = core.getInput('branch') || process.env.GITHUB_REF_NAME;
             const kind = branch.startsWith('release/') ? 'release' : 'hotfix';
 
+            // helper: find existing PR by head/base
             async function findPr(head, base) {
               const { data } = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -44,14 +46,14 @@ jobs:
               return data[0];
             }
 
-            // ===== Release PR → main (draft, with 3 unchecked boxes) =====
+            // ===== Release PR → main (draft with 3 unchecked boxes) =====
             let releasePr = await findPr(branch, 'main');
             if (!releasePr) {
               const title = kind === 'release'
                 ? 'Release: ' + branch.replace(/^release\//, '')
                 : 'Hotfix: '  + branch.replace(/^hotfix\//, '');
 
-              const bodyLines = [
+              const body = [
                 `This ${kind} PR is auto-created for branch \`${branch}\`.`,
                 ``,
                 `### ✅ Release readiness checklist`,
@@ -60,8 +62,7 @@ jobs:
                 `- [ ] CodeQL security scan completed`,
                 ``,
                 `_This PR was created automatically. The checklist will be updated by workflows without comments._`
-              ];
-              const body = bodyLines.join('\n');
+              ].join('\n');
 
               const { data } = await github.rest.pulls.create({
                 owner: context.repo.owner,
@@ -102,7 +103,6 @@ jobs:
 
             // Enable auto-merge (requires repo Auto-merge setting)
             try {
-              const prNodeId = backPr.node_id;
               const mutation = `
                 mutation($prId:ID!) {
                   enablePullRequestAutoMerge(input:{
@@ -111,11 +111,8 @@ jobs:
                   }) { clientMutationId }
                 }
               `;
-              await github.graphql(mutation, { prId: prNodeId });
+              await github.graphql(mutation, { prId: backPr.node_id });
               core.info(`Auto-merge enabled for PR #${backPr.number}`);
             } catch (e) {
-              core.warning(
-                `Could not enable auto-merge for PR #${backPr.number}. ` +
-                `Ensure repository auto-merge is enabled. ${e.message}`
-              );
+              core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
             }
