@@ -1,5 +1,15 @@
 chd2iso-fuse (0.2.39-1) trixie; urgency=medium
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): reliable PR lookup + quiet updates
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 13:17:03 +0000
+
+chd2iso-fuse (0.2.39-1) trixie; urgency=medium
+
   * UNRELEASED
 
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 13:08:28 +0000

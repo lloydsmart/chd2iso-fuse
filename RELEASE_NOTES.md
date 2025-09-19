@@ -1,5 +1,7 @@
 # Changelog
-### Other
+### Chore
+- chore(release): prepare v0.2.39 [skip ci] (1f877e2)### Fixes
+- fix(pr-checklist): reliable PR lookup + quiet updates (f11d86f)### Other
 - Back-merge main -> develop (post-release) (5a45e96)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.38 [skip ci] (9e11b78)
