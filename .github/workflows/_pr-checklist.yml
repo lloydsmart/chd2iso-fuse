@@ -43,13 +43,9 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
 
-            // --- helpers ---
-            const norm = (s) =>
-              (s || "")
-                .replace(/\r/g, "")
-                .replace(/^\s*[-*]\s*\[[ xX]\]\s*/m, "") // strip leading "- [ ]" or "* [ ]"
-                .replace(/[`*_~]/g, "")                  // strip lightweight md
-                .trim();
+            // -------- helpers --------
+            const parseLines = (s) =>
+              (s || "").split(/\r?\n/).map((v) => v.trimEnd()); // keep leading spaces for bullets
 
             const parseMultiline = (s) =>
               (s || "")
@@ -57,15 +53,31 @@ jobs:
                 .map((v) => v.trim())
                 .filter(Boolean);
 
+            // Normalize the task "text" (without the "- [ ]" prefix), for matching
+            const normTask = (s) =>
+              (s || "")
+                .replace(/\r/g, "")
+                .replace(/^\s*[-*]\s*\[[ xX]\]\s*/,'') // strip checkbox prefix
+                .replace(/[`\*_~]/g,'')                 // strip lightweight md
+                .trim();
+
+            // Build tolerant word-based fallback matcher: "version.*bump" -> ["version","bump"]
+            const wordsFromPattern = (p) =>
+              (p || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/gi, " ")
+                .split(/\s+/)
+                .filter(Boolean);
+
             const literalNeedles = parseMultiline(`{{ inputs.items }}`).map((t) => t.toLowerCase());
             const regexNeedles = parseMultiline(`{{ inputs.regex_items }}`).map((p) => new RegExp(p, "i"));
+            const wordNeedles  = parseMultiline(`{{ inputs.regex_items }}`).map(wordsFromPattern);
 
-            // --- find PR: prefer payload PR#; else by head ref; else scan open PRs ---
-            let prNumber = undefined;
-            if (context.payload.pull_request && context.payload.pull_request.number) {
+            // -------- find PR --------
+            let prNumber;
+            if (context.payload.pull_request?.number) {
               prNumber = context.payload.pull_request.number;
             }
-
             const headRef = (context.ref || "").replace(/^refs\/heads\//, "");
             if (!prNumber && headRef) {
               const prsByHead = await github.paginate(
@@ -74,13 +86,11 @@ jobs:
               );
               if (prsByHead.length) prNumber = prsByHead[0].number;
             }
-
-            if (!prNumber && headRef) {
+            if (!prNumber) {
               const openPRs = await github.paginate(github.rest.pulls.list, { owner, repo, state: "open" });
               const match = openPRs.find((p) => (p.head && p.head.ref) === headRef);
               if (match) prNumber = match.number;
             }
-
             if (!prNumber) {
               core.info(`No open PR found for head='${headRef}'. Nothing to do.`);
               return;
@@ -88,56 +98,75 @@ jobs:
 
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             let body = pr.body || "";
+            const lines = parseLines(body);
 
-            // Scan body, tick matching lines
-            const lines = body.split(/\n/);
+            core.info(`PR #${prNumber} found. Head: ${pr.head?.ref} | Draft: ${pr.draft ? "yes" : "no"}`);
+            core.info(`Requested (literals): ${JSON.stringify(literalNeedles) || "<none>"}`);
+            core.info(`Requested (regex):    ${parseMultiline(`{{ inputs.regex_items }}`).join(" | ") || "<none>"}`);
+
+            // -------- tick tasks --------
             let changed = false;
+            const requestedChecks = []; // for require_all gate
 
-            // Track which requested items are now checked (for require_all)
-            const requestedChecks = [];
-
-            // Build a predicate that says if a task text matches any literal or regex
+            // Helper: does a given task text match any requested literal/regex/words
             const matchesRequested = (taskText) => {
-              const textNorm = taskText.toLowerCase();
-              if (literalNeedles.some((needle) => textNorm.includes(needle))) return true;
-              if (regexNeedles.some((re) => re.test(taskText))) return true;
-              return false;
+              const textLower = taskText.toLowerCase();
+
+              // 1) literal "includes"
+              if (literalNeedles.some((needle) => needle && textLower.includes(needle))) {
+                return { matched: true, via: "literal" };
+              }
+
+              // 2) regex
+              if (regexNeedles.some((re) => re.test(taskText))) {
+                return { matched: true, via: "regex" };
+              }
+
+              // 3) word fallback (all words must appear)
+              for (const words of wordNeedles) {
+                if (!words.length) continue;
+                const all = words.every((w) => textLower.includes(w));
+                if (all) return { matched: true, via: "words" };
+              }
+
+              return { matched: false };
             };
 
             for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
+              const raw = lines[i];
 
-              // Only consider markdown task list lines
-              const m = line.match(/^(\s*[-*]\s*)\[( |x|X)\](\s*)(.*)$/);
+              // Only process markdown task list lines
+              const m = raw.match(/^(\s*[-*]\s*)\[( |x|X)\](\s*)(.*)$/);
               if (!m) continue;
 
-              const [, bullet, box, spaceAfter, textRaw] = m;
-              const text = norm(line); // normalized task text (no checkbox prefix etc.)
-
-              const isMatch = matchesRequested(text);
+              const [, bullet, box, spaceAfter, rest] = m;
               const isChecked = box.toLowerCase() === "x";
+              const taskText = normTask(raw);
 
-              // Record status for require_all (only for lines that match one of the requested items)
-              if (isMatch) {
+              const { matched, via } = matchesRequested(taskText);
+
+              // For logs
+              core.info(`task: "${taskText}" | checked=${isChecked} | match=${matched ? via : "no"}`);
+
+              if (matched) {
                 requestedChecks.push(isChecked);
-              }
-
-              // If line matches a requested item and is unchecked -> tick it
-              if (isMatch && !isChecked) {
-                lines[i] = `${bullet}[x]${spaceAfter}${textRaw}`;
-                changed = true;
+                if (!isChecked) {
+                  lines[i] = `${bullet}[x]${spaceAfter}${rest}`;
+                  changed = true;
+                  core.info(` -> ticked`);
+                }
               }
             }
 
             if (changed) {
               body = lines.join("\n");
               await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body });
-              core.info(`Updated checklist on PR #${prNumber}.`);
+              core.info(`Updated PR body (ticked ${requestedChecks.filter(Boolean).length}/${requestedChecks.length} requested items).`);
             } else {
-              core.info(`Checklist already up-to-date or requested items not found on PR #${prNumber}.`);
+              core.info(`No body changes needed. (${requestedChecks.filter(Boolean).length}/${requestedChecks.length} requested items already checked or not found)`);
             }
 
-            // Optional: comment (only if provided and non-empty)
+            // Optional: single, explicit comment
             const comment = `{{ inputs.comment }}`.trim();
             if (comment) {
               await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: comment }).catch(() => {});
@@ -149,23 +178,22 @@ jobs:
               await github.rest.issues.removeLabel({ owner, repo, issue_number: prNumber, name: removeLabel }).catch(() => {});
             }
 
-            // Optional: flip draft -> ready
-            const wantReady = {{ inputs.ready }};
-            const requireAll = {{ inputs.require_all }};
+            // Optional: flip draft -> ready (with gating)
+            const wantReady   = {{ inputs.ready }};
+            const requireAll  = {{ inputs.require_all }};
             if (wantReady) {
-              // If require_all, ensure every requested item that exists in the body is now checked.
               let okToReady = true;
               if (requireAll) {
-                // If none of the requested items were found at all, do NOT flip.
                 if (requestedChecks.length === 0) {
+                  core.info("Ready gate: none of the requested items were found; not flipping.");
                   okToReady = false;
-                } else {
-                  okToReady = requestedChecks.every(Boolean);
+                } else if (!requestedChecks.every(Boolean)) {
+                  core.info("Ready gate: not all requested items are checked; not flipping.");
+                  okToReady = false;
                 }
               }
 
               if (okToReady) {
-                // Re-fetch draft status in case it changed
                 const { data: pr2 } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
                 if (pr2.draft) {
                   await github.rest.pulls.update({ owner, repo, pull_number: prNumber, draft: false });
@@ -173,7 +201,5 @@ jobs:
                 } else {
                   core.info(`PR #${prNumber} already Ready for review.`);
                 }
-              } else {
-                core.info("Not marking Ready for review: required items not all checked.");
               }
             }
