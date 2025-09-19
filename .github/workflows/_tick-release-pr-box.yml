@@ -31,8 +31,6 @@ jobs:
             const inputWhich  = (core.getInput('box') || '').trim();
 
             // Fallbacks if branch not provided by caller
-            // - GITHUB_HEAD_REF is set on pull_request events
-            // - GITHUB_REF_NAME is set on push events
             const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
             const branch = inputBranch || envBranch;
 
@@ -126,20 +124,27 @@ jobs:
               core.info(`Ticked "${which}" for PR #${pr.number}`);
             }
 
-            // If ALL three are checked, flip draft -> Ready for review
+            // If ALL three are checked, flip draft -> Ready for review (GraphQL)
             const allChecked =
               body.includes(doneMapping.ci) &&
               body.includes(doneMapping.bump) &&
               body.includes(doneMapping.codeql);
 
-            if (allChecked && pr.draft) {
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                draft: false
-              });
-              core.info(`All boxes checked. PR #${pr.number} is now Ready for review.`);
+            if (allChecked) {
+              try {
+                const mutation = `
+                  mutation($prId: ID!) {
+                    markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+                      clientMutationId
+                    }
+                  }
+                `;
+                await github.graphql(mutation, { prId: pr.node_id });
+                core.info(`All boxes checked. PR #${pr.number} marked Ready for review.`);
+              } catch (e) {
+                // If it's already ready, or mutation not allowed, just log
+                core.warning(`Tried to mark PR #${pr.number} ready: ${e.message}`);
+              }
             } else {
-              core.info(`All checked? ${allChecked}. Draft? ${pr.draft}`);
+              core.info(`All checked? ${allChecked}. Not flipping yet.`);
             }
