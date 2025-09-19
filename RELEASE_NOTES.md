@@ -5,13 +5,15 @@
 - chore(release): prepare v0.2.40 [skip ci] (22aedb9)
 - chore(release): prepare v0.2.40 [skip ci] (29f1983)
 - chore(release): prepare v0.2.40 [skip ci] (b364d8d)
-- chore(release): prepare v0.2.40 [skip ci] (1998406)### Features
+- chore(release): prepare v0.2.40 [skip ci] (1998406)
+- chore(release): prepare v0.2.40 [skip ci] (1f46dfe)### Features
 - feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip (9847cb6)### Fixes
 - fix(workflows): correct release-pr GitHub Script syntax and escaping (fa8f7a5)
 - fix(workflows): harden checkbox ticker input handling (trim/normalize/aliases) (6a4a3dd)
 - fix(workflows): make checkbox ticker resilient when `branch` input is omitted (52fd6cd)
 - fix(workflows): infer checkbox target when `box` input is missing; keep working without callers passing it (946a425)
-- fix(workflows): actually flip Draft → Ready using GraphQL when all boxes are ticked (d4c3d2b)### Other
+- fix(workflows): actually flip Draft → Ready using GraphQL when all boxes are ticked (d4c3d2b)
+- fix(workflows): stabilize release PR creator — use multiline github-script block and clean JS (1eb5401)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
 - PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)
 - PR #233: feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, "Ready" flip (88eb175)### Chore
