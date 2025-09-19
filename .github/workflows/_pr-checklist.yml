@@ -4,15 +4,15 @@ on:
   workflow_call:
     inputs:
       items:
-        description: "Checklist items to tick (one per line; fuzzy match)"
+        description: "Literal checklist items to tick (one per line, must appear in PR body)"
         type: string
-        required: true
+        default: ""
       regex_items:
-        description: "Optional regex matchers (one per line) to tick matching task lines"
+        description: "Regex patterns (one per line, case-insensitive) to match checklist items"
         type: string
         default: ""
       comment:
-        description: "Optional comment to post after updating checklist (off by default)"
+        description: "Optional comment to post after updating checklist"
         type: string
         default: ""
       remove_label:
@@ -20,21 +20,13 @@ on:
         type: string
         default: ""
       ready:
-        description: "Attempt to set PR draft=false (Ready for review) after update"
+        description: "If true, attempt to mark PR Ready for review after ticking"
         type: boolean
         default: false
       require_all:
-        description: "Only flip to Ready if *all* required items are checked"
+        description: "If true, only flip Ready when ALL requested items are checked"
         type: boolean
         default: false
-      required_items:
-        description: "Required checklist items (one per line) that must be [x] to allow Ready flip"
-        type: string
-        default: ""
-      required_regex_items:
-        description: "Required regex matchers (one per line) that must match a *checked* task to allow Ready flip"
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -49,218 +41,139 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            // ---------------- helpers ----------------
-            function normalize(s){
-              return String(s || '')
-                // strip markdown
-                .replace(/`([^`]*)`/g, '$1')
-                .replace(/\*\*([^*]+)\*\*/g, '$1')
-                .replace(/\*([^*]+)\*/g, '$1')
-                .replace(/__([^_]+)__/g, '$1')
-                .replace(/_([^_]+)_/g, '$1')
-                .replace(/~~([^~]+)~~/g, '$1')
-                // drop :emoji: and html
-                .replace(/:[a-z0-9_+-]+:/gi, '')
-                .replace(/<[^>]+>/g, '')
-                // punctuation & bullets
-                .replace(/[()[\]{}:;.,!?–—•·]|#+/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .toLowerCase();
-            }
-            function tokens(s){
-              return new Set(normalize(s).split(/\s+/).filter(w => w.length >= 2));
-            }
-            function jaccard(aSet, bSet){
-              const a = new Set(aSet), b = new Set(bSet);
-              const inter = new Set([...a].filter(x => b.has(x)));
-              const union = new Set([...a, ...b]);
-              return union.size ? inter.size / union.size : 0;
-            }
-            function fuzzyIncludes(needle, hay){
-              // tolerant: normalized containment either way OR token similarity >= 0.6
-              const n = normalize(needle);
-              const h = normalize(hay);
-              if (!n || !h) return false;
-              if (h.includes(n) || n.includes(h)) return true;
-              return jaccard(tokens(needle), tokens(hay)) >= 0.6;
-            }
-            function buildRegexes(lines){
-              return String(lines).split(/\r?\n/)
-                .map(s => s.trim()).filter(Boolean)
-                .map(p => { try { return new RegExp(p, 'i'); } catch { core.warning(`Bad regex skipped: ${p}`); return null; } })
-                .filter(Boolean);
-            }
-            function isReleaseOrHotfixBranch(name){
-              return /^release\//.test(name) || /^hotfix\//.test(name);
-            }
-
             const { owner, repo } = context.repo;
 
-            // Resolve head branch across PR/push/workflow_call
-            const headFromPR   = context.payload.pull_request?.head?.ref;
-            const headFromEnv  = process.env.GITHUB_HEAD_REF;
-            const headFromRef  = (context.ref || '').replace(/^refs\/heads\//, '');
-            const candidates   = [headFromPR, headFromEnv, headFromRef].filter(Boolean);
-            const head         = candidates.find(isReleaseOrHotfixBranch) || candidates[0];
+            // --- helpers ---
+            const norm = (s) =>
+              (s || "")
+                .replace(/\r/g, "")
+                .replace(/^\s*[-*]\s*\[[ xX]\]\s*/m, "") // strip leading "- [ ]" or "* [ ]"
+                .replace(/[`*_~]/g, "")                  // strip lightweight md
+                .trim();
 
-            const prNumberFromPayload = context.payload.pull_request?.number || null;
+            const parseMultiline = (s) =>
+              (s || "")
+                .split(/\r?\n/)
+                .map((v) => v.trim())
+                .filter(Boolean);
 
-            core.info(`repo=${owner}/${repo}`);
-            core.info(`candidates head=[${candidates.join(', ')}], chosen='${head || ''}'`);
-            core.info(`payload PR number=${prNumberFromPayload ?? 'none'}`);
+            const literalNeedles = parseMultiline(`{{ inputs.items }}`).map((t) => t.toLowerCase());
+            const regexNeedles = parseMultiline(`{{ inputs.regex_items }}`).map((p) => new RegExp(p, "i"));
 
-            // ---------- 1) get the PR ----------
-            let pr = null;
-
-            // (a) If we have a PR number (PR event), use it directly
-            if (prNumberFromPayload) {
-              try {
-                const resp = await github.rest.pulls.get({ owner, repo, pull_number: prNumberFromPayload });
-                pr = resp.data;
-                core.info(`PR via payload: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
-              } catch (e) {
-                core.warning(`Failed to get PR #${prNumberFromPayload} via payload: ${e.message}`);
-              }
+            // --- find PR: prefer payload PR#; else by head ref; else scan open PRs ---
+            let prNumber = undefined;
+            if (context.payload.pull_request && context.payload.pull_request.number) {
+              prNumber = context.payload.pull_request.number;
             }
 
-            // (b) Try head-qualified search: owner:branch
-            if (!pr && head) {
-              const prs = await github.paginate(github.rest.pulls.list, {
-                owner, repo, state: 'open', head: `${owner}:${head}`, per_page: 100
-              }).catch(() => []);
-              if (prs.length) {
-                pr = prs[0];
-                core.info(`PR via head-qualified: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
-              }
+            const headRef = (context.ref || "").replace(/^refs\/heads\//, "");
+            if (!prNumber && headRef) {
+              const prsByHead = await github.paginate(
+                github.rest.pulls.list,
+                { owner, repo, state: "open", head: `${owner}:${headRef}` }
+              );
+              if (prsByHead.length) prNumber = prsByHead[0].number;
             }
 
-            // (c) Fallback: scan open PRs and match head.ref exactly
-            if (!pr && head) {
-              const all = await github.paginate(github.rest.pulls.list, {
-                owner, repo, state: 'open', per_page: 100
-              }).catch(() => []);
-              pr = all.find(p => p.head?.ref === head) || null;
-              if (pr) core.info(`PR via scan: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
+            if (!prNumber && headRef) {
+              const openPRs = await github.paginate(github.rest.pulls.list, { owner, repo, state: "open" });
+              const match = openPRs.find((p) => (p.head && p.head.ref) === headRef);
+              if (match) prNumber = match.number;
             }
 
-            // (d) Give up if still nothing or wrong branch family
-            if (!pr) { core.info(`No open PR found for head='${head}'. Nothing to do.`); return; }
-            if (!isReleaseOrHotfixBranch(pr.head?.ref || '')) {
-              core.info(`PR head '${pr.head?.ref}' is not release/* or hotfix/*; skipping.`);
+            if (!prNumber) {
+              core.info(`No open PR found for head='${headRef}'. Nothing to do.`);
               return;
             }
 
-            // ---------------- inputs ----------------
-            const itemsStr         = ${{ toJson(inputs.items) }};
-            const regexItemsStr    = ${{ toJson(inputs.regex_items) }};
-            const commentStr       = ${{ toJson(inputs.comment) }};
-            const removeLabelStr   = ${{ toJson(inputs.remove_label) }};
-            const ready            = ${{ inputs.ready }};
-            const requireAll       = ${{ inputs.require_all }};
-            const requiredStr      = ${{ toJson(inputs.required_items) }};
-            const requiredRegexStr = ${{ toJson(inputs.required_regex_items) }};
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            let body = pr.body || "";
 
-            const wantNorm      = String(itemsStr).split(/\r?\n/).map(normalize).filter(Boolean);
-            const wantRegexes   = buildRegexes(regexItemsStr);
-            const requireNorm   = String(requiredStr).split(/\r?\n/).map(normalize).filter(Boolean);
-            const requireRegex  = buildRegexes(requiredRegexStr);
-
-            // ---------------- tick items in body ----------------
-            let body = pr.body || '';
-            if (!body) core.info('PR has empty body; nothing to tick.');
-            else core.info(`PR body length=${body.length}`);
-
-            const lines = (body || '').split(/\r?\n/);
-            // allow leading indentation on task lines
-            const taskLine   = /^(\s*[*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // prefix, mark, suffix, text
+            // Scan body, tick matching lines
+            const lines = body.split(/\n/);
             let changed = false;
 
+            // Track which requested items are now checked (for require_all)
+            const requestedChecks = [];
+
+            // Build a predicate that says if a task text matches any literal or regex
+            const matchesRequested = (taskText) => {
+              const textNorm = taskText.toLowerCase();
+              if (literalNeedles.some((needle) => textNorm.includes(needle))) return true;
+              if (regexNeedles.some((re) => re.test(taskText))) return true;
+              return false;
+            };
+
             for (let i = 0; i < lines.length; i++) {
-              const m = lines[i].match(taskLine);
+              const line = lines[i];
+
+              // Only consider markdown task list lines
+              const m = line.match(/^(\s*[-*]\s*)\[( |x|X)\](\s*)(.*)$/);
               if (!m) continue;
-              const [ , pre, mark, post, text ] = m;
-              if (/[xX]/.test(mark)) continue;
 
-              const norm = normalize(text);
-              const hitWanted = wantNorm.some(w => norm === w || norm.includes(w));
-              const hitRegex  = wantRegexes.some(r => r.test(text) || r.test(norm));
+              const [, bullet, box, spaceAfter, textRaw] = m;
+              const text = norm(line); // normalized task text (no checkbox prefix etc.)
 
-              if (hitWanted || hitRegex) {
-                lines[i] = `${pre}x${post}${text}`;
+              const isMatch = matchesRequested(text);
+              const isChecked = box.toLowerCase() === "x";
+
+              // Record status for require_all (only for lines that match one of the requested items)
+              if (isMatch) {
+                requestedChecks.push(isChecked);
+              }
+
+              // If line matches a requested item and is unchecked -> tick it
+              if (isMatch && !isChecked) {
+                lines[i] = `${bullet}[x]${spaceAfter}${textRaw}`;
                 changed = true;
               }
             }
 
             if (changed) {
-              body = lines.join('\n');
-              await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
-              core.info(`Checklist updated on PR #${pr.number}.`);
-              await new Promise(r => setTimeout(r, 800)); // small settle delay
-              const fresh = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
-              pr = fresh.data;
-              body = pr.body || body;
+              body = lines.join("\n");
+              await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body });
+              core.info(`Updated checklist on PR #${prNumber}.`);
             } else {
-              core.info('No matching checklist items found to tick.');
+              core.info(`Checklist already up-to-date or requested items not found on PR #${prNumber}.`);
             }
 
-            // ---------------- gate: are all required items checked? ----------------
-            const checkedTask = /^\s*[*\-]\s*\[\s*[xX]\s*\]\s*(.*)$/;
-            const checkedRaw = (body || '').split(/\r?\n/)
-              .map(l => (l.match(checkedTask) || [])[1])
-              .filter(Boolean);
-
-            const checkedNorm = checkedRaw.map(normalize);
-
-            core.info(`Checked items (normalized): ${JSON.stringify(checkedNorm)}`);
-            core.info(`Required items (normalized): ${JSON.stringify(requireNorm)}`);
-            core.info(`Required regex count: ${requireRegex.length}`);
-
-            const textOK = requireAll
-              ? (requireNorm.length > 0
-                  ? requireNorm.every(req =>
-                      checkedRaw.some(cr => fuzzyIncludes(req, cr)) ||
-                      checkedNorm.some(cn => fuzzyIncludes(req, cn))
-                    )
-                  : false)
-              : true;
-
-            const regexOK = requireAll
-              ? (requireRegex.length > 0
-                  ? requireRegex.every(r =>
-                      checkedRaw.some(cr => r.test(cr)) || checkedNorm.some(cn => r.test(cn))
-                    )
-                  : true)
-              : true;
-
-            const allOK = (!requireAll) ? true : (textOK && regexOK);
-
-            // ---------------- flip draft -> ready if allowed ----------------
-            if (ready && allOK) {
-              if (pr.draft) {
-                await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
-                core.info(`PR #${pr.number} marked Ready for review.`);
-              } else {
-                core.info(`PR #${pr.number} already Ready.`);
-              }
-            } else if (ready && requireAll && !allOK) {
-              core.info('Require-all enabled but not all required items are checked — staying Draft.');
-            }
-
-            // ---------------- optional comment & label removal (quiet by default) ----------------
-            const comment = String(commentStr || '').trim();
+            // Optional: comment (only if provided and non-empty)
+            const comment = `{{ inputs.comment }}`.trim();
             if (comment) {
-              const existing = await github.paginate(github.rest.issues.listComments, {
-                owner, repo, issue_number: pr.number, per_page: 100
-              });
-              if (!existing.some(c => (c.body || '').trim() === comment)) {
-                await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: comment }).catch(() => {});
-              } else {
-                core.info('Identical comment already exists; skipping duplicate.');
-              }
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: comment }).catch(() => {});
             }
 
-            const toRemove = String(removeLabelStr || '').trim();
-            if (toRemove) {
-              await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: toRemove }).catch(() => {});
+            // Optional: remove a label
+            const removeLabel = `{{ inputs.remove_label }}`.trim();
+            if (removeLabel) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: prNumber, name: removeLabel }).catch(() => {});
+            }
+
+            // Optional: flip draft -> ready
+            const wantReady = {{ inputs.ready }};
+            const requireAll = {{ inputs.require_all }};
+            if (wantReady) {
+              // If require_all, ensure every requested item that exists in the body is now checked.
+              let okToReady = true;
+              if (requireAll) {
+                // If none of the requested items were found at all, do NOT flip.
+                if (requestedChecks.length === 0) {
+                  okToReady = false;
+                } else {
+                  okToReady = requestedChecks.every(Boolean);
+                }
+              }
+
+              if (okToReady) {
+                // Re-fetch draft status in case it changed
+                const { data: pr2 } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+                if (pr2.draft) {
+                  await github.rest.pulls.update({ owner, repo, pull_number: prNumber, draft: false });
+                  core.info(`PR #${prNumber} marked Ready for review.`);
+                } else {
+                  core.info(`PR #${prNumber} already Ready for review.`);
+                }
+              } else {
+                core.info("Not marking Ready for review: required items not all checked.");
+              }
             }
