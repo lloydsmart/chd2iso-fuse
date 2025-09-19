@@ -427,11 +427,11 @@ jobs:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
-  tick_ci_green_deb:
-    name: ☑️ PR checklist — CI green (Debian package)
-    needs: package_deb
+  tick_ci_green:
+    name: ☑️ PR checklist — CI green (and flip when all done)
+    needs: build_test
     if: >
-      needs.package_deb.result == 'success' &&
+      needs.build_test.result == 'success' &&
       (
         (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
         (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
@@ -440,6 +440,12 @@ jobs:
     with:
       items: |
         CI green
-      comment: "✅ ${{ github.workflow }} passed."
-      ready: false
+      # No comment; update body only
+      remove_label: ""
+      ready: true
+      require_all: true
+      required_items: |
+        Version bumped
+        Changelog updated
+        CI green
     secrets: inherit
