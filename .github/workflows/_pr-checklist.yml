@@ -117,6 +117,7 @@ jobs:
             );
             if (!prs.length) { core.info(`No open PR for ${owner}:${head}.`); return; }
             const pr = prs[0];
+            core.info(`Operating on PR #${pr.number} (draft=${pr.draft}) for head '${head}'.`);
 
             // ---------------- inputs ----------------
             const itemsStr         = ${{ toJson(inputs.items) }};
@@ -138,7 +139,8 @@ jobs:
             if (!body) core.info('PR has empty body; nothing to tick.');
 
             const lines = (body || '').split(/\r?\n/);
-            const taskLine = /^([*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // prefix, mark, suffix, text
+            // FIX: allow leading indentation on task lines
+            const taskLine   = /^(\s*[*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // prefix, mark, suffix, text
             let changed = false;
 
             for (let i = 0; i < lines.length; i++) {
@@ -170,7 +172,8 @@ jobs:
             }
 
             // ---------------- gate: are all required items checked? ----------------
-            const checkedTask = /^[*\-]\s*\[\s*[xX]\s*\]\s*(.*)$/;
+            // FIX: allow leading indentation here too
+            const checkedTask = /^\s*[*\-]\s*\[\s*[xX]\s*\]\s*(.*)$/;
             const checkedRaw = (body || '').split(/\r?\n/)
               .map(l => (l.match(checkedTask) || [])[1])
               .filter(Boolean);
