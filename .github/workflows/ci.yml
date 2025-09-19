@@ -130,7 +130,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # FORCE_FULL if title/labels explicitly request a full run
           FORCE_FULL="$(
             jq -r '
               def has_force_label:
@@ -143,20 +142,16 @@ jobs:
                     . == "force ci" or
                     . == "ci:full"
                   );
-
               [
-                # Title contains [full ci] or [ci full] or the phrase full[- ]ci
                 ((.pull_request.title // "")
                   | test("(?i)\\[(full[- ]?ci|ci[- ]?full)\\]") or
                     test("(?i)(^|\\s)full[- ]?ci(\\s|$)")
                  ),
-                # Labels include any of: full-ci, full ci, force-ci, force ci, ci:full
                 ((.pull_request.labels // []) | has_force_label)
               ] | any
             ' "$GITHUB_EVENT_PATH"
           )"
 
-          # Non-backmerge PRs normally run heavy CI if relevant files changed (or FORCE_FULL)
           if [[ "${{ steps.bm.outputs.is_backmerge }}" != "true" ]]; then
             if [[ "$FORCE_FULL" == "true" || \
                   "${{ steps.paths.outputs.rust }}" == "true" || \
@@ -170,7 +165,6 @@ jobs:
             exit 0
           fi
 
-          # Back-merge PRs: only run if conflicts, develop is ahead, or FORCE_FULL
           A="${{ steps.compare.outputs.ahead_on_develop || '0' }}"
           C="${{ steps.probe.outputs.conflicts || 'false' }}"
           if [[ "$C" == "true" || "$A" -gt 0 || "$FORCE_FULL" == "true" ]]; then
@@ -302,23 +296,6 @@ jobs:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
-  tick_ci_green_build:
-    name: ☑️ PR checklist — CI green (Build & Test)
-    needs: build_test
-    if: >
-      needs.build_test.result == 'success' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        CI green
-      comment: "✅ ${{ github.workflow }} passed."
-      ready: false
-    secrets: inherit
-
   package_deb:
     name: 📦 Debian package (push only)
     needs: [gate, build_test]
@@ -419,13 +396,6 @@ jobs:
         with:
           name: chd2iso-fuse-${{ github.sha }}
           path: artifacts/
-
-      - name: 💾 Save sccache (FS only)
-        if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache/save@v4
-        with:
-          path: /root/.cache/sccache
-          key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
   tick_ci_green:
     name: ☑️ PR checklist — CI green (and flip when all done)
