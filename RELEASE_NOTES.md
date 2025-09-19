@@ -1,12 +1,14 @@
 # Changelog
-### CI
+### Other
+- Back-merge main -> develop (post-release) (5a45e96)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.38 [skip ci] (9e11b78)
 - chore(release): prepare v0.2.38 [skip ci] (50f7e8e)
 - chore(release): prepare v0.2.38 [skip ci] (5ed4fb8)
 - chore(release): prepare v0.2.38 [skip ci] (b863469)
 - chore(release): prepare v0.2.38 [skip ci] (c2baa2e)
-- chore(release): prepare v0.2.38 [skip ci] (ff30d50)### Features
+- chore(release): prepare v0.2.38 [skip ci] (ff30d50)
+- chore(release): prepare v0.2.38 [skip ci] (ac873c5)### Features
 - feat(workflows): only flip PR to “Ready” when all three boxes are checked (d0c5a2e)### Fixes
 - fix(workflows): streamline PR checklist updater, remove redundant comments (408eaa1)
 - fix(pr-checklist): robust Ready flip + no redundant comments (bca6ec4)
@@ -14,7 +16,8 @@
 - fix(pr-checklist): recognize indented task lines; flip Ready when all checked (a3b1650)
 - fix(ci): stop duplicate “CI passed” comments; centralize tick+flip after tests (8e00ad0)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
-- PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)### Chore
+- PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)
+- PR #229: 📦 release/0.2.38 → main (ddd8468)### Chore
 - chore(release): prepare v0.2.37 [skip ci] (1558871)
 - chore(release): prepare v0.2.37 [skip ci] (f630e16)### Fixes
 - fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)
