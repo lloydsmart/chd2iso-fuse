@@ -30,11 +30,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // branch & kind
+            // Branch + kind
             const branch = core.getInput('branch') || process.env.GITHUB_REF_NAME;
             const kind = branch.startsWith('release/') ? 'release' : 'hotfix';
 
-            // helper: find existing PR by head/base
+            // Helper to find an open PR by head/base
             async function findPr(head, base) {
               const { data } = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -101,7 +101,7 @@ jobs:
               core.info(`Back-merge PR already exists: #${backPr.number}`);
             }
 
-            // Enable auto-merge (requires repo Auto-merge setting)
+            // Try to enable auto-merge for the back-merge PR (GraphQL)
             try {
               const mutation = `
                 mutation($prId:ID!) {
