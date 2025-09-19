@@ -4,9 +4,9 @@ on:
   workflow_call:
     inputs:
       branch:
-        description: "Release/Hotfix branch name (e.g., release/1.2.3)"
+        description: "Release/Hotfix branch name (e.g., release/1.2.3). Optional; will fall back to context."
         type: string
-        required: true
+        required: false
       box:
         description: "Which box to tick: ci | bump | codeql"
         type: string
@@ -26,27 +26,28 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branchRaw = core.getInput('branch') || '';
-            const whichRaw  = core.getInput('box') || '';
-            const branch = branchRaw.trim();
-            const which0 = whichRaw.trim().toLowerCase();
+            // Inputs (may be empty)
+            const inputBranch = (core.getInput('branch') || '').trim();
+            const whichRaw    = (core.getInput('box') || '').trim();
 
-            // accept a few synonyms just in case
+            // Fallbacks if branch not provided by caller
+            // - GITHUB_HEAD_REF is set on pull_request events
+            // - GITHUB_REF_NAME is set on push events
+            const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
+
+            const branch = inputBranch || envBranch;
+            const which0 = whichRaw.toLowerCase();
+
+            // Accept a few synonyms
             const alias = {
-              'ci': 'ci',
-              'build': 'ci',
-              'tests': 'ci',
-              'bump': 'bump',
-              'version': 'bump',
-              'changelog': 'bump',
-              'codeql': 'codeql',
-              'security': 'codeql',
-              'scan': 'codeql',
+              'ci': 'ci', 'build': 'ci', 'tests': 'ci',
+              'bump': 'bump', 'version': 'bump', 'changelog': 'bump',
+              'codeql': 'codeql', 'security': 'codeql', 'scan': 'codeql',
             };
             const which = alias[which0];
 
             if (!branch) {
-              core.setFailed('Missing required input: branch');
+              core.setFailed('Missing branch. Provide "with: branch: ..." or run on PR/push where GITHUB_HEAD_REF/GITHUB_REF_NAME are set.');
               return;
             }
             if (!which) {
@@ -54,7 +55,13 @@ jobs:
               return;
             }
 
-            // exact lines expected in the PR template
+            // Only act for release/* or hotfix/*
+            if (!(branch.startsWith('release/') || branch.startsWith('hotfix/'))) {
+              core.info(`Branch "${branch}" is not release/* or hotfix/* — skipping.`);
+              return;
+            }
+
+            // Exact lines expected in the PR template
             const mapping = {
               ci:     /^- \[ \] CI build & tests passed$/m,
               bump:   /^- \[ \] Version bump & changelog completed$/m,
