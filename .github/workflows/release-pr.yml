@@ -32,7 +32,6 @@ jobs:
             const branch = core.getInput('branch') || process.env.GITHUB_REF_NAME;
             const kind = '${{ steps.vars.outputs.kind }}';
 
-            // Helper: find PR by head/base
             async function findPr(head, base) {
               const { data } = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -44,7 +43,7 @@ jobs:
               return data[0];
             }
 
-            // Release PR → main (draft)
+            // ===== Release PR → main (draft, with 3 unchecked boxes) =====
             let releasePr = await findPr(branch, 'main');
             if (!releasePr) {
               const title =
@@ -52,7 +51,6 @@ jobs:
                   ? `Release: ${branch.replace(/^release\\//, '')}`
                   : `Hotfix: ${branch.replace(/^hotfix\\//, '')}`;
 
-              // PR body with the three UNCHECKED boxes.
               const body = [
                 `This ${kind} PR is auto-created for branch \`${branch}\`.`,
                 ``,
@@ -81,7 +79,7 @@ jobs:
 
             core.setOutput('release_pr_number', String(releasePr.number));
 
-            // Back-merge PR → develop (enable automerge)
+            // ===== Back-merge PR → develop (enable automerge) =====
             let backPr = await findPr(branch, 'develop');
             if (!backPr) {
               const title = `Back-merge ${branch} → develop`;
@@ -101,9 +99,8 @@ jobs:
               core.info(`Back-merge PR already exists: #${backPr.number}`);
             }
 
-            // Enable auto-merge for the back-merge PR (requires Auto-merge enabled in repo settings)
+            // Try to enable auto-merge for the back-merge PR
             try {
-              // GraphQL mutation to enable auto-merge (MERGE method)
               const prNodeId = backPr.node_id;
               const mutation = `
                 mutation($prId:ID!) {

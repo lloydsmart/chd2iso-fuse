@@ -251,3 +251,19 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
+
+  # ✅ New: tick the CodeQL box once analyze succeeds
+  tick_release_codeql_box:
+    name: ☑️ PR checklist — CodeQL scan completed
+    needs: analyze
+    if: >
+      needs.analyze.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
+    uses: ./.github/workflows/_tick-release-pr-box.yml
+    with:
+      branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      box: codeql
+    secrets: inherit
