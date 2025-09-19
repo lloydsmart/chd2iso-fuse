@@ -241,10 +241,15 @@ jobs:
         if: steps.ver.outputs.mode == 'versioned'
         uses: ./.github/workflows/_pr-checklist.yml
         with:
+          regex_items: |
+            version.*bump
+            changelog.*update
           items: |
             Version bumped (Cargo.toml / Debian changelog)
             Changelog updated (git-cliff)
           remove_label: ""
+          ready: false
+          require_all: false
 
       # ===== MAINTENANCE HOTFIX FLOW (NO VERSION BUMP) =====
       - name: 📝 Debian changelog snapshot (UNRELEASED)
@@ -332,6 +337,10 @@ jobs:
         if: steps.ver.outputs.mode == 'maintenance'
         uses: ./.github/workflows/_pr-checklist.yml
         with:
+          regex_items: |
+            changelog.*update
           items: |
             Changelog updated (git-cliff)
           remove_label: ""
+          ready: false
+          require_all: false
