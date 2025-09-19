@@ -8,9 +8,9 @@ on:
         type: string
         required: false
       box:
-        description: "Which box to tick: ci | bump | codeql"
+        description: "Which box to tick: ci | bump | codeql (optional; inferred from workflow/job if omitted)"
         type: string
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -28,15 +28,30 @@ jobs:
           script: |
             // Inputs (may be empty)
             const inputBranch = (core.getInput('branch') || '').trim();
-            const whichRaw    = (core.getInput('box') || '').trim();
+            const inputWhich  = (core.getInput('box') || '').trim();
 
             // Fallbacks if branch not provided by caller
             // - GITHUB_HEAD_REF is set on pull_request events
             // - GITHUB_REF_NAME is set on push events
             const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
-
             const branch = inputBranch || envBranch;
-            const which0 = whichRaw.toLowerCase();
+
+            // If `box` is missing, infer from workflow/job names
+            const wf  = (process.env.GITHUB_WORKFLOW || '').toLowerCase();
+            const job = (process.env.GITHUB_JOB || '').toLowerCase();
+
+            let whichRaw = inputWhich;
+            if (!whichRaw) {
+              if (wf.includes('codeql') || job.includes('codeql') || wf.includes('security')) {
+                whichRaw = 'codeql';
+              } else if (wf.includes('release prep') || wf.includes('autobump') || job.includes('bump') || job.includes('changelog')) {
+                whichRaw = 'bump';
+              } else if (wf.includes('ci') || job.includes('build') || job.includes('test') || job.includes('ci')) {
+                whichRaw = 'ci';
+              }
+            }
+
+            const which0 = (whichRaw || '').trim().toLowerCase();
 
             // Accept a few synonyms
             const alias = {
@@ -51,7 +66,7 @@ jobs:
               return;
             }
             if (!which) {
-              core.setFailed(`Unknown box: "${whichRaw}". Expected one of: ci | bump | codeql`);
+              core.setFailed(`Unknown or missing 'box' value. Pass one of: ci | bump | codeql (inferred from workflow/job failed: workflow="${process.env.GITHUB_WORKFLOW}", job="${process.env.GITHUB_JOB}")`);
               return;
             }
 
