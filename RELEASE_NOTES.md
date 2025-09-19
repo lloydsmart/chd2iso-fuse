@@ -1,7 +1,9 @@
 # Changelog
 ### CI
-- ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Features
-- feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip (9847cb6)### Other
+- ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
+- chore(release): prepare v0.2.40 [skip ci] (7ff6d61)### Features
+- feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip (9847cb6)### Fixes
+- fix(workflows): correct release-pr GitHub Script syntax and escaping (fa8f7a5)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
 - PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)
 - PR #233: feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, "Ready" flip (88eb175)### Chore

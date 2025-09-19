@@ -4,6 +4,20 @@ chd2iso-fuse (0.2.40-1) trixie; urgency=medium
   * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
   * feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): correct release-pr GitHub Script syntax and escaping
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 15:58:42 +0000
+
+chd2iso-fuse (0.2.40-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+  * feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 15:52:44 +0000
 
 chd2iso-fuse (0.2.37-1) trixie; urgency=medium
