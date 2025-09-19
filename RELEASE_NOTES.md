@@ -1,5 +1,12 @@
 # Changelog
-### CI
+### Chore
+- chore(release): prepare v0.2.37 [skip ci] (1558871)### Fixes
+- fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)
+- fix(workflows): tick ‘CI green’ from a single place and stop extra comments (60378eb)### Other
+- Back-merge main -> develop (post-release) (53ca397)
+- PR #224: fix(codeql): Rust doesn’t support `build-mode: manual` (68698e7)
+- PR #226: fix(workflows): tick ‘CI green’ from a single place and stop extra coments (13ef012)
+- Merge remote-tracking branch 'origin/develop' into release/0.2.37 (917b1dd)### CI
 - ci(cleanup): add artifact retention + post-publish deletion + weekly prune (059e9c6)
 - ci(codeql): hybrid Rust scanning — fast PR autobuild + deep nightly manual build (4b2fe1d)
 - ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (c9acc07)
@@ -11,7 +18,8 @@
 - chore(release): prepare v0.2.36 [skip ci] (47cfb6b)
 - chore(release): prepare v0.2.36 [skip ci] (7499e97)
 - chore(release): prepare v0.2.36 [skip ci] (54043d8)
-- chore(release): prepare v0.2.36 [skip ci] (2c7ece6)### Fixes
+- chore(release): prepare v0.2.36 [skip ci] (2c7ece6)
+- chore(release): prepare v0.2.36 [skip ci] (fb438db)### Fixes
 - fix(ci): typo (18961fa)
 - fix(workflows): integrate and harden PR checklist automation (00efad4)
 - fix(workflows): correctly tick PR checkboxes and flip draft → ready (9b00c92)### Other
@@ -23,7 +31,8 @@
 - PR #221: ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (a9fd223)
 - Merge remote-tracking branch 'origin/develop' into release/0.2.36 (476c688)
 - PR #222: Feature/auto tick (a6d9b90)
-- Merge remote-tracking branch 'origin/develop' into release/0.2.36 (867c9d7)### CI
+- Merge remote-tracking branch 'origin/develop' into release/0.2.36 (867c9d7)
+- PR #220: 📦 release/0.2.36 → main (4b830d5)### CI
 - ci(release): fix github-script syntax and handle 404 gracefully (54d9fee)### Chore
 - chore(release): prepare v0.2.35 [skip ci] (e548cad)### Other
 - Back-merge main -> develop (post-release) (8943318)
