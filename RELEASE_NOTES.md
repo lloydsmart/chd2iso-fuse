@@ -1,8 +1,12 @@
 # Changelog
-### Fixes
-- fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)### Other
+### Chore
+- chore(release): prepare v0.2.37 [skip ci] (1558871)### Fixes
+- fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)
+- fix(workflows): tick ‘CI green’ from a single place and stop extra comments (60378eb)### Other
 - Back-merge main -> develop (post-release) (53ca397)
-- PR #224: fix(codeql): Rust doesn’t support `build-mode: manual` (68698e7)### CI
+- PR #224: fix(codeql): Rust doesn’t support `build-mode: manual` (68698e7)
+- PR #226: fix(workflows): tick ‘CI green’ from a single place and stop extra coments (13ef012)
+- Merge remote-tracking branch 'origin/develop' into release/0.2.37 (917b1dd)### CI
 - ci(cleanup): add artifact retention + post-publish deletion + weekly prune (059e9c6)
 - ci(codeql): hybrid Rust scanning — fast PR autobuild + deep nightly manual build (4b2fe1d)
 - ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (c9acc07)
