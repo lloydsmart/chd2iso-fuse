@@ -440,7 +440,6 @@ jobs:
     with:
       items: |
         CI green
-      # No comment; update body only
       remove_label: ""
       ready: true
       require_all: true
