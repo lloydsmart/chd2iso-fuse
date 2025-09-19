@@ -24,28 +24,49 @@ jobs:
         id: update
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branch = core.getInput('branch');
-            const which = core.getInput('box'); // ci | bump | codeql
+            const branchRaw = core.getInput('branch') || '';
+            const whichRaw  = core.getInput('box') || '';
+            const branch = branchRaw.trim();
+            const which0 = whichRaw.trim().toLowerCase();
 
-            const mapping = {
-              ci:     /^- \\[ \\] CI build & tests passed$/m,
-              bump:   /^- \\[ \\] Version bump & changelog completed$/m,
-              codeql: /^- \\[ \\] CodeQL security scan completed$/m,
+            // accept a few synonyms just in case
+            const alias = {
+              'ci': 'ci',
+              'build': 'ci',
+              'tests': 'ci',
+              'bump': 'bump',
+              'version': 'bump',
+              'changelog': 'bump',
+              'codeql': 'codeql',
+              'security': 'codeql',
+              'scan': 'codeql',
             };
+            const which = alias[which0];
 
+            if (!branch) {
+              core.setFailed('Missing required input: branch');
+              return;
+            }
+            if (!which) {
+              core.setFailed(`Unknown box: "${whichRaw}". Expected one of: ci | bump | codeql`);
+              return;
+            }
+
+            // exact lines expected in the PR template
+            const mapping = {
+              ci:     /^- \[ \] CI build & tests passed$/m,
+              bump:   /^- \[ \] Version bump & changelog completed$/m,
+              codeql: /^- \[ \] CodeQL security scan completed$/m,
+            };
             const doneMapping = {
               ci:     '- [x] CI build & tests passed',
               bump:   '- [x] Version bump & changelog completed',
               codeql: '- [x] CodeQL security scan completed',
             };
 
-            if (!mapping[which]) {
-              core.setFailed(`Unknown box: ${which}`);
-              return;
-            }
-
-            // Find the open PR to main for this branch
+            // Find the open PR from this branch -> main
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -65,11 +86,11 @@ jobs:
             if (body.includes(doneMapping[which])) {
               core.info(`Box "${which}" already ticked for PR #${pr.number}`);
             } else {
-              // Replace unchecked line with checked
+              // Try replacing the unchecked line with the checked one
               const replaced = body.replace(mapping[which], doneMapping[which]);
               body = replaced;
 
-              // Idempotency: if template line went missing, append safeguard
+              // If the expected unchecked line is missing (manual edits), append a checked line as a safeguard
               if (!body.includes(doneMapping[which])) {
                 body += `\n${doneMapping[which]}`;
               }
@@ -83,7 +104,7 @@ jobs:
               core.info(`Ticked "${which}" for PR #${pr.number}`);
             }
 
-            // If ALL three are checked, flip draft -> ready for review
+            // If ALL three are checked, flip draft -> Ready for review
             const allChecked =
               body.includes(doneMapping.ci) &&
               body.includes(doneMapping.bump) &&
