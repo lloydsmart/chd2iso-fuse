@@ -4,11 +4,13 @@
 - chore(release): prepare v0.2.38 [skip ci] (9e11b78)
 - chore(release): prepare v0.2.38 [skip ci] (50f7e8e)
 - chore(release): prepare v0.2.38 [skip ci] (5ed4fb8)
-- chore(release): prepare v0.2.38 [skip ci] (b863469)### Features
+- chore(release): prepare v0.2.38 [skip ci] (b863469)
+- chore(release): prepare v0.2.38 [skip ci] (c2baa2e)### Features
 - feat(workflows): only flip PR to “Ready” when all three boxes are checked (d0c5a2e)### Fixes
 - fix(workflows): streamline PR checklist updater, remove redundant comments (408eaa1)
 - fix(pr-checklist): robust Ready flip + no redundant comments (bca6ec4)
-- fix(workflows): make Ready flip bullet-proof; still no comment spam (f52d373)### Other
+- fix(workflows): make Ready flip bullet-proof; still no comment spam (f52d373)
+- fix(pr-checklist): recognize indented task lines; flip Ready when all checked (a3b1650)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
 - PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)### Chore
 - chore(release): prepare v0.2.37 [skip ci] (1558871)
