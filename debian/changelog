@@ -15,6 +15,31 @@ chd2iso-fuse (0.2.38-1) trixie; urgency=medium
   [ lloydsmart ]
   * fix(workflows): streamline PR checklist updater, remove redundant comments
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): robust Ready flip + no redundant comments
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:49:26 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:42:06 +0000
 
 chd2iso-fuse (0.2.38-1) trixie; urgency=medium

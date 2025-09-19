@@ -2,9 +2,11 @@
 ### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.38 [skip ci] (9e11b78)
-- chore(release): prepare v0.2.38 [skip ci] (50f7e8e)### Features
+- chore(release): prepare v0.2.38 [skip ci] (50f7e8e)
+- chore(release): prepare v0.2.38 [skip ci] (5ed4fb8)### Features
 - feat(workflows): only flip PR to “Ready” when all three boxes are checked (d0c5a2e)### Fixes
-- fix(workflows): streamline PR checklist updater, remove redundant comments (408eaa1)### Other
+- fix(workflows): streamline PR checklist updater, remove redundant comments (408eaa1)
+- fix(pr-checklist): robust Ready flip + no redundant comments (bca6ec4)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
 - PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)### Chore
 - chore(release): prepare v0.2.37 [skip ci] (1558871)
