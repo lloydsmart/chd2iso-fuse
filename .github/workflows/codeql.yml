@@ -204,14 +204,14 @@ jobs:
             echo "✅ Cargo.lock up to date."
           fi
 
-      # ------------- Schedule/Dispatch (deep) — CUSTOM BUILD --------------
-      - name: 🔧 Initialize CodeQL (custom build; build-mode none)
+      # ---------------- Nightly/Dispatch (deep) — MANUAL BUILD ----------------
+      - name: 🔧 Initialize CodeQL (manual mode)
         if: github.event_name != 'pull_request'
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
-          build-mode: none   # ← Rust requires 'none' for custom builds
+          build-mode: manual
 
       - name: 📦 Pre-fetch dependencies
         if: github.event_name != 'pull_request'
@@ -223,7 +223,7 @@ jobs:
             cargo fetch
           fi
 
-      - name: 🧱 Build Rust (${{ matrix.variant }}) — traced by CodeQL
+      - name: 🧱 Build Rust (${{ matrix.variant }}) — manual
         if: github.event_name != 'pull_request'
         env:
           CARGO_TERM_COLOR: always
@@ -252,20 +252,3 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
-
-  tick_ci_green:
-    name: ☑️ PR checklist — CI green
-    needs: analyze
-    if: >
-      needs.analyze.result == 'success' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
-    uses: ./.github/workflows/_pr-checklist.yml
-    with:
-      items: |
-        CI green
-      comment: "✅ ${{ github.workflow }} passed."
-      ready: false
-    secrets: inherit
