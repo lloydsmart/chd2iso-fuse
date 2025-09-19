@@ -4,11 +4,15 @@ on:
   workflow_call:
     inputs:
       items:
-        description: "Checklist items to tick (one per line; matches are fuzzy)"
+        description: "Checklist items to tick (one per line; fuzzy match)"
         type: string
         required: true
+      regex_items:
+        description: "Optional regex matchers (one per line) to tick matching task lines"
+        type: string
+        default: ""
       comment:
-        description: "Optional comment to post after updating checklist"
+        description: "Optional comment to post after updating checklist (off by default)"
         type: string
         default: ""
       remove_label:
@@ -16,9 +20,21 @@ on:
         type: string
         default: ""
       ready:
-        description: "Set PR draft=false (Ready for review) after update"
+        description: "Attempt to set PR draft=false (Ready for review) after update"
         type: boolean
         default: false
+      require_all:
+        description: "Only flip to Ready if *all* required items are checked"
+        type: boolean
+        default: false
+      required_items:
+        description: "Required checklist items (one per line) that must be [x] to allow Ready flip"
+        type: string
+        default: ""
+      required_regex_items:
+        description: "Required regex matchers (one per line) that must match a *checked* task to allow Ready flip"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -33,97 +49,112 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            // --- helpers -----------------------------------------------------
-            function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
-            function stripMd(s){
-              // remove common markdown wrappers and excessive spacing
-              return String(s)
-                .replace(/`([^`]*)`/g, '$1')     // inline code
-                .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
-                .replace(/\*([^*]+)\*/g, '$1')     // italic
-                .replace(/__([^_]+)__/g, '$1')     // bold alt
-                .replace(/_([^_]+)_/g, '$1')       // italic alt
-                .replace(/~~([^~]+)~~/g, '$1')     // strikethrough
-                .replace(/:\w+:/g, '')             // :emoji:
-                .replace(/[，、。！!?:;,.]+$/g, '') // trailing punct
+            // ---------------- helpers ----------------
+            function normalize(s){
+              return String(s || '')
+                // strip markdown
+                .replace(/`([^`]*)`/g, '$1')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/\*([^*]+)\*/g, '$1')
+                .replace(/__([^_]+)__/g, '$1')
+                .replace(/_([^_]+)_/g, '$1')
+                .replace(/~~([^~]+)~~/g, '$1')
+                // drop :emoji: and html
+                .replace(/:[a-z0-9_+-]+:/gi, '')
+                .replace(/<[^>]+>/g, '')
+                // punctuation & bullets
+                .replace(/[()[\]{}:;.,!?–—•·]|#+/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim()
                 .toLowerCase();
             }
+            function tokens(s){
+              return new Set(normalize(s).split(/\s+/).filter(w => w.length >= 2));
+            }
+            function jaccard(aSet, bSet){
+              const a = new Set(aSet), b = new Set(bSet);
+              const inter = new Set([...a].filter(x => b.has(x)));
+              const union = new Set([...a, ...b]);
+              return union.size ? inter.size / union.size : 0;
+            }
+            function fuzzyIncludes(needle, hay){
+              // tolerant: normalized containment either way OR token similarity >= 0.6
+              const n = normalize(needle);
+              const h = normalize(hay);
+              if (!n || !h) return false;
+              if (h.includes(n) || n.includes(h)) return true;
+              return jaccard(tokens(needle), tokens(hay)) >= 0.6;
+            }
+            function buildRegexes(lines){
+              return String(lines).split(/\r?\n/)
+                .map(s => s.trim()).filter(Boolean)
+                .map(p => { try { return new RegExp(p, 'i'); } catch { core.warning(`Bad regex skipped: ${p}`); return null; } })
+                .filter(Boolean);
+            }
+            function isReleaseOrHotfixBranch(name){
+              return /^release\//.test(name) || /^hotfix\//.test(name);
+            }
 
             const { owner, repo } = context.repo;
 
-            // Derive head branch across PR/push/workflow_call
-            const headRef =
-              context.payload.pull_request?.head?.ref ||
-              process.env.GITHUB_HEAD_REF ||
-              (context.ref || '').replace('refs/heads/', '');
+            // Resolve head branch across PR/push/workflow_call
+            const headFromPR   = context.payload.pull_request?.head?.ref;
+            const headFromEnv  = process.env.GITHUB_HEAD_REF;
+            const headFromRef  = (context.ref || '').replace(/^refs\/heads\//, '');
+            const candidates   = [headFromPR, headFromEnv, headFromRef].filter(Boolean);
+            const head         = candidates.find(isReleaseOrHotfixBranch) || candidates[0];
 
-            if (!headRef) {
-              core.info('No head branch could be determined; skipping.');
-              return;
-            }
-
-            // Guard (operate only on release/* or hotfix/*)
-            if (!/^release\//.test(headRef) && !/^hotfix\//.test(headRef)) {
-              core.info(`Branch '${headRef}' is not release/* or hotfix/*; skipping.`);
+            if (!head) { core.info('No head branch; skipping.'); return; }
+            if (!isReleaseOrHotfixBranch(head)) {
+              core.info(`Branch '${head}' is not release/* or hotfix/*; skipping.`);
               return;
             }
 
             // Find open PR for this branch
             const prs = await github.paginate(
               github.rest.pulls.list,
-              { owner, repo, state: 'open', head: `${owner}:${headRef}` }
+              { owner, repo, state: 'open', head: `${owner}:${head}`, per_page: 100 }
             );
-            if (!prs.length) {
-              core.info(`No open PR found for ${owner}:${headRef}; nothing to do.`);
-              return;
-            }
+            if (!prs.length) { core.info(`No open PR for ${owner}:${head}.`); return; }
             const pr = prs[0];
+            core.info(`Operating on PR #${pr.number} (draft=${pr.draft}) for head '${head}'.`);
 
-            // Inputs (toJson to preserve newlines/quotes)
-            const rawItems    = ${{ toJson(inputs.items) }};
-            const commentIn   = ${{ toJson(inputs.comment) }};
-            const removeLabel = ${{ toJson(inputs.remove_label) }};
-            const markReady   = ${{ inputs.ready }}; // boolean
+            // ---------------- inputs ----------------
+            const itemsStr         = ${{ toJson(inputs.items) }};
+            const regexItemsStr    = ${{ toJson(inputs.regex_items) }};
+            const commentStr       = ${{ toJson(inputs.comment) }};
+            const removeLabelStr   = ${{ toJson(inputs.remove_label) }};
+            const ready            = ${{ inputs.ready }};
+            const requireAll       = ${{ inputs.require_all }};
+            const requiredStr      = ${{ toJson(inputs.required_items) }};
+            const requiredRegexStr = ${{ toJson(inputs.required_regex_items) }};
 
-            const wanted = String(rawItems)
-              .split(/\r?\n/)
-              .map(s => stripMd(s))
-              .filter(Boolean);
+            const wantNorm      = String(itemsStr).split(/\r?\n/).map(normalize).filter(Boolean);
+            const wantRegexes   = buildRegexes(regexItemsStr);
+            const requireNorm   = String(requiredStr).split(/\r?\n/).map(normalize).filter(Boolean);
+            const requireRegex  = buildRegexes(requiredRegexStr);
 
+            // ---------------- tick items in body ----------------
             let body = pr.body || '';
-            if (!body) {
-              core.info('PR has empty body; nothing to tick.');
-            }
+            if (!body) core.info('PR has empty body; nothing to tick.');
 
-            // Tick any "- [ ] ..." task-list line whose normalized text contains any wanted label
-            // We accept "- [ ]", "-   [ ]", "* [ ]", etc.
-            const lines = body.split(/\r?\n/);
+            const lines = (body || '').split(/\r?\n/);
+            // FIX: allow leading indentation on task lines
+            const taskLine   = /^(\s*[*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // prefix, mark, suffix, text
             let changed = false;
 
-            const taskRe = /^([*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // captures prefix, mark, suffix, text
-
             for (let i = 0; i < lines.length; i++) {
-              const m = lines[i].match(taskRe);
+              const m = lines[i].match(taskLine);
               if (!m) continue;
-
-              const prefix = m[1];
-              const mark   = m[2];
-              const suffix = m[3];
-              const text   = m[4];
-
-              // Already checked? skip
+              const [ , pre, mark, post, text ] = m;
               if (/[xX]/.test(mark)) continue;
 
-              const norm = stripMd(text);
-              const hit = wanted.some(w =>
-                norm === w ||                     // exact after normalization
-                norm.includes(w)                  // substring (tolerate extras like "**...**")
-              );
+              const norm = normalize(text);
+              const hitWanted = wantNorm.some(w => norm === w || norm.includes(w));
+              const hitRegex  = wantRegexes.some(r => r.test(text) || r.test(norm));
 
-              if (hit) {
-                lines[i] = `${prefix}x${suffix}${text}`;
+              if (hitWanted || hitRegex) {
+                lines[i] = `${pre}x${post}${text}`;
                 changed = true;
               }
             }
@@ -131,33 +162,73 @@ jobs:
             if (changed) {
               body = lines.join('\n');
               await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
-              core.info(`Updated checklist on PR #${pr.number}.`);
+              core.info(`Checklist updated on PR #${pr.number}.`);
+              // tiny pause + re-fetch to avoid caching/race
+              await new Promise(r => setTimeout(r, 800));
+              const fresh = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
+              body = fresh.data.body || body;
             } else {
-              core.info('No matching checklist items found to tick (format/labels may differ).');
+              core.info('No matching checklist items found to tick.');
             }
 
-            // Optional comment
-            const comment = String(commentIn).trim();
-            if (comment) {
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: pr.number, body: comment
-              }).catch(() => {});
-            }
+            // ---------------- gate: are all required items checked? ----------------
+            // FIX: allow leading indentation here too
+            const checkedTask = /^\s*[*\-]\s*\[\s*[xX]\s*\]\s*(.*)$/;
+            const checkedRaw = (body || '').split(/\r?\n/)
+              .map(l => (l.match(checkedTask) || [])[1])
+              .filter(Boolean);
 
-            // Optional label removal
-            const labelToRemove = String(removeLabel).trim();
-            if (labelToRemove) {
-              await github.rest.issues.removeLabel({
-                owner, repo, issue_number: pr.number, name: labelToRemove
-              }).catch(() => {});
-            }
+            const checkedNorm = checkedRaw.map(normalize);
 
-            // Flip draft → ready if requested, regardless of whether any boxes were ticked
-            if (markReady === true) {
+            core.info(`Checked items (normalized): ${JSON.stringify(checkedNorm)}`);
+            core.info(`Required items (normalized): ${JSON.stringify(requireNorm)}`);
+            core.info(`Required regex count: ${requireRegex.length}`);
+
+            const textOK = requireAll
+              ? (requireNorm.length > 0
+                  ? requireNorm.every(req =>
+                      checkedRaw.some(cr => fuzzyIncludes(req, cr)) ||
+                      checkedNorm.some(cn => fuzzyIncludes(req, cn))
+                    )
+                  : false) // if require_all but no required_items specified, don't flip
+              : true;
+
+            const regexOK = requireAll
+              ? (requireRegex.length > 0
+                  ? requireRegex.every(r =>
+                      checkedRaw.some(cr => r.test(cr)) || checkedNorm.some(cn => r.test(cn))
+                    )
+                  : true) // no required regexes -> ok
+              : true;
+
+            const allOK = (!requireAll) ? true : (textOK && regexOK);
+
+            // ---------------- flip draft -> ready if allowed ----------------
+            if (ready && allOK) {
               if (pr.draft) {
                 await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
-                core.info(`PR #${pr.number} marked Ready for review.`);
+                core.info('PR marked Ready for review.');
               } else {
-                core.info('PR already Ready for review.');
+                core.info('PR already Ready.');
               }
+            } else if (ready && requireAll && !allOK) {
+              core.info('Require-all enabled but not all required items are checked — staying Draft.');
+            }
+
+            // ---------------- optional comment & label removal (quiet by default) ----------------
+            const comment = String(commentStr || '').trim();
+            if (comment) {
+              const existing = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: pr.number, per_page: 100
+              });
+              if (!existing.some(c => (c.body || '').trim() === comment)) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: comment }).catch(() => {});
+              } else {
+                core.info('Identical comment already exists; skipping duplicate.');
+              }
+            }
+
+            const toRemove = String(removeLabelStr || '').trim();
+            if (toRemove) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: toRemove }).catch(() => {});
             }

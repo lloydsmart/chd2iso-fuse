@@ -1,3 +1,178 @@
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): robust Ready flip + no redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): make Ready flip bullet-proof; still no comment spam
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): recognize indented task lines; flip Ready when all checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(ci): stop duplicate “CI passed” comments; centralize tick+flip after tests
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 12:52:22 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): robust Ready flip + no redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): make Ready flip bullet-proof; still no comment spam
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): recognize indented task lines; flip Ready when all checked
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 12:41:04 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): robust Ready flip + no redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): make Ready flip bullet-proof; still no comment spam
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 12:34:12 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): robust Ready flip + no redundant comments
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:49:26 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): streamline PR checklist updater, remove redundant comments
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:42:06 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.38 [skip ci]
+
+  [ lloydsmart ]
+  * feat(workflows): only flip PR to “Ready” when all three boxes are checked
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:26:05 +0000
+
+chd2iso-fuse (0.2.38-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 10:00:55 +0000
+
 chd2iso-fuse (0.2.37-1) trixie; urgency=medium
 
   [ lloydsmart ]
