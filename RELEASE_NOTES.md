@@ -2,10 +2,12 @@
 ### Chore
 - chore(release): prepare v0.2.39 [skip ci] (1f877e2)
 - chore(release): prepare v0.2.39 [skip ci] (0d917e4)
-- chore(release): prepare v0.2.39 [skip ci] (5715dd8)### Fixes
+- chore(release): prepare v0.2.39 [skip ci] (5715dd8)
+- chore(release): prepare v0.2.39 [skip ci] (2daca08)### Fixes
 - fix(pr-checklist): reliable PR lookup + quiet updates (f11d86f)
 - fix(autobump): robust regex matching for PR checklist ticks (7c837fa)
-- fix(autobump): align PR checklist items with template text (9ee0162)### Other
+- fix(autobump): align PR checklist items with template text (9ee0162)
+- fix(autobump): make checklist ticking ultra-tolerant (23872e9)### Other
 - Back-merge main -> develop (post-release) (5a45e96)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.38 [skip ci] (9e11b78)
