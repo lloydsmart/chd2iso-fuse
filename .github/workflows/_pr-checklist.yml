@@ -104,20 +104,52 @@ jobs:
             const candidates   = [headFromPR, headFromEnv, headFromRef].filter(Boolean);
             const head         = candidates.find(isReleaseOrHotfixBranch) || candidates[0];
 
-            if (!head) { core.info('No head branch; skipping.'); return; }
-            if (!isReleaseOrHotfixBranch(head)) {
-              core.info(`Branch '${head}' is not release/* or hotfix/*; skipping.`);
-              return;
+            const prNumberFromPayload = context.payload.pull_request?.number || null;
+
+            core.info(`repo=${owner}/${repo}`);
+            core.info(`candidates head=[${candidates.join(', ')}], chosen='${head || ''}'`);
+            core.info(`payload PR number=${prNumberFromPayload ?? 'none'}`);
+
+            // ---------- 1) get the PR ----------
+            let pr = null;
+
+            // (a) If we have a PR number (PR event), use it directly
+            if (prNumberFromPayload) {
+              try {
+                const resp = await github.rest.pulls.get({ owner, repo, pull_number: prNumberFromPayload });
+                pr = resp.data;
+                core.info(`PR via payload: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
+              } catch (e) {
+                core.warning(`Failed to get PR #${prNumberFromPayload} via payload: ${e.message}`);
+              }
             }
 
-            // Find open PR for this branch
-            const prs = await github.paginate(
-              github.rest.pulls.list,
-              { owner, repo, state: 'open', head: `${owner}:${head}`, per_page: 100 }
-            );
-            if (!prs.length) { core.info(`No open PR for ${owner}:${head}.`); return; }
-            const pr = prs[0];
-            core.info(`Operating on PR #${pr.number} (draft=${pr.draft}) for head '${head}'.`);
+            // (b) Try head-qualified search: owner:branch
+            if (!pr && head) {
+              const prs = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'open', head: `${owner}:${head}`, per_page: 100
+              }).catch(() => []);
+              if (prs.length) {
+                pr = prs[0];
+                core.info(`PR via head-qualified: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
+              }
+            }
+
+            // (c) Fallback: scan open PRs and match head.ref exactly
+            if (!pr && head) {
+              const all = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'open', per_page: 100
+              }).catch(() => []);
+              pr = all.find(p => p.head?.ref === head) || null;
+              if (pr) core.info(`PR via scan: #${pr.number} (draft=${pr.draft}) head='${pr.head.ref}'`);
+            }
+
+            // (d) Give up if still nothing or wrong branch family
+            if (!pr) { core.info(`No open PR found for head='${head}'. Nothing to do.`); return; }
+            if (!isReleaseOrHotfixBranch(pr.head?.ref || '')) {
+              core.info(`PR head '${pr.head?.ref}' is not release/* or hotfix/*; skipping.`);
+              return;
+            }
 
             // ---------------- inputs ----------------
             const itemsStr         = ${{ toJson(inputs.items) }};
@@ -137,9 +169,10 @@ jobs:
             // ---------------- tick items in body ----------------
             let body = pr.body || '';
             if (!body) core.info('PR has empty body; nothing to tick.');
+            else core.info(`PR body length=${body.length}`);
 
             const lines = (body || '').split(/\r?\n/);
-            // FIX: allow leading indentation on task lines
+            // allow leading indentation on task lines
             const taskLine   = /^(\s*[*\-]\s*\[\s*)([ xX])(\s*\]\s*)(.*)$/; // prefix, mark, suffix, text
             let changed = false;
 
@@ -163,16 +196,15 @@ jobs:
               body = lines.join('\n');
               await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
               core.info(`Checklist updated on PR #${pr.number}.`);
-              // tiny pause + re-fetch to avoid caching/race
-              await new Promise(r => setTimeout(r, 800));
+              await new Promise(r => setTimeout(r, 800)); // small settle delay
               const fresh = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
-              body = fresh.data.body || body;
+              pr = fresh.data;
+              body = pr.body || body;
             } else {
               core.info('No matching checklist items found to tick.');
             }
 
             // ---------------- gate: are all required items checked? ----------------
-            // FIX: allow leading indentation here too
             const checkedTask = /^\s*[*\-]\s*\[\s*[xX]\s*\]\s*(.*)$/;
             const checkedRaw = (body || '').split(/\r?\n/)
               .map(l => (l.match(checkedTask) || [])[1])
@@ -190,7 +222,7 @@ jobs:
                       checkedRaw.some(cr => fuzzyIncludes(req, cr)) ||
                       checkedNorm.some(cn => fuzzyIncludes(req, cn))
                     )
-                  : false) // if require_all but no required_items specified, don't flip
+                  : false)
               : true;
 
             const regexOK = requireAll
@@ -198,7 +230,7 @@ jobs:
                   ? requireRegex.every(r =>
                       checkedRaw.some(cr => r.test(cr)) || checkedNorm.some(cn => r.test(cn))
                     )
-                  : true) // no required regexes -> ok
+                  : true)
               : true;
 
             const allOK = (!requireAll) ? true : (textOK && regexOK);
@@ -207,9 +239,9 @@ jobs:
             if (ready && allOK) {
               if (pr.draft) {
                 await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
-                core.info('PR marked Ready for review.');
+                core.info(`PR #${pr.number} marked Ready for review.`);
               } else {
-                core.info('PR already Ready.');
+                core.info(`PR #${pr.number} already Ready.`);
               }
             } else if (ready && requireAll && !allOK) {
               core.info('Require-all enabled but not all required items are checked — staying Draft.');
