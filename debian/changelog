@@ -28,6 +28,44 @@ chd2iso-fuse (0.2.40-1) trixie; urgency=medium
   [ lloydsmart ]
   * fix(workflows): infer checkbox target when `box` input is missing; keep working without callers passing it
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): actually flip Draft → Ready using GraphQL when all boxes are ticked
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 16:36:50 +0000
+
+chd2iso-fuse (0.2.40-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(codeql): fix Rust init by using build-mode=none for non-PR runs
+  * feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): correct release-pr GitHub Script syntax and escaping
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): harden checkbox ticker input handling (trim/normalize/aliases)
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): make checkbox ticker resilient when `branch` input is omitted
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.40 [skip ci]
+
+  [ lloydsmart ]
+  * fix(workflows): infer checkbox target when `box` input is missing; keep working without callers passing it
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 16:22:35 +0000
 
 chd2iso-fuse (0.2.40-1) trixie; urgency=medium
