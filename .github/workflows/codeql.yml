@@ -204,14 +204,14 @@ jobs:
             echo "✅ Cargo.lock up to date."
           fi
 
-      # ---------------- Nightly/Dispatch (deep) — MANUAL BUILD ----------------
-      - name: 🔧 Initialize CodeQL (manual mode)
+      # --------------- Schedule/Dispatch (deep) — EXPLICIT BUILD ----------
+      - name: 🔧 Initialize CodeQL (explicit build)
         if: github.event_name != 'pull_request'
         uses: github/codeql-action/init@v3
         with:
           languages: rust
           queries: +security-and-quality
-          build-mode: manual
+          build-mode: none   # ✅ Rust supports only 'none'
 
       - name: 📦 Pre-fetch dependencies
         if: github.event_name != 'pull_request'
@@ -223,7 +223,7 @@ jobs:
             cargo fetch
           fi
 
-      - name: 🧱 Build Rust (${{ matrix.variant }}) — manual
+      - name: 🧱 Build Rust (${{ matrix.variant }})
         if: github.event_name != 'pull_request'
         env:
           CARGO_TERM_COLOR: always
@@ -243,7 +243,6 @@ jobs:
               cargo build --workspace --all-targets --all-features --locked || cargo build --workspace --all-targets --all-features
               ;;
           esac
-          # Optional: capture benches without running
           cargo test  --workspace --no-run --locked || true
           cargo bench --workspace --no-run --locked || true
 

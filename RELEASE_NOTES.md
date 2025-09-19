@@ -1,12 +1,29 @@
 # Changelog
-### Chore
-- chore(release): prepare v0.2.37 [skip ci] (1558871)### Fixes
+### CI
+- ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
+- chore(release): prepare v0.2.38 [skip ci] (9e11b78)
+- chore(release): prepare v0.2.38 [skip ci] (50f7e8e)
+- chore(release): prepare v0.2.38 [skip ci] (5ed4fb8)
+- chore(release): prepare v0.2.38 [skip ci] (b863469)
+- chore(release): prepare v0.2.38 [skip ci] (c2baa2e)
+- chore(release): prepare v0.2.38 [skip ci] (ff30d50)### Features
+- feat(workflows): only flip PR to “Ready” when all three boxes are checked (d0c5a2e)### Fixes
+- fix(workflows): streamline PR checklist updater, remove redundant comments (408eaa1)
+- fix(pr-checklist): robust Ready flip + no redundant comments (bca6ec4)
+- fix(workflows): make Ready flip bullet-proof; still no comment spam (f52d373)
+- fix(pr-checklist): recognize indented task lines; flip Ready when all checked (a3b1650)
+- fix(ci): stop duplicate “CI passed” comments; centralize tick+flip after tests (8e00ad0)### Other
+- Back-merge main -> develop (post-release) (c476d5b)
+- PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)### Chore
+- chore(release): prepare v0.2.37 [skip ci] (1558871)
+- chore(release): prepare v0.2.37 [skip ci] (f630e16)### Fixes
 - fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)
 - fix(workflows): tick ‘CI green’ from a single place and stop extra comments (60378eb)### Other
 - Back-merge main -> develop (post-release) (53ca397)
 - PR #224: fix(codeql): Rust doesn’t support `build-mode: manual` (68698e7)
 - PR #226: fix(workflows): tick ‘CI green’ from a single place and stop extra coments (13ef012)
-- Merge remote-tracking branch 'origin/develop' into release/0.2.37 (917b1dd)### CI
+- Merge remote-tracking branch 'origin/develop' into release/0.2.37 (917b1dd)
+- PR #225: 📦 release/0.2.37 → main (3de30bc)### CI
 - ci(cleanup): add artifact retention + post-publish deletion + weekly prune (059e9c6)
 - ci(codeql): hybrid Rust scanning — fast PR autobuild + deep nightly manual build (4b2fe1d)
 - ci(autobump): auto-flip release/hotfix PRs to “Ready for review” on success ✅ (c9acc07)
