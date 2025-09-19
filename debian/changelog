@@ -30,6 +30,46 @@ chd2iso-fuse (0.2.39-1) trixie; urgency=medium
   [ lloydsmart ]
   * fix(_pr-checklist): add regex_items + require_all; tick in-body tasks reliably
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(_pr-checklist): add verbose matching + fallback; reliably tick in-body tasks
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 14:47:56 +0000
+
+chd2iso-fuse (0.2.39-1) trixie; urgency=medium
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(pr-checklist): reliable PR lookup + quiet updates
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(autobump): robust regex matching for PR checklist ticks
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(autobump): align PR checklist items with template text
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(autobump): make checklist ticking ultra-tolerant
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.39 [skip ci]
+
+  [ lloydsmart ]
+  * fix(_pr-checklist): add regex_items + require_all; tick in-body tasks reliably
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Fri, 19 Sep 2025 14:40:32 +0000
 
 chd2iso-fuse (0.2.39-1) trixie; urgency=medium
