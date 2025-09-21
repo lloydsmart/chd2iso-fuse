@@ -3,9 +3,11 @@
 - ci(release-pr): guard back-merge PR creation with compareCommits to avoid 422 on empty diffs (7fa8a1a)
 - ci(release-pr): guard back-merge PR with compareCommits and fix YAML truncation (3799f1d)
 - ci(release-pr): add compare guard and fix script block for github-script (1a2288c)
-- ci(release-pr): fix full workflow and add compare guard (2e2f2e2)### Chore
+- ci(release-pr): fix full workflow and add compare guard (2e2f2e2)
+- ci(release-pr): trim workflow and keep compare guard for back-merge PRs (6f66554)### Chore
 - chore(release): prepare v0.2.42 [skip ci] (b02452f)
-- chore(release): prepare v0.2.42 [skip ci] (9427481)### Other
+- chore(release): prepare v0.2.42 [skip ci] (9427481)
+- chore(release): prepare v0.2.42 [skip ci] (a174a24)### Other
 - Back-merge main -> develop (post-release) (21c291d)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.40 [skip ci] (7ff6d61)

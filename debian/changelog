@@ -16,6 +16,32 @@ chd2iso-fuse (0.2.42-1) trixie; urgency=medium
   [ lloydsmart ]
   * ci(release-pr): fix full workflow and add compare guard
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.42 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release-pr): trim workflow and keep compare guard for back-merge PRs
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 21 Sep 2025 13:37:28 +0000
+
+chd2iso-fuse (0.2.42-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(release-pr): guard back-merge PR creation with compareCommits to avoid 422 on empty diffs
+  * ci(release-pr): guard back-merge PR with compareCommits and fix YAML truncation
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.42 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release-pr): add compare guard and fix script block for github-script
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.2.42 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release-pr): fix full workflow and add compare guard
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 21 Sep 2025 13:29:41 +0000
 
 chd2iso-fuse (0.2.42-1) trixie; urgency=medium
