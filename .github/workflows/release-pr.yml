@@ -14,18 +14,7 @@ jobs:
   open-prs:
     name: Create/ensure PRs exist (main + back-merge to develop)
     runs-on: ubuntu-latest
-
     steps:
-      - name: 🧠 Derive names
-        id: vars
-        run: |
-          echo "branch_ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          if [[ "${GITHUB_REF_NAME}" == release/* ]]; then
-            echo "kind=release" >> "$GITHUB_OUTPUT"
-          else
-            echo "kind=hotfix" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: 🧰 Create/ensure PRs
         uses: actions/github-script@v7
         with:
