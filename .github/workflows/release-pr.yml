@@ -15,16 +15,6 @@ jobs:
     name: Create/ensure PRs exist (main + back-merge to develop)
     runs-on: ubuntu-latest
     steps:
-      - name: 🧠 Derive names
-        id: vars
-        run: |
-          echo "branch_ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          if [[ "${GITHUB_REF_NAME}" == release/* ]]; then
-            echo "kind=release" >> "$GITHUB_OUTPUT"
-          else
-            echo "kind=hotfix" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: 🧰 Create/ensure PRs
         uses: actions/github-script@v7
         with:
@@ -50,8 +40,8 @@ jobs:
             let releasePr = await findPr(branch, 'main');
             if (!releasePr) {
               const title = kind === 'release'
-                ? 'Release: ' + branch.replace(/^release\//, '')
-                : 'Hotfix: '  + branch.replace(/^hotfix\//, '');
+                ? `Release: ${branch.replace(/^release\//, '')}`
+                : `Hotfix: ${branch.replace(/^hotfix\//, '')}`;
 
               const body = [
                 `This ${kind} PR is auto-created for branch \`${branch}\`.`,
@@ -94,7 +84,6 @@ jobs:
             let backPr = await findPr(branch, baseBranch);
 
             if (cmp.data.ahead_by > 0) {
-              // There are commits on the release/hotfix branch not in develop → create or reuse PR
               if (!backPr) {
                 const title = `Back-merge ${branch} → ${baseBranch}`;
                 const body  = `Automated back-merge PR from \`${branch}\` to \`${baseBranch}\`. Auto-merge is enabled when checks pass.`;
@@ -128,32 +117,9 @@ jobs:
                 core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
               }
             } else {
-              // Nothing to merge from release/hotfix into develop
               if (backPr) {
                 core.info(`Back-merge PR #${backPr.number} exists but compare shows no commits ahead; consider closing if redundant.`);
               } else {
                 core.info(`No back-merge PR created: ${branch} has no commits ahead of ${baseBranch}.`);
               }
-
-              // Optional: if develop is ahead, you could open the *reverse* PR to keep the branch up to date.
-              // Uncomment to enable:
-              /*
-              if (cmp.data.behind_by > 0) {
-                core.info(`${branch} is behind ${baseBranch} by ${cmp.data.behind_by} commits. Opening a catch-up PR ${baseBranch} → ${branch}.`);
-                const reverse = await findPr(baseBranch, branch);
-                if (!reverse) {
-                  const { data } = await github.rest.pulls.create({
-                    owner, repo,
-                    title: `Catch-up ${baseBranch} → ${branch}`,
-                    head: baseBranch,
-                    base: branch,
-                    body: `Bring \`${branch}\` up to date with \`${baseBranch}\`.`,
-                    draft: false
-                  });
-                  core.info(`Created catch-up PR #${data.number} -> ${branch}`);
-                } else {
-                  core.info(`Catch-up PR already exists: #${reverse.number}`);
-                }
-              }
-              */
             }
