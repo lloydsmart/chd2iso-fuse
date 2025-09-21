@@ -33,14 +33,14 @@ jobs:
             // Branch + kind
             const branch = core.getInput('branch') || process.env.GITHUB_REF_NAME;
             const kind = branch.startsWith('release/') ? 'release' : 'hotfix';
+            const { owner, repo } = context.repo;
 
             // Helper to find an open PR by head/base
             async function findPr(head, base) {
               const { data } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner, repo,
                 state: 'open',
-                head: `${context.repo.owner}:${head}`,
+                head: `${owner}:${head}`,
                 base
               });
               return data[0];
@@ -65,8 +65,7 @@ jobs:
               ].join('\n');
 
               const { data } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner, repo,
                 title,
                 head: branch,
                 base: 'main',
@@ -82,72 +81,79 @@ jobs:
             core.setOutput('release_pr_number', String(releasePr.number));
 
             // ===== Back-merge PR → develop (only if head is ahead of base) =====
-const baseBranch = 'develop';
+            const baseBranch = 'develop';
 
-// Compare commits to avoid 422 when there's nothing to merge
-const cmp = await github.rest.repos.compareCommits({
-  owner: context.repo.owner,
-  repo: context.repo.repo,
-  base: baseBranch,
-  head: branch
-});
-core.info(`Compare ${branch} vs ${baseBranch}: ahead_by=${cmp.data.ahead_by}, behind_by=${cmp.data.behind_by}, status=${cmp.data.status}`);
+            // Compare commits to avoid 422 when there's nothing to merge
+            const cmp = await github.rest.repos.compareCommits({
+              owner, repo,
+              base: baseBranch,
+              head: branch
+            });
+            core.info(`Compare ${branch} vs ${baseBranch}: ahead_by=${cmp.data.ahead_by}, behind_by=${cmp.data.behind_by}, status=${cmp.data.status}`);
 
-let backPr = await findPr(branch, baseBranch);
+            let backPr = await findPr(branch, baseBranch);
 
-if (cmp.data.ahead_by > 0) {
-  if (!backPr) {
-    const title = `Back-merge ${branch} → ${baseBranch}`;
-    const body  = `Automated back-merge PR from \`${branch}\` to \`${baseBranch}\`. Auto-merge is enabled when checks pass.`;
-    const { data } = await github.rest.pulls.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title,
-      head: branch,
-      base: baseBranch,
-      body,
-      draft: false
-    });
-    backPr = data;
-    core.info(`Created back-merge PR #${backPr.number} -> ${baseBranch}`);
-  } else {
-    core.info(`Back-merge PR already exists: #${backPr.number}`);
-  }
+            if (cmp.data.ahead_by > 0) {
+              // There are commits on the release/hotfix branch not in develop → create or reuse PR
+              if (!backPr) {
+                const title = `Back-merge ${branch} → ${baseBranch}`;
+                const body  = `Automated back-merge PR from \`${branch}\` to \`${baseBranch}\`. Auto-merge is enabled when checks pass.`;
+                const { data } = await github.rest.pulls.create({
+                  owner, repo,
+                  title,
+                  head: branch,
+                  base: baseBranch,
+                  body,
+                  draft: false
+                });
+                backPr = data;
+                core.info(`Created back-merge PR #${backPr.number} -> ${baseBranch}`);
+              } else {
+                core.info(`Back-merge PR already exists: #${backPr.number}`);
+              }
 
-  // Try to enable auto-merge for the back-merge PR (GraphQL)
-  try {
-    const mutation = `
-      mutation($prId:ID!) {
-        enablePullRequestAutoMerge(input:{
-          pullRequestId:$prId,
-          mergeMethod: MERGE
-        }) { clientMutationId }
-      }
-    `;
-    await github.graphql(mutation, { prId: backPr.node_id });
-    core.info(`Auto-merge enabled for PR #${backPr.number}`);
-  } catch (e) {
-    core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
-  }
-} else {
-  if (backPr) {
-    core.info(`Back-merge PR #${backPr.number} exists but compare shows no commits ahead; consider closing if redundant.`);
-  } else {
-    core.info(`No back-merge PR created: ${branch} has no commits ahead of ${baseBranch}.`);
-  }
-}
-// Try to enable auto-merge for the back-merge PR (GraphQL)
-            try {
-              const mutation = `
-                mutation($prId:ID!) {
-                  enablePullRequestAutoMerge(input:{
-                    pullRequestId:$prId,
-                    mergeMethod: MERGE
-                  }) { clientMutationId }
+              // Try to enable auto-merge for the back-merge PR (GraphQL)
+              try {
+                const mutation = `
+                  mutation($prId:ID!) {
+                    enablePullRequestAutoMerge(input:{
+                      pullRequestId:$prId,
+                      mergeMethod: MERGE
+                    }) { clientMutationId }
+                  }
+                `;
+                await github.graphql(mutation, { prId: backPr.node_id });
+                core.info(`Auto-merge enabled for PR #${backPr.number}`);
+              } catch (e) {
+                core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
+              }
+            } else {
+              // Nothing to merge from release/hotfix into develop
+              if (backPr) {
+                core.info(`Back-merge PR #${backPr.number} exists but compare shows no commits ahead; consider closing if redundant.`);
+              } else {
+                core.info(`No back-merge PR created: ${branch} has no commits ahead of ${baseBranch}.`);
+              }
+
+              // Optional: if develop is ahead, you could open the *reverse* PR to keep the branch up to date.
+              // Uncomment to enable:
+              /*
+              if (cmp.data.behind_by > 0) {
+                core.info(`${branch} is behind ${baseBranch} by ${cmp.data.behind_by} commits. Opening a catch-up PR ${baseBranch} → ${branch}.`);
+                const reverse = await findPr(baseBranch, branch);
+                if (!reverse) {
+                  const { data } = await github.rest.pulls.create({
+                    owner, repo,
+                    title: `Catch-up ${baseBranch} → ${branch}`,
+                    head: baseBranch,
+                    base: branch,
+                    body: `Bring \`${branch}\` up to date with \`${baseBranch}\`.`,
+                    draft: false
+                  });
+                  core.info(`Created catch-up PR #${data.number} -> ${branch}`);
+                } else {
+                  core.info(`Catch-up PR already exists: #${reverse.number}`);
                 }
-              `;
-              await github.graphql(mutation, { prId: backPr.node_id });
-              core.info(`Auto-merge enabled for PR #${backPr.number}`);
-            } catch (e) {
-              core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
+              }
+              */
             }
