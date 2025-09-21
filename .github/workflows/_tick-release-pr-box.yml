@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       branch:
-        description: "Release/Hotfix branch name (e.g., release/1.2.3)"
+        description: "Release/Hotfix branch name (e.g., release/1.2.3). Optional; will fall back to context."
         type: string
-        required: true
+        required: false
       box:
-        description: "Which box to tick: ci | bump | codeql"
+        description: "Which box to tick: ci | bump | codeql (optional; inferred from workflow/job if omitted)"
         type: string
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -24,28 +24,69 @@ jobs:
         id: update
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branch = core.getInput('branch');
-            const which = core.getInput('box'); // ci | bump | codeql
+            // Inputs (may be empty)
+            const inputBranch = (core.getInput('branch') || '').trim();
+            const inputWhich  = (core.getInput('box') || '').trim();
 
-            const mapping = {
-              ci:     /^- \\[ \\] CI build & tests passed$/m,
-              bump:   /^- \\[ \\] Version bump & changelog completed$/m,
-              codeql: /^- \\[ \\] CodeQL security scan completed$/m,
+            // Fallbacks if branch not provided by caller
+            const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
+            const branch = inputBranch || envBranch;
+
+            // If `box` is missing, infer from workflow/job names
+            const wf  = (process.env.GITHUB_WORKFLOW || '').toLowerCase();
+            const job = (process.env.GITHUB_JOB || '').toLowerCase();
+
+            let whichRaw = inputWhich;
+            if (!whichRaw) {
+              if (wf.includes('codeql') || job.includes('codeql') || wf.includes('security')) {
+                whichRaw = 'codeql';
+              } else if (wf.includes('release prep') || wf.includes('autobump') || job.includes('bump') || job.includes('changelog')) {
+                whichRaw = 'bump';
+              } else if (wf.includes('ci') || job.includes('build') || job.includes('test') || job.includes('ci')) {
+                whichRaw = 'ci';
+              }
+            }
+
+            const which0 = (whichRaw || '').trim().toLowerCase();
+
+            // Accept a few synonyms
+            const alias = {
+              'ci': 'ci', 'build': 'ci', 'tests': 'ci',
+              'bump': 'bump', 'version': 'bump', 'changelog': 'bump',
+              'codeql': 'codeql', 'security': 'codeql', 'scan': 'codeql',
             };
+            const which = alias[which0];
 
+            if (!branch) {
+              core.setFailed('Missing branch. Provide "with: branch: ..." or run on PR/push where GITHUB_HEAD_REF/GITHUB_REF_NAME are set.');
+              return;
+            }
+            if (!which) {
+              core.setFailed(`Unknown or missing 'box' value. Pass one of: ci | bump | codeql (inferred from workflow/job failed: workflow="${process.env.GITHUB_WORKFLOW}", job="${process.env.GITHUB_JOB}")`);
+              return;
+            }
+
+            // Only act for release/* or hotfix/*
+            if (!(branch.startsWith('release/') || branch.startsWith('hotfix/'))) {
+              core.info(`Branch "${branch}" is not release/* or hotfix/* — skipping.`);
+              return;
+            }
+
+            // Exact lines expected in the PR template
+            const mapping = {
+              ci:     /^- \[ \] CI build & tests passed$/m,
+              bump:   /^- \[ \] Version bump & changelog completed$/m,
+              codeql: /^- \[ \] CodeQL security scan completed$/m,
+            };
             const doneMapping = {
               ci:     '- [x] CI build & tests passed',
               bump:   '- [x] Version bump & changelog completed',
               codeql: '- [x] CodeQL security scan completed',
             };
 
-            if (!mapping[which]) {
-              core.setFailed(`Unknown box: ${which}`);
-              return;
-            }
-
-            // Find the open PR to main for this branch
+            // Find the open PR from this branch -> main
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -65,11 +106,11 @@ jobs:
             if (body.includes(doneMapping[which])) {
               core.info(`Box "${which}" already ticked for PR #${pr.number}`);
             } else {
-              // Replace unchecked line with checked
+              // Try replacing the unchecked line with the checked one
               const replaced = body.replace(mapping[which], doneMapping[which]);
               body = replaced;
 
-              // Idempotency: if template line went missing, append safeguard
+              // If the expected unchecked line is missing (manual edits), append a checked line as a safeguard
               if (!body.includes(doneMapping[which])) {
                 body += `\n${doneMapping[which]}`;
               }
@@ -83,20 +124,27 @@ jobs:
               core.info(`Ticked "${which}" for PR #${pr.number}`);
             }
 
-            // If ALL three are checked, flip draft -> ready for review
+            // If ALL three are checked, flip draft -> Ready for review (GraphQL)
             const allChecked =
               body.includes(doneMapping.ci) &&
               body.includes(doneMapping.bump) &&
               body.includes(doneMapping.codeql);
 
-            if (allChecked && pr.draft) {
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                draft: false
-              });
-              core.info(`All boxes checked. PR #${pr.number} is now Ready for review.`);
+            if (allChecked) {
+              try {
+                const mutation = `
+                  mutation($prId: ID!) {
+                    markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
+                      clientMutationId
+                    }
+                  }
+                `;
+                await github.graphql(mutation, { prId: pr.node_id });
+                core.info(`All boxes checked. PR #${pr.number} marked Ready for review.`);
+              } catch (e) {
+                // If it's already ready, or mutation not allowed, just log
+                core.warning(`Tried to mark PR #${pr.number} ready: ${e.message}`);
+              }
             } else {
-              core.info(`All checked? ${allChecked}. Draft? ${pr.draft}`);
+              core.info(`All checked? ${allChecked}. Not flipping yet.`);
             }
