@@ -1,3 +1,9 @@
+chd2iso-fuse (0.2.41-1) trixie; urgency=medium
+
+  * UNRELEASED
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Sun, 21 Sep 2025 13:05:54 +0000
+
 chd2iso-fuse (0.2.40-1) trixie; urgency=medium
 
   [ lloydsmart ]

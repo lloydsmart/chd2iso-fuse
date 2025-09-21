@@ -1,5 +1,6 @@
 # Changelog
-### CI
+### Other
+- Back-merge main -> develop (post-release) (21c291d)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.40 [skip ci] (7ff6d61)
 - chore(release): prepare v0.2.40 [skip ci] (22aedb9)
@@ -7,7 +8,8 @@
 - chore(release): prepare v0.2.40 [skip ci] (b364d8d)
 - chore(release): prepare v0.2.40 [skip ci] (1998406)
 - chore(release): prepare v0.2.40 [skip ci] (1f46dfe)
-- chore(release): prepare v0.2.40 [skip ci] (f92d587)### Features
+- chore(release): prepare v0.2.40 [skip ci] (f92d587)
+- chore(release): prepare v0.2.40 [skip ci] (65f5e5a)### Features
 - feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, “Ready” flip (9847cb6)### Fixes
 - fix(workflows): correct release-pr GitHub Script syntax and escaping (fa8f7a5)
 - fix(workflows): harden checkbox ticker input handling (trim/normalize/aliases) (6a4a3dd)
@@ -18,7 +20,8 @@
 - fix(workflows): eliminate github-script parse error — use multiline block and clean JS in release-pr (2b7bb0d)### Other
 - Back-merge main -> develop (post-release) (c476d5b)
 - PR #228: ci(codeql): fix Rust init by using build-mode=none for non-PR runs (78e5ff8)
-- PR #233: feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, "Ready" flip (88eb175)### Chore
+- PR #233: feat(workflows): release automation v2 — auto-PRs, back-merge, checkbox ticker, "Ready" flip (88eb175)
+- PR #234: Release: 0.2.40 (a70612b)### Chore
 - chore(release): prepare v0.2.37 [skip ci] (1558871)
 - chore(release): prepare v0.2.37 [skip ci] (f630e16)### Fixes
 - fix(codeql): Rust doesn’t support `build-mode: manual` — switch non-PR runs to `build-mode: none` and keep custom cargo build (5807dfb)
