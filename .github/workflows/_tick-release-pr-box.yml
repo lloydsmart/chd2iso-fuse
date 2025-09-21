@@ -34,7 +34,7 @@ jobs:
             const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
             const branch = inputBranch || envBranch;
 
-            // If `box` is missing, infer from workflow/job names
+            // Infer 'box' from workflow/job names if omitted
             const wf  = (process.env.GITHUB_WORKFLOW || '').toLowerCase();
             const job = (process.env.GITHUB_JOB || '').toLowerCase();
 
@@ -51,7 +51,7 @@ jobs:
 
             const which0 = (whichRaw || '').trim().toLowerCase();
 
-            // Accept a few synonyms
+            // Accept synonyms
             const alias = {
               'ci': 'ci', 'build': 'ci', 'tests': 'ci',
               'bump': 'bump', 'version': 'bump', 'changelog': 'bump',
@@ -64,7 +64,7 @@ jobs:
               return;
             }
             if (!which) {
-              core.setFailed(`Unknown or missing 'box' value. Pass one of: ci | bump | codeql (inferred from workflow/job failed: workflow="${process.env.GITHUB_WORKFLOW}", job="${process.env.GITHUB_JOB}")`);
+              core.setFailed(`Unknown or missing 'box'. Pass: ci | bump | codeql. (workflow="${process.env.GITHUB_WORKFLOW}", job="${process.env.GITHUB_JOB}")`);
               return;
             }
 
@@ -86,12 +86,12 @@ jobs:
               codeql: '- [x] CodeQL security scan completed',
             };
 
+            const { owner, repo } = context.repo;
+
             // Find the open PR from this branch -> main
             const { data: prs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              head: `${context.repo.owner}:${branch}`,
+              owner, repo, state: 'open',
+              head: `${owner}:${branch}`,
               base: 'main'
             });
             const pr = prs[0];
@@ -106,7 +106,7 @@ jobs:
             if (body.includes(doneMapping[which])) {
               core.info(`Box "${which}" already ticked for PR #${pr.number}`);
             } else {
-              // Try replacing the unchecked line with the checked one
+              // Replace the unchecked line with the checked one
               const replaced = body.replace(mapping[which], doneMapping[which]);
               body = replaced;
 
@@ -115,12 +115,7 @@ jobs:
                 body += `\n${doneMapping[which]}`;
               }
 
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                body
-              });
+              await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
               core.info(`Ticked "${which}" for PR #${pr.number}`);
             }
 
@@ -142,7 +137,6 @@ jobs:
                 await github.graphql(mutation, { prId: pr.node_id });
                 core.info(`All boxes checked. PR #${pr.number} marked Ready for review.`);
               } catch (e) {
-                // If it's already ready, or mutation not allowed, just log
                 core.warning(`Tried to mark PR #${pr.number} ready: ${e.message}`);
               }
             } else {
