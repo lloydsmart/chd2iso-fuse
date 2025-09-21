@@ -134,4 +134,3 @@ jobs:
                 core.info(`No back-merge PR created: ${branch} has no commits ahead of ${baseBranch}.`);
               }
             }
-
