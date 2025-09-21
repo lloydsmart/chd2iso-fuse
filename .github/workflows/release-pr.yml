@@ -81,27 +81,62 @@ jobs:
 
             core.setOutput('release_pr_number', String(releasePr.number));
 
-            // ===== Back-merge PR → develop (enable automerge) =====
-            let backPr = await findPr(branch, 'develop');
-            if (!backPr) {
-              const title = `Back-merge ${branch} → develop`;
-              const body  = `Automated back-merge PR from \`${branch}\` to \`develop\`. Auto-merge is enabled when checks pass.`;
-              const { data } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title,
-                head: branch,
-                base: 'develop',
-                body,
-                draft: false
-              });
-              backPr = data;
-              core.info(`Created back-merge PR #${backPr.number} -> develop`);
-            } else {
-              core.info(`Back-merge PR already exists: #${backPr.number}`);
-            }
+            // ===== Back-merge PR → develop (only if head is ahead of base) =====
+const baseBranch = 'develop';
 
-            // Try to enable auto-merge for the back-merge PR (GraphQL)
+// Compare commits to avoid 422 when there's nothing to merge
+const cmp = await github.rest.repos.compareCommits({
+  owner: context.repo.owner,
+  repo: context.repo.repo,
+  base: baseBranch,
+  head: branch
+});
+core.info(`Compare ${branch} vs ${baseBranch}: ahead_by=${cmp.data.ahead_by}, behind_by=${cmp.data.behind_by}, status=${cmp.data.status}`);
+
+let backPr = await findPr(branch, baseBranch);
+
+if (cmp.data.ahead_by > 0) {
+  if (!backPr) {
+    const title = `Back-merge ${branch} → ${baseBranch}`;
+    const body  = `Automated back-merge PR from \`${branch}\` to \`${baseBranch}\`. Auto-merge is enabled when checks pass.`;
+    const { data } = await github.rest.pulls.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title,
+      head: branch,
+      base: baseBranch,
+      body,
+      draft: false
+    });
+    backPr = data;
+    core.info(`Created back-merge PR #${backPr.number} -> ${baseBranch}`);
+  } else {
+    core.info(`Back-merge PR already exists: #${backPr.number}`);
+  }
+
+  // Try to enable auto-merge for the back-merge PR (GraphQL)
+  try {
+    const mutation = `
+      mutation($prId:ID!) {
+        enablePullRequestAutoMerge(input:{
+          pullRequestId:$prId,
+          mergeMethod: MERGE
+        }) { clientMutationId }
+      }
+    `;
+    await github.graphql(mutation, { prId: backPr.node_id });
+    core.info(`Auto-merge enabled for PR #${backPr.number}`);
+  } catch (e) {
+    core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
+  }
+} else {
+  if (backPr) {
+    core.info(`Back-merge PR #${backPr.number} exists but compare shows no commits ahead; consider closing if redundant.`);
+  } else {
+    core.info(`No back-merge PR created: ${branch} has no commits ahead of ${baseBranch}.`);
+  }
+}
+// Try to enable auto-merge for the back-merge PR (GraphQL)
             try {
               const mutation = `
                 mutation($prId:ID!) {
