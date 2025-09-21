@@ -28,11 +28,13 @@ jobs:
       - name: 🧰 Create/ensure PRs
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            // Branch + kind
             const branch = core.getInput('branch') || process.env.GITHUB_REF_NAME;
-            const kind = '${{ steps.vars.outputs.kind }}';
+            const kind = branch.startsWith('release/') ? 'release' : 'hotfix';
 
-            // Helper: find PR by head/base
+            // Helper to find an open PR by head/base
             async function findPr(head, base) {
               const { data } = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -44,15 +46,13 @@ jobs:
               return data[0];
             }
 
-            // Release PR → main (draft)
+            // ===== Release PR → main (draft with 3 unchecked boxes) =====
             let releasePr = await findPr(branch, 'main');
             if (!releasePr) {
-              const title =
-                kind === 'release'
-                  ? `Release: ${branch.replace(/^release\\//, '')}`
-                  : `Hotfix: ${branch.replace(/^hotfix\\//, '')}`;
+              const title = kind === 'release'
+                ? 'Release: ' + branch.replace(/^release\//, '')
+                : 'Hotfix: '  + branch.replace(/^hotfix\//, '');
 
-              // PR body with the three UNCHECKED boxes.
               const body = [
                 `This ${kind} PR is auto-created for branch \`${branch}\`.`,
                 ``,
@@ -62,7 +62,7 @@ jobs:
                 `- [ ] CodeQL security scan completed`,
                 ``,
                 `_This PR was created automatically. The checklist will be updated by workflows without comments._`
-              ].join('\\n');
+              ].join('\n');
 
               const { data } = await github.rest.pulls.create({
                 owner: context.repo.owner,
@@ -81,11 +81,11 @@ jobs:
 
             core.setOutput('release_pr_number', String(releasePr.number));
 
-            // Back-merge PR → develop (enable automerge)
+            // ===== Back-merge PR → develop (enable automerge) =====
             let backPr = await findPr(branch, 'develop');
             if (!backPr) {
               const title = `Back-merge ${branch} → develop`;
-              const body = `Automated back-merge PR from \`${branch}\` to \`develop\`. Auto-merge is enabled when checks pass.`;
+              const body  = `Automated back-merge PR from \`${branch}\` to \`develop\`. Auto-merge is enabled when checks pass.`;
               const { data } = await github.rest.pulls.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -101,10 +101,8 @@ jobs:
               core.info(`Back-merge PR already exists: #${backPr.number}`);
             }
 
-            // Enable auto-merge for the back-merge PR (requires Auto-merge enabled in repo settings)
+            // Try to enable auto-merge for the back-merge PR (GraphQL)
             try {
-              // GraphQL mutation to enable auto-merge (MERGE method)
-              const prNodeId = backPr.node_id;
               const mutation = `
                 mutation($prId:ID!) {
                   enablePullRequestAutoMerge(input:{
@@ -113,7 +111,7 @@ jobs:
                   }) { clientMutationId }
                 }
               `;
-              await github.graphql(mutation, { prId: prNodeId });
+              await github.graphql(mutation, { prId: backPr.node_id });
               core.info(`Auto-merge enabled for PR #${backPr.number}`);
             } catch (e) {
               core.warning(`Could not enable auto-merge for PR #${backPr.number}. Ensure repository auto-merge is enabled. ${e.message}`);
