@@ -19,65 +19,81 @@ jobs:
       - name: 📝 Update PR body checkbox (and undraft if ready)
         uses: actions/github-script@v7
         env:
-          BOX: ${{ inputs.box }}     # ✅ surface workflow_call input to the script
+          BOX: ${{ inputs.box }}     # pass workflow_call input into the script
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Read the workflow_call input from env (core.getInput() only sees *action* inputs)
             const WHICH = (process.env.BOX || '').toLowerCase();
             if (!['ci','bump','codeql'].includes(WHICH)) {
               core.setFailed(`Unknown box '${WHICH}'. Expected: ci | bump | codeql`);
               return;
             }
 
-            // --- Helpers -----------------------------------------------------
             const BOX_PATTERNS = {
               ci:     { unchecked: /- \[ \] CI build & tests passed/i,     checked: "- [x] CI build & tests passed" },
               bump:   { unchecked: /- \[ \] Version bump & changelog completed/i, checked: "- [x] Version bump & changelog completed" },
               codeql: { unchecked: /- \[ \] CodeQL security scan completed/i, checked: "- [x] CodeQL security scan completed" },
             };
 
-            async function findReleasePr() {
+            async function listOpenPrs() {
+              const { owner, repo } = context.repo;
+              const { data } = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+              return data;
+            }
+
+            async function findReleasePrOnce() {
               const { owner, repo } = context.repo;
 
-              // 1) If this is a PR workflow, we know the PR number.
+              // Use PR context directly when available
               if (context.eventName === 'pull_request' || context.eventName === 'pull_request_target') {
                 const pr = context.payload.pull_request;
-                if (pr && /^(release|hotfix)\//.test(pr.head.ref)) return pr;
+                if (pr && /^(release|hotfix)\//.test(pr.head.ref) && pr.base.ref === 'main') return pr;
               }
 
-              // 2) Determine candidate branch name
-              // Try from env when running on push/tag; fall back to PR search by commit SHA.
               const refName = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '';
               const maybeBranch = refName.startsWith('refs/heads/') ? refName.replace('refs/heads/','') : refName;
+              const sha = process.env.GITHUB_SHA || '';
 
-              // a) If we have a release/hotfix branch name, try direct head/base match first.
+              // Prefer exact head/base match if we know the branch
               if (/^(release|hotfix)\//.test(maybeBranch)) {
-                const { data: prs } = await github.rest.pulls.list({
-                  owner, repo, state: 'open', base: 'main',
-                });
-                const hit = prs.find(p => p.head && p.head.ref === maybeBranch);
+                const { owner, repo } = context.repo;
+                const { data: prsToMain } = await github.rest.pulls.list({ owner, repo, state: 'open', base: 'main', per_page: 100 });
+                const hit = prsToMain.find(p => p.head?.ref === maybeBranch);
                 if (hit) return hit;
               }
 
-              // b) As a fallback, try to find an open PR that contains the current commit SHA
-              // and whose head branch looks like release/* or hotfix/*.
-              const sha = process.env.GITHUB_SHA;
-              const { data: prs } = await github.rest.pulls.list({ owner, repo, state: 'open' });
+              // Otherwise scan all open PRs for the commit/branch hint
+              const prs = await listOpenPrs();
+              // 1) Head SHA match
               if (sha) {
-                for (const p of prs) {
-                  if (!/^(release|hotfix)\//.test(p.head.ref)) continue;
-                  if (p.head.sha === sha) return p;
-                }
+                const shaHit = prs.find(p => /^(release|hotfix)\//.test(p.head.ref) && p.base.ref === 'main' && p.head.sha === sha);
+                if (shaHit) return shaHit;
               }
-              // Last resort: heuristic by title
-              const guess = prs.find(p => /^(Release|Hotfix):\s*/i.test(p.title));
-              if (guess) return guess;
+              // 2) Fuzzy: title starts with Release/Hotfix
+              const titleHit = prs.find(p => /^(release|hotfix)\//i.test(p.head.ref) && p.base.ref === 'main')
+                             || prs.find(p => /^(Release|Hotfix):\s*/i.test(p.title));
+              if (titleHit) return titleHit;
 
               return null;
             }
 
-            async function loadPrBody(prNumber) {
+            async function findReleasePrWithRetry(maxAttempts = 8, delayMs = 15000) {
+              core.info(`Looking for release/hotfix PR → main (attempts=${maxAttempts}, delay=${delayMs}ms)…`);
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                const pr = await findReleasePrOnce();
+                if (pr) {
+                  core.info(`Found PR on attempt ${attempt}: #${pr.number} (${pr.head.ref} → ${pr.base.ref})`);
+                  return pr;
+                }
+                if (attempt < maxAttempts) {
+                  core.info(`No PR yet; sleeping ${delayMs}ms before retry ${attempt+1}/${maxAttempts}…`);
+                  await new Promise(r => setTimeout(r, delayMs));
+                }
+              }
+              return null;
+            }
+
+            async function loadPr(prNumber) {
               const { owner, repo } = context.repo;
               const { data } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
               return data;
@@ -89,37 +105,31 @@ jobs:
             }
 
             async function undraftIfReady(pr) {
-              const { owner, repo } = context.repo;
               const allChecked =
                 /- \[x\] CI build & tests passed/i.test(pr.body || '') &&
                 /- \[x\] CodeQL security scan completed/i.test(pr.body || '') &&
                 /- \[x\] Version bump & changelog completed/i.test(pr.body || '');
-
               if (allChecked && pr.draft) {
                 core.info("All boxes checked — marking PR ready for review.");
-                await github.rest.pulls.update({
-                  owner, repo, pull_number: pr.number, draft: false
-                });
+                const { owner, repo } = context.repo;
+                await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
               } else {
                 core.info(`Undraft not needed. allChecked=${allChecked}, draft=${pr.draft}`);
               }
             }
 
-            // --- Main --------------------------------------------------------
-            core.info(`Event=${context.eventName} ref_name=${process.env.GITHUB_REF_NAME || ''} head_ref=${process.env.GITHUB_HEAD_REF || ''}`);
-            const pr = await findReleasePr();
+            core.info(`event=${context.eventName} ref_name=${process.env.GITHUB_REF_NAME || ''} head_ref=${process.env.GITHUB_HEAD_REF || ''}`);
+            const pr = await findReleasePrWithRetry(); // <-- retry to avoid races with PR creation
             if (!pr) {
               core.setFailed("Could not locate an open release/hotfix PR targeting 'main'.");
               return;
             }
-            core.info(`Found PR #${pr.number}: ${pr.title}`);
 
             const patterns = BOX_PATTERNS[WHICH];
 
-            // Ensure the box text exists (idempotent add if author body changed)
+            // Ensure the line exists; if not, inject a checked line (idempotent)
             let body = pr.body || "";
             if (!patterns.unchecked.test(body) && !new RegExp(patterns.checked, 'i').test(body)) {
-              // Try to inject under a "Release readiness checklist" heading, else append.
               const heading = /(^|\n)### +✅ +Release readiness checklist[^\n]*\n/i;
               if (heading.test(body)) {
                 body = body.replace(heading, (m) => `${m}${patterns.checked}\n`);
@@ -129,20 +139,17 @@ jobs:
               core.info(`Inserted missing '${WHICH}' line into PR body.`);
             }
 
-            // Tick the box: convert unchecked → checked (idempotent)
+            // Tick the box if it's currently unchecked
             const before = body;
             body = body.replace(patterns.unchecked, patterns.checked);
-            if (body === before && !new RegExp(patterns.checked, 'i').test(body)) {
-              core.warning(`Could not find the '${WHICH}' checkbox to tick. Check the exact text in the PR template.`);
-            }
 
             if (body !== pr.body) {
               await updatePrBody(pr.number, body);
               core.info(`Updated PR body for #${pr.number}.`);
             } else {
-              core.info("No PR body changes required.");
+              core.info("No PR body changes required (already checked or text differs).");
             }
 
-            // Re-fetch & undraft if everything is checked
-            const fresh = await loadPrBody(pr.number);
+            // Re-fetch & undraft if ready
+            const fresh = await loadPr(pr.number);
             await undraftIfReady(fresh);
