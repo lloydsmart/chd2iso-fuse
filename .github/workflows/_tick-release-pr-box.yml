@@ -3,14 +3,10 @@ name: Reusable — Tick a checkbox on the release PR ☑️
 on:
   workflow_call:
     inputs:
-      branch:
-        description: "Release/Hotfix branch name (e.g., release/1.2.3). Optional; will fall back to context."
-        type: string
-        required: false
       box:
-        description: "Which box to tick: ci | bump | codeql (optional; inferred from workflow/job if omitted)"
+        description: "Which box to tick: ci | bump | codeql"
         type: string
-        required: false
+        required: true
 
 permissions:
   contents: read
@@ -20,125 +16,140 @@ jobs:
   tick:
     runs-on: ubuntu-latest
     steps:
-      - name: 📝 Update PR body checkbox
-        id: update
+      - name: 📝 Update PR body checkbox (and undraft if ready)
         uses: actions/github-script@v7
+        env:
+          BOX: ${{ inputs.box }}     # pass workflow_call input into the script
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Inputs (may be empty)
-            const inputBranch = (core.getInput('branch') || '').trim();
-            const inputWhich  = (core.getInput('box') || '').trim();
+            const WHICH = (process.env.BOX || '').toLowerCase();
+            if (!['ci','bump','codeql'].includes(WHICH)) {
+              core.setFailed(`Unknown box '${WHICH}'. Expected: ci | bump | codeql`);
+              return;
+            }
 
-            // Fallbacks if branch not provided by caller
-            const envBranch = (process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '').trim();
-            const branch = inputBranch || envBranch;
+            const BOX_PATTERNS = {
+              ci:     { unchecked: /- \[ \] CI build & tests passed/i,     checked: "- [x] CI build & tests passed" },
+              bump:   { unchecked: /- \[ \] Version bump & changelog completed/i, checked: "- [x] Version bump & changelog completed" },
+              codeql: { unchecked: /- \[ \] CodeQL security scan completed/i, checked: "- [x] CodeQL security scan completed" },
+            };
 
-            // Infer 'box' from workflow/job names if omitted
-            const wf  = (process.env.GITHUB_WORKFLOW || '').toLowerCase();
-            const job = (process.env.GITHUB_JOB || '').toLowerCase();
+            async function listOpenPrs() {
+              const { owner, repo } = context.repo;
+              const { data } = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+              return data;
+            }
 
-            let whichRaw = inputWhich;
-            if (!whichRaw) {
-              if (wf.includes('codeql') || job.includes('codeql') || wf.includes('security')) {
-                whichRaw = 'codeql';
-              } else if (wf.includes('release prep') || wf.includes('autobump') || job.includes('bump') || job.includes('changelog')) {
-                whichRaw = 'bump';
-              } else if (wf.includes('ci') || job.includes('build') || job.includes('test') || job.includes('ci')) {
-                whichRaw = 'ci';
+            async function findReleasePrOnce() {
+              const { owner, repo } = context.repo;
+
+              // Use PR context directly when available
+              if (context.eventName === 'pull_request' || context.eventName === 'pull_request_target') {
+                const pr = context.payload.pull_request;
+                if (pr && /^(release|hotfix)\//.test(pr.head.ref) && pr.base.ref === 'main') return pr;
+              }
+
+              const refName = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '';
+              const maybeBranch = refName.startsWith('refs/heads/') ? refName.replace('refs/heads/','') : refName;
+              const sha = process.env.GITHUB_SHA || '';
+
+              // Prefer exact head/base match if we know the branch
+              if (/^(release|hotfix)\//.test(maybeBranch)) {
+                const { owner, repo } = context.repo;
+                const { data: prsToMain } = await github.rest.pulls.list({ owner, repo, state: 'open', base: 'main', per_page: 100 });
+                const hit = prsToMain.find(p => p.head?.ref === maybeBranch);
+                if (hit) return hit;
+              }
+
+              // Otherwise scan all open PRs for the commit/branch hint
+              const prs = await listOpenPrs();
+              // 1) Head SHA match
+              if (sha) {
+                const shaHit = prs.find(p => /^(release|hotfix)\//.test(p.head.ref) && p.base.ref === 'main' && p.head.sha === sha);
+                if (shaHit) return shaHit;
+              }
+              // 2) Fuzzy: title starts with Release/Hotfix
+              const titleHit = prs.find(p => /^(release|hotfix)\//i.test(p.head.ref) && p.base.ref === 'main')
+                             || prs.find(p => /^(Release|Hotfix):\s*/i.test(p.title));
+              if (titleHit) return titleHit;
+
+              return null;
+            }
+
+            async function findReleasePrWithRetry(maxAttempts = 8, delayMs = 15000) {
+              core.info(`Looking for release/hotfix PR → main (attempts=${maxAttempts}, delay=${delayMs}ms)…`);
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                const pr = await findReleasePrOnce();
+                if (pr) {
+                  core.info(`Found PR on attempt ${attempt}: #${pr.number} (${pr.head.ref} → ${pr.base.ref})`);
+                  return pr;
+                }
+                if (attempt < maxAttempts) {
+                  core.info(`No PR yet; sleeping ${delayMs}ms before retry ${attempt+1}/${maxAttempts}…`);
+                  await new Promise(r => setTimeout(r, delayMs));
+                }
+              }
+              return null;
+            }
+
+            async function loadPr(prNumber) {
+              const { owner, repo } = context.repo;
+              const { data } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+              return data;
+            }
+
+            async function updatePrBody(prNumber, body) {
+              const { owner, repo } = context.repo;
+              await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body });
+            }
+
+            async function undraftIfReady(pr) {
+              const allChecked =
+                /- \[x\] CI build & tests passed/i.test(pr.body || '') &&
+                /- \[x\] CodeQL security scan completed/i.test(pr.body || '') &&
+                /- \[x\] Version bump & changelog completed/i.test(pr.body || '');
+              if (allChecked && pr.draft) {
+                core.info("All boxes checked — marking PR ready for review.");
+                const { owner, repo } = context.repo;
+                await github.rest.pulls.update({ owner, repo, pull_number: pr.number, draft: false });
+              } else {
+                core.info(`Undraft not needed. allChecked=${allChecked}, draft=${pr.draft}`);
               }
             }
 
-            const which0 = (whichRaw || '').trim().toLowerCase();
-
-            // Accept synonyms
-            const alias = {
-              'ci': 'ci', 'build': 'ci', 'tests': 'ci',
-              'bump': 'bump', 'version': 'bump', 'changelog': 'bump',
-              'codeql': 'codeql', 'security': 'codeql', 'scan': 'codeql',
-            };
-            const which = alias[which0];
-
-            if (!branch) {
-              core.setFailed('Missing branch. Provide "with: branch: ..." or run on PR/push where GITHUB_HEAD_REF/GITHUB_REF_NAME are set.');
-              return;
-            }
-            if (!which) {
-              core.setFailed(`Unknown or missing 'box'. Pass: ci | bump | codeql. (workflow="${process.env.GITHUB_WORKFLOW}", job="${process.env.GITHUB_JOB}")`);
-              return;
-            }
-
-            // Only act for release/* or hotfix/*
-            if (!(branch.startsWith('release/') || branch.startsWith('hotfix/'))) {
-              core.info(`Branch "${branch}" is not release/* or hotfix/* — skipping.`);
-              return;
-            }
-
-            // Exact lines expected in the PR template
-            const mapping = {
-              ci:     /^- \[ \] CI build & tests passed$/m,
-              bump:   /^- \[ \] Version bump & changelog completed$/m,
-              codeql: /^- \[ \] CodeQL security scan completed$/m,
-            };
-            const doneMapping = {
-              ci:     '- [x] CI build & tests passed',
-              bump:   '- [x] Version bump & changelog completed',
-              codeql: '- [x] CodeQL security scan completed',
-            };
-
-            const { owner, repo } = context.repo;
-
-            // Find the open PR from this branch -> main
-            const { data: prs } = await github.rest.pulls.list({
-              owner, repo, state: 'open',
-              head: `${owner}:${branch}`,
-              base: 'main'
-            });
-            const pr = prs[0];
+            core.info(`event=${context.eventName} ref_name=${process.env.GITHUB_REF_NAME || ''} head_ref=${process.env.GITHUB_HEAD_REF || ''}`);
+            const pr = await findReleasePrWithRetry(); // <-- retry to avoid races with PR creation
             if (!pr) {
-              core.setFailed(`No open PR from ${branch} to main`);
+              core.setFailed("Could not locate an open release/hotfix PR targeting 'main'.");
               return;
             }
 
-            let body = pr.body || '';
+            const patterns = BOX_PATTERNS[WHICH];
 
-            // If already ticked, nothing to do
-            if (body.includes(doneMapping[which])) {
-              core.info(`Box "${which}" already ticked for PR #${pr.number}`);
-            } else {
-              // Replace the unchecked line with the checked one
-              const replaced = body.replace(mapping[which], doneMapping[which]);
-              body = replaced;
-
-              // If the expected unchecked line is missing (manual edits), append a checked line as a safeguard
-              if (!body.includes(doneMapping[which])) {
-                body += `\n${doneMapping[which]}`;
+            // Ensure the line exists; if not, inject a checked line (idempotent)
+            let body = pr.body || "";
+            if (!patterns.unchecked.test(body) && !new RegExp(patterns.checked, 'i').test(body)) {
+              const heading = /(^|\n)### +✅ +Release readiness checklist[^\n]*\n/i;
+              if (heading.test(body)) {
+                body = body.replace(heading, (m) => `${m}${patterns.checked}\n`);
+              } else {
+                body += `\n\n### ✅ Release readiness checklist\n${patterns.checked}\n`;
               }
-
-              await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
-              core.info(`Ticked "${which}" for PR #${pr.number}`);
+              core.info(`Inserted missing '${WHICH}' line into PR body.`);
             }
 
-            // If ALL three are checked, flip draft -> Ready for review (GraphQL)
-            const allChecked =
-              body.includes(doneMapping.ci) &&
-              body.includes(doneMapping.bump) &&
-              body.includes(doneMapping.codeql);
+            // Tick the box if it's currently unchecked
+            const before = body;
+            body = body.replace(patterns.unchecked, patterns.checked);
 
-            if (allChecked) {
-              try {
-                const mutation = `
-                  mutation($prId: ID!) {
-                    markPullRequestReadyForReview(input: { pullRequestId: $prId }) {
-                      clientMutationId
-                    }
-                  }
-                `;
-                await github.graphql(mutation, { prId: pr.node_id });
-                core.info(`All boxes checked. PR #${pr.number} marked Ready for review.`);
-              } catch (e) {
-                core.warning(`Tried to mark PR #${pr.number} ready: ${e.message}`);
-              }
+            if (body !== pr.body) {
+              await updatePrBody(pr.number, body);
+              core.info(`Updated PR body for #${pr.number}.`);
             } else {
-              core.info(`All checked? ${allChecked}. Not flipping yet.`);
+              core.info("No PR body changes required (already checked or text differs).");
             }
+
+            // Re-fetch & undraft if ready
+            const fresh = await loadPr(pr.number);
+            await undraftIfReady(fresh);
