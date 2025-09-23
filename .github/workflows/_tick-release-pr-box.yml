@@ -18,10 +18,13 @@ jobs:
     steps:
       - name: 📝 Update PR body checkbox (and undraft if ready)
         uses: actions/github-script@v7
+        env:
+          BOX: ${{ inputs.box }}     # ✅ surface workflow_call input to the script
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const WHICH = (core.getInput('box') || '').toLowerCase();
+            // Read the workflow_call input from env (core.getInput() only sees *action* inputs)
+            const WHICH = (process.env.BOX || '').toLowerCase();
             if (!['ci','bump','codeql'].includes(WHICH)) {
               core.setFailed(`Unknown box '${WHICH}'. Expected: ci | bump | codeql`);
               return;
@@ -60,19 +63,16 @@ jobs:
               // b) As a fallback, try to find an open PR that contains the current commit SHA
               // and whose head branch looks like release/* or hotfix/*.
               const sha = process.env.GITHUB_SHA;
+              const { data: prs } = await github.rest.pulls.list({ owner, repo, state: 'open' });
               if (sha) {
-                const { data: prs } = await github.rest.pulls.list({
-                  owner, repo, state: 'open'
-                });
                 for (const p of prs) {
                   if (!/^(release|hotfix)\//.test(p.head.ref)) continue;
-                  // Check if head sha matches or the commit exists in the PR head branch
                   if (p.head.sha === sha) return p;
                 }
-                // Last resort: heuristic by title
-                const guess = prs.find(p => /^(Release|Hotfix):\s*/i.test(p.title));
-                if (guess) return guess;
               }
+              // Last resort: heuristic by title
+              const guess = prs.find(p => /^(Release|Hotfix):\s*/i.test(p.title));
+              if (guess) return guess;
 
               return null;
             }
@@ -106,6 +106,7 @@ jobs:
             }
 
             // --- Main --------------------------------------------------------
+            core.info(`Event=${context.eventName} ref_name=${process.env.GITHUB_REF_NAME || ''} head_ref=${process.env.GITHUB_HEAD_REF || ''}`);
             const pr = await findReleasePr();
             if (!pr) {
               core.setFailed("Could not locate an open release/hotfix PR targeting 'main'.");
