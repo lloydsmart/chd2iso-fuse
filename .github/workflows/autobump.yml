@@ -340,18 +340,12 @@ jobs:
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-  # ✅ New: single job to tick the “bump & changelog” box
+  # ✅ Tick the “bump & changelog” box when prep succeeds
   tick_release_bump_box:
     name: ☑️ PR checklist — Version bump & changelog
     needs: prep
-    if: >
-      needs.prep.result == 'success' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
+    if: ${{ needs.prep.result == 'success' }}
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
-      branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       box: bump
     secrets: inherit
