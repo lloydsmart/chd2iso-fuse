@@ -15,6 +15,31 @@ chd2iso-fuse (0.3.0-1) trixie; urgency=medium
   [ lloydsmart ]
   * fix(ticker): pass workflow_call input via env; read from process.env in github-script
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.3.0 [skip ci]
+
+  [ lloydsmart ]
+  * fix(checklist): make PR discovery resilient to race with PR creation
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 23 Sep 2025 15:03:04 +0000
+
+chd2iso-fuse (0.3.0-1) trixie; urgency=medium
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.3.0 [skip ci]
+
+  [ lloydsmart ]
+  * ci: make checklist tickers bullet-proof; ensure CodeQL runs on release/hotfix pushes
+
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.3.0 [skip ci]
+
+  [ lloydsmart ]
+  * fix(ticker): pass workflow_call input via env; read from process.env in github-script
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Tue, 23 Sep 2025 14:43:27 +0000
 
 chd2iso-fuse (0.3.0-1) trixie; urgency=medium
