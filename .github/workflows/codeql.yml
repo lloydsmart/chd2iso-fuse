@@ -136,7 +136,16 @@ jobs:
   analyze:
     name: "🧩 Analyze (CodeQL: ${{ matrix.variant }})"
     needs: gate
-    if: needs.gate.outputs.needs_ci == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.gate.outputs.rust_changed == 'true')
+    # Run on PRs when rust changed (fast path),
+    # ALWAYS on release/hotfix pushes (so the checklist can tick),
+    # and on scheduled/dispatch runs.
+    if: |
+      needs.gate.outputs.needs_ci == 'true' && (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request' && needs.gate.outputs.rust_changed == 'true') ||
+        (github.event_name == 'push' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -252,18 +261,12 @@ jobs:
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
 
-  # ✅ New: tick the CodeQL box once analyze succeeds
+  # ✅ Tick the CodeQL box when analyze succeeds
   tick_release_codeql_box:
     name: ☑️ PR checklist — CodeQL scan completed
     needs: analyze
-    if: >
-      needs.analyze.result == 'success' &&
-      (
-        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
-      )
+    if: ${{ needs.analyze.result == 'success' }}
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
-      branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       box: codeql
     secrets: inherit
