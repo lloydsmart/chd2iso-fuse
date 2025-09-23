@@ -2,7 +2,9 @@
 ### CI
 - ci: make checklist tickers bullet-proof; ensure CodeQL runs on release/hotfix pushes (168310d)### Chore
 - chore(deps): bump actions/github-script from 7 to 8 (2667cde)
-- chore(release): prepare v0.3.0 [skip ci] (31f5793)### Other
+- chore(release): prepare v0.3.0 [skip ci] (31f5793)
+- chore(release): prepare v0.3.0 [skip ci] (5278964)### Fixes
+- fix(ticker): pass workflow_call input via env; read from process.env in github-script (f663fec)### Other
 - Back-merge main -> develop (post-release) (0cb8701)
 - PR #241: chore(deps): bump actions/github-script from 7 to 8 (43a7b8c)### CI
 - ci(release-pr): guard back-merge PR creation with compareCommits to avoid 422 on empty diffs (7fa8a1a)
