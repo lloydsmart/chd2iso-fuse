@@ -1,5 +1,8 @@
 # Changelog
-### CI
+### Chore
+- chore(deps): bump actions/github-script from 7 to 8 (2667cde)### Other
+- Back-merge main -> develop (post-release) (0cb8701)
+- PR #241: chore(deps): bump actions/github-script from 7 to 8 (43a7b8c)### CI
 - ci(release-pr): guard back-merge PR creation with compareCommits to avoid 422 on empty diffs (7fa8a1a)
 - ci(release-pr): guard back-merge PR with compareCommits and fix YAML truncation (3799f1d)
 - ci(release-pr): add compare guard and fix script block for github-script (1a2288c)
@@ -9,8 +12,10 @@
 - chore(release): prepare v0.2.42 [skip ci] (b02452f)
 - chore(release): prepare v0.2.42 [skip ci] (9427481)
 - chore(release): prepare v0.2.42 [skip ci] (a174a24)
-- chore(release): prepare v0.2.42 [skip ci] (2944515)### Other
-- Back-merge main -> develop (post-release) (21c291d)### CI
+- chore(release): prepare v0.2.42 [skip ci] (2944515)
+- chore(release): prepare v0.2.42 [skip ci] (ab7c143)### Other
+- Back-merge main -> develop (post-release) (21c291d)
+- PR #238: Release: 0.2.42 (a9571b9)### CI
 - ci(codeql): fix Rust init by using build-mode=none for non-PR runs (13ef881)### Chore
 - chore(release): prepare v0.2.40 [skip ci] (7ff6d61)
 - chore(release): prepare v0.2.40 [skip ci] (22aedb9)
