@@ -296,11 +296,18 @@ jobs:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
 
-  # ✅ Tick the CI box using the reusable workflow when CI succeeds
+  # ✅ Tick the CI box using the reusable workflow only for release/hotfix contexts
   tick_release_ci_box:
     name: ☑️ PR checklist — CI build & tests passed
     needs: build_test
-    if: ${{ needs.build_test.result == 'success' }}
+    if: >
+      needs.build_test.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' &&
+          (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name == 'push' &&
+          (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
       box: ci
