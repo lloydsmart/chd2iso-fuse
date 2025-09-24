@@ -3,6 +3,20 @@ chd2iso-fuse (0.3.1-1) trixie; urgency=medium
   [ lloydsmart ]
   * fix(checklist): gate CI/bump tickers to release/* and hotfix/*; avoid main pushes
 
+  [ Lloyd Smart ]
+  * chore(release): prepare v0.3.1 [skip ci]
+
+  [ lloydsmart ]
+  * ci(release): add idempotent release PR creation workflow
+  * fix(autobump): remove stray `fi>` causing syntax error in prep job
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 24 Sep 2025 07:35:06 +0000
+
+chd2iso-fuse (0.3.1-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * fix(checklist): gate CI/bump tickers to release/* and hotfix/*; avoid main pushes
+
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 24 Sep 2025 06:47:48 +0000
 
 chd2iso-fuse (0.3.0-1) trixie; urgency=medium

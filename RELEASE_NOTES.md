@@ -1,6 +1,9 @@
 # Changelog
-### Fixes
-- fix(checklist): gate CI/bump tickers to release/* and hotfix/*; avoid main pushes (4e91623)### Other
+### CI
+- ci(release): add idempotent release PR creation workflow (508e822)### Chore
+- chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)### Fixes
+- fix(checklist): gate CI/bump tickers to release/* and hotfix/*; avoid main pushes (4e91623)
+- fix(autobump): remove stray `fi>` causing syntax error in prep job (a6ba2bc)### Other
 - Back-merge main -> develop (post-release) (ad3ab9e)
 - PR #246: fix(checklist): gate CI/bump tickers to release/* and hotfix/*; avoid main pushes (54c1399)### CI
 - ci: assert `--version` matches Cargo.toml, Debian upstream version, and tag (4da50f1)
