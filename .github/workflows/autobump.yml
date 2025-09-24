@@ -15,8 +15,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Ensure the release PR exists (idempotent)
+  open_pr:
+    name: 🧷 Open or update release PR (draft + checklist)
+    uses: ./.github/workflows/_open-release-pr.yml
+    with:
+      base: main
+      ensure_checklist: true
+      draft: true
+
   prep:
     name: 🛠️ Prepare (version & changelog)
+    needs: open_pr
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     outputs:
@@ -36,7 +46,6 @@ jobs:
           fetch-tags: true
           persist-credentials: true
 
-      # --- Speedup: cache APT lists + archives between runs (keyed to package list file) ---
       - name: ♻️ Cache APT (lists + archives)
         uses: actions/cache@v4
         with:
@@ -47,7 +56,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-apt-
 
-      # --- Speedup: install Debian tools quickly + use prebuilt git-cliff binary ---
       - name: 🛠️ Install Debian packaging tools & git-cliff (fast)
         shell: bash
         run: |
@@ -176,13 +184,12 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — manual prepend (no --prepend)
       - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
         run: |
           set -euo pipefail
-          v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.28
+          v='${{ steps.ver.outputs.value }}'
           tag="v${v}"
 
           # Generate section to a temp file
@@ -330,7 +337,6 @@ jobs:
               exit 0
             fi
             echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
-            # Rebase with autostash; if it fails, abort and retry once more
             if ! git pull --rebase --autostash origin "${BRANCH}"; then
               git rebase --abort || true
             fi
@@ -340,11 +346,16 @@ jobs:
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-  # ✅ Tick the “bump & changelog” box when prep succeeds
+  # Tick the “bump & changelog” box only for release/hotfix contexts
   tick_release_bump_box:
     name: ☑️ PR checklist — Version bump & changelog
     needs: prep
-    if: ${{ needs.prep.result == 'success' }}
+    if: >
+      needs.prep.result == 'success' &&
+      (
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+      )
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
       box: bump
