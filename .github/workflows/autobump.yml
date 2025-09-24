@@ -15,8 +15,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # NEW: ensure the release PR exists (idempotent)
+  open_pr:
+    name: 🧷 Open or update release PR (draft + checklist)
+    uses: ./.github/workflows/_open-release-pr.yml
+    with:
+      base: main
+      # head defaults to the current ref_name (release/* or hotfix/*)
+      ensure_checklist: true
+      draft: true
+
   prep:
     name: 🛠️ Prepare (version & changelog)
+    needs: open_pr
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     outputs:
@@ -36,6 +47,7 @@ jobs:
           fetch-tags: true
           persist-credentials: true
 
+      # --- Speedup: cache APT lists + archives between runs (keyed to package list file) ---
       - name: ♻️ Cache APT (lists + archives)
         uses: actions/cache@v4
         with:
@@ -46,13 +58,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-apt-
 
+      # --- Speedup: install Debian tools quickly + use prebuilt git-cliff binary ---
       - name: 🛠️ Install Debian packaging tools & git-cliff (fast)
         shell: bash
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
+
+          # 1) Install Debian packaging toolchain from tracked list (quiet + retries; uses cache above)
           sudo apt-get -o Acquire::Retries=3 update -yqq
           sudo apt-get -o Dpkg::Use-Pty=0 install -yqq --no-install-recommends $(tr '\n' ' ' < .github/apt-packages.txt)
+
+          # 2) Install git-cliff via prebuilt release binary (much faster than Cargo)
           if ! command -v git-cliff >/dev/null 2>&1; then
             echo "Installing git-cliff (prebuilt)…"
             tag="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/latest | jq -r .tag_name)"
@@ -61,13 +78,15 @@ jobs:
             if [[ -z "${asset_url}" || "${asset_url}" == "null" ]]; then
               asset_url="$(curl -fsSL https://api.github.com/repos/orhun/git-cliff/releases/tags/${tag} \
                 | jq -r '.assets[] | select(.name | test("x86_64-unknown-linux-gnu\\.tar\\.gz$")) | .browser_download_url')"
-            fi
+            fi>
             tmpdir="$(mktemp -d)"
             curl -fsSL "$asset_url" -o "${tmpdir}/git-cliff.tar.gz"
             tar -xf "${tmpdir}/git-cliff.tar.gz" -C "${tmpdir}"
             sudo install -m 0755 "${tmpdir}"/git-cliff*/git-cliff /usr/local/bin/git-cliff
             rm -rf "${tmpdir}"
           fi
+
+          # 3) Sanity checks (non-fatal)
           gbp --version || true
           dch --version || true
           git-cliff --version || true
@@ -78,16 +97,19 @@ jobs:
         run: |
           set -euo pipefail
           br="${GITHUB_REF_NAME}"
+          # Versioned release/hotfix: release/x.y[.z][-rcN] or hotfix/x.y[.z][-rcN]
           if [[ "$br" =~ ^(release|hotfix)/([0-9]+(\.[0-9]+){1,2}(-rc[0-9]+)?)$ ]]; then
             v="${BASH_REMATCH[2]}"
             echo "mode=versioned" >> "$GITHUB_OUTPUT"
             echo "value=$v" >> "$GITHUB_OUTPUT"
             echo "Preparing version: $v (from '$br')"
           else
+            # Maintenance hotfix (e.g. hotfix/fix-release)
             echo "mode=maintenance" >> "$GITHUB_OUTPUT"
             echo "Maintenance hotfix detected for '$br' (no version bump)."
           fi
 
+      # ===== VERSIONED FLOW =====
       - name: 📖 Read current Cargo.toml version
         id: cur
         if: steps.ver.outputs.mode == 'versioned'
@@ -121,11 +143,13 @@ jobs:
           prev='${{ steps.prev.outputs.value }}'
           changed=0
 
+          # 1) Bump Cargo.toml if needed
           if [[ "$cur" != "$v" ]]; then
             scripts/set-cargo-version.sh "$v"
             changed=1
           fi
 
+          # 2) Debian changelog with fixed version
           if [[ -n "$prev" ]]; then
             gbp dch --since "$prev" \
                     --new-version "${v}-1" \
@@ -143,7 +167,10 @@ jobs:
           fi
           changed=1
 
+          # 3) Release notes tagged as v$v (collect commits since previous tag) — NO '-u'
           git-cliff --tag "v${v}" -o RELEASE_NOTES.md
+
+          # Guard: don't let "(no notes)" be committed
           if [[ ! -s RELEASE_NOTES.md ]] || grep -qx '(no notes)' RELEASE_NOTES.md; then
             echo "::warning title=Empty release notes::git-cliff produced no entries for v${v}. Skipping staging of RELEASE_NOTES.md."
             git restore --staged --worktree --quiet -- RELEASE_NOTES.md || true
@@ -152,6 +179,7 @@ jobs:
           fi
 
           changed=1
+
           git add -A
           if [[ "$changed" -eq 0 ]]; then
             echo "no_changes=true" >> "$GITHUB_OUTPUT"
@@ -159,26 +187,36 @@ jobs:
             echo "no_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 📝 Prepend this release to CHANGELOG.md
+      # Keep repo CHANGELOG.md in sync (generated on release/hotfix branch) — manual prepend (no --prepend)
+      - name: 📝 Prepend this release to CHANGELOG.md (keep file in repo up to date)
         if: steps.ver.outputs.mode == 'versioned'
         shell: bash
         run: |
           set -euo pipefail
-          v='${{ steps.ver.outputs.value }}'
+          v='${{ steps.ver.outputs.value }}'   # e.g. 0.2.28
           tag="v${v}"
+
+          # Generate section to a temp file
           tmp="$(mktemp)"
           git-cliff --tag "${tag}" --output "${tmp}"
+
+          # If empty or '(no notes)', do not touch CHANGELOG.md
           if [[ ! -s "${tmp}" ]] || grep -qx '(no notes)' "${tmp}"; then
             echo "::warning title=No changelog section::git-cliff produced no entries for ${tag}; not modifying CHANGELOG.md."
             rm -f "${tmp}"
             exit 0
           fi
+
+          # Ensure file exists with header
           [[ -f CHANGELOG.md ]] || printf "# Changelog\n\n" > CHANGELOG.md
+
+          # Prepend the new section *after* the header line
           new="$(mktemp)"
           awk -v sec="${tmp}" '
             NR==1 { print; print ""; system("cat " sec); next }
             { print }
           ' CHANGELOG.md > "${new}"
+
           mv "${new}" CHANGELOG.md
           rm -f "${tmp}"
           git add CHANGELOG.md || true
@@ -226,7 +264,7 @@ jobs:
           git commit -m "chore(release): prepare v${{ steps.ver.outputs.value }} [skip ci]"
           git push
 
-      # ===== MAINTENANCE HOTFIX FLOW =====
+      # ===== MAINTENANCE HOTFIX FLOW (NO VERSION BUMP) =====
       - name: 📝 Debian changelog snapshot (UNRELEASED)
         if: steps.ver.outputs.mode == 'maintenance'
         shell: bash
@@ -272,45 +310,56 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Figure out branch name even if we're on a detached HEAD
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
           if [[ -z "${BRANCH}" || "${BRANCH}" == "HEAD" ]]; then
             BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-          fi
+          fi>
+
+          # Only continue if we actually staged something
           if git diff --cached --quiet; then
             echo "No staged maintenance changes; nothing to commit."
             exit 0
           fi
+
           git config user.name  "Lloyd Smart"
           git config user.email "lloydsmart@users.noreply.github.com"
           git commit -m "chore(hotfix): maintenance updates (snapshot changelog, Unreleased notes, lockfile) [skip ci]"
+
+          # Fetch latest remote state to avoid non-fast-forward
           git remote set-url origin "https://github.com/${{ github.repository }}.git"
           git fetch --prune origin +refs/heads/*:refs/remotes/origin/*
+
+          # Ensure we have a local branch tracking the remote
           git checkout -B "${BRANCH}"
+
+          # Try push; if rejected, rebase onto the remote and retry (up to 3 times)
           for attempt in 1 2 3; do
             if git push origin HEAD:"${BRANCH}"; then
               echo "✅ Pushed on attempt ${attempt}"
               exit 0
             fi
             echo "⛔ Push rejected (attempt ${attempt}) — rebasing onto origin/${BRANCH} and retrying..."
+            # Rebase with autostash; if it fails, abort and retry once more
             if ! git pull --rebase --autostash origin "${BRANCH}"; then
               git rebase --abort || true
             fi
             sleep $((attempt * 3))
           done
+
           echo "::error title=Push failed::Could not push after rebasing; another job may still be updating ${BRANCH}."
           exit 1
 
-  # ✅ Tick the “bump & changelog” box only for release/hotfix contexts
+  # ✅ New: single job to tick the “bump & changelog” box
   tick_release_bump_box:
     name: ☑️ PR checklist — Version bump & changelog
     needs: prep
     if: >
       needs.prep.result == 'success' &&
       (
-        (github.event_name == 'pull_request' &&
-          (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
-        (github.event_name == 'push' &&
-          (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
+        (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) ||
+        (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))
       )
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
