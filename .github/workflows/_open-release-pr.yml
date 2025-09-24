@@ -1,0 +1,161 @@
+name: Reusable — Open or update release PR
+
+on:
+  workflow_call:
+    inputs:
+      base:
+        description: "Base branch to target"
+        required: false
+        type: string
+        default: main
+      head:
+        description: "Head branch (e.g. release/0.3.1 or hotfix/…) — default: current ref_name"
+        required: false
+        type: string
+      title:
+        description: "Override PR title"
+        required: false
+        type: string
+      ensure_checklist:
+        description: "Ensure the standard release checklist block is present"
+        required: false
+        type: boolean
+        default: true
+      draft:
+        description: "Create/update the PR as draft"
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      pr_number:
+        description: "Pull Request number"
+        value: ${{ jobs.open.outputs.pr_number }}
+      pr_url:
+        description: "Pull Request HTML URL"
+        value: ${{ jobs.open.outputs.pr_url }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.script.outputs.pr_number }}
+      pr_url: ${{ steps.script.outputs.pr_url }}
+    steps:
+      - name: 🚀 Open or update release PR (draft + checklist)
+        id: script
+        uses: actions/github-script@v8
+        env:
+          BASE: ${{ inputs.base }}
+          HEAD_IN: ${{ inputs.head }}
+          TITLE_IN: ${{ inputs.title }}
+          DRAFT: ${{ inputs.draft }}
+          ENSURE_CHECKLIST: ${{ inputs.ensure_checklist }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            const base = process.env.BASE || 'main';
+            const head = (process.env.HEAD_IN || process.env.GITHUB_REF_NAME || '').trim();
+
+            if (!/^(release|hotfix)\//.test(head)) {
+              core.setFailed("Ref '" + head + "' is not a release/* or hotfix/* branch.");
+              return;
+            }
+
+            const version = head.replace(/^(release|hotfix)\//, '');
+            const titleIn = (process.env.TITLE_IN || '').trim();
+            const title   = titleIn || ("Release: " + version);
+            const asDraft = String(process.env.DRAFT || 'true').toLowerCase() === 'true';
+            const wantChecklist = String(process.env.ENSURE_CHECKLIST || 'true').toLowerCase() === 'true';
+
+            const checklistLines = [
+              "- [ ] CI build & tests passed",
+              "- [ ] Version bump & changelog completed",
+              "- [ ] CodeQL security scan completed"
+            ];
+            const checklistBlock = "### ✅ Release readiness checklist\n" + checklistLines.join("\n") + "\n";
+
+            const defaultBody =
+              "This release PR is auto-created for branch `" + head + "`.\n\n" +
+              (wantChecklist ? checklistBlock : "") +
+              "_This PR was created automatically. The checklist will be updated by workflows without comments._";
+
+            function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+            function ensureChecklist(body) {
+              if (!wantChecklist) return body || '';
+              let out = body || '';
+              // Ensure heading exists
+              if (!/### +✅ +Release readiness checklist/i.test(out)) {
+                out += (out.endsWith('\n') ? '' : '\n') + '\n' + checklistBlock;
+              }
+              // Ensure each line exists (unchecked or checked)
+              for (const line of checklistLines) {
+                const unchecked = new RegExp(escapeReg(line), 'i');
+                const checked   = new RegExp(escapeReg(line.replace('[ ]','[x]')), 'i');
+                if (!unchecked.test(out) && !checked.test(out)) {
+                  out += (out.endsWith('\n') ? '' : '\n') + line + '\n';
+                }
+              }
+              return out;
+            }
+
+            async function upsert() {
+              try {
+                const created = await github.rest.pulls.create({
+                  owner: owner,
+                  repo: repo,
+                  title: title,
+                  head: head,
+                  base: base,
+                  body: defaultBody,
+                  draft: asDraft
+                });
+                const pr = created.data;
+                core.info("Created PR #" + pr.number + " (" + head + " → " + base + ")");
+                return pr;
+              } catch (e) {
+                if (e.status === 422 && /already exists/i.test(e.message)) {
+                  core.info("PR already exists for " + head + " → " + base + "; locating it…");
+                  const list = await github.rest.pulls.list({
+                    owner: owner,
+                    repo: repo,
+                    state: 'open',
+                    head: owner + ":" + head,
+                    base: base,
+                    per_page: 100
+                  });
+                  const pr = list.data[0];
+                  if (!pr) {
+                    core.setFailed("GitHub says a PR exists, but none are open for head='" + head + "', base='" + base + "'. Is it closed?");
+                    return null;
+                  }
+                  const newBody = ensureChecklist(pr.body || defaultBody);
+                  await github.rest.pulls.update({
+                    owner: owner,
+                    repo: repo,
+                    pull_number: pr.number,
+                    title: title,
+                    body: newBody,
+                    draft: asDraft
+                  });
+                  core.info("Updated existing PR #" + pr.number + ".");
+                  return pr;
+                }
+                throw e;
+              }
+            }
+
+            const pr = await upsert();
+            if (!pr) { core.setFailed('Failed to open/update PR'); return; }
+
+            core.setOutput('pr_number', String(pr.number));
+            core.setOutput('pr_url', pr.html_url);
+            return pr.html_url;  // visible in logs
