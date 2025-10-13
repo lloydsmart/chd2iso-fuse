@@ -174,14 +174,14 @@ jobs:
       # ---------------------- PRs (fast) — AUTOBUILD ----------------------
       - name: 🔧 Initialize CodeQL (PR/autobuild)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: rust
           queries: +security-and-quality
 
       - name: 🤖 CodeQL autobuild (Rust)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       # Keep your lockfile guard/fix for same-repo PRs
       - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
@@ -216,7 +216,7 @@ jobs:
       # --------------- Schedule/Dispatch (deep) — EXPLICIT BUILD ----------
       - name: 🔧 Initialize CodeQL (explicit build)
         if: github.event_name != 'pull_request'
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: rust
           queries: +security-and-quality
@@ -257,7 +257,7 @@ jobs:
 
       # ---------------------- Analyze (both paths) ----------------------
       - name: 🔬 Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
 
