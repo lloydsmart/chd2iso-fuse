@@ -136,7 +136,7 @@ jobs:
           git --no-pager tag -l --sort=-v:refname | head -n 10
 
       - name: 📥 Download build artifacts (release-artifacts)
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: release-artifacts
           path: artifacts
