@@ -51,7 +51,7 @@ jobs:
 
       - name: Checkout (for back-merge eval) 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -123,7 +123,7 @@ jobs:
 
     steps:
       - name: Checkout (shallow) 📥
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
