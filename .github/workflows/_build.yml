@@ -116,7 +116,7 @@ jobs:
 
       - name: 🗃️ Cache sccache
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .sccache
           key: sccache-${{ runner.os }}-${{ steps.cargo_lock.outputs.val }}-${{ github.ref_name }}
