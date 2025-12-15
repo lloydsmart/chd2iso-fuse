@@ -97,7 +97,7 @@ jobs:
           if [ $missing -eq 1 ]; then echo "Required secrets missing; cannot proceed."; exit 1; fi
 
       - name: 📥 Checkout main
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true

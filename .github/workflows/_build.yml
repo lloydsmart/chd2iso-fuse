@@ -47,7 +47,7 @@ jobs:
             bash git ca-certificates
 
       - name: 📥 Checkout (with tags; use provided tag if any)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || '' }}
           fetch-depth: 0
