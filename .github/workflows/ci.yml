@@ -409,7 +409,7 @@ jobs:
           fi
 
       - name: ⬆️ Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: chd2iso-fuse-${{ github.sha }}
           path: artifacts/
