@@ -191,7 +191,7 @@ jobs:
 
       - name: 🔐 Import GPG (for checksums signing)
         if: ${{ hashFiles('artifacts/SHA256SUMS') != '' }}
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
