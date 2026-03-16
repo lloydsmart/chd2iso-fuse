@@ -270,7 +270,7 @@ jobs:
           gh release edit "${{ needs.resolve_tag.outputs.tag }}" --draft=false
       
       - name: 🧹 Delete build artifact bundle (release-artifacts)
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v6
         with:
           name: release-artifacts
         continue-on-error: true
