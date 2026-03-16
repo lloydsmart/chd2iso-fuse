@@ -61,7 +61,7 @@ jobs:
       - name: 🗂️ Detect path changes
         if: steps.mode.outputs.is_pr == 'true'
         id: paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             rust:
