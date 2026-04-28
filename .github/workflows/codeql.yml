@@ -115,7 +115,7 @@ jobs:
 
       - name: 🦀📦 Determine if Rust/package files changed
         id: paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
