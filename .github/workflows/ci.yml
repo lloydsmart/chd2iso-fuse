@@ -226,7 +226,7 @@ jobs:
         with: { fetch-depth: 0 }
 
       - name: ⚡ Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: 🤔 Decide sccache backend (prefer GHAC, fallback FS)
         id: scc
