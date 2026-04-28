@@ -276,7 +276,7 @@ jobs:
         continue-on-error: true
 
       - name: 🐛 Verify release assets (debug)
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -286,7 +286,7 @@ jobs:
             core.info('Release assets: ' + JSON.stringify(names));
 
       - name: 📝 Reconcile release title with tag (safety net)
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = `${{ needs.resolve_tag.outputs.tag }}`;
