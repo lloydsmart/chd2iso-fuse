@@ -24,7 +24,10 @@
 - chore(deps): bump mozilla-actions/sccache-action from 0.0.9 to 0.0.10 (32424dc)
 - chore(deps): bump the routine group with 6 updates (9b3eb7b)
 - chore(deps): bump lru from 0.16.3 to 0.18.0 (87361a5)
-- chore(deps): bump fuser from 0.16.0 to 0.17.0 (fdc6cdb)### Features
+- chore(deps): bump fuser from 0.16.0 to 0.17.0 (fdc6cdb)
+- chore(release): prepare v0.3.2 [skip ci] (224006b)
+- chore(deps): bump lru in the cargo group across 1 directory (ff9b4ad)
+- chore(deps): bump time in the cargo group across 1 directory (970d922)### Features
 - feat(fuser): migrate to fuser 0.17 API (f594f3c)### Fixes
 - fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️ (0345618)
 - fix(clippy): use sort_by_key for case-insensitive entry sorting (cc2afbc)
@@ -58,7 +61,10 @@
 - PR #286: chore(deps): bump lru from 0.16.3 to 0.18.0 (bd7b5a0)
 - PR #288: fix(clippy): replace sort_by with sort_by_key (ed1b881)
 - PR #287: chore(deps): bump fuser from 0.16.0 to 0.17.0 (8c924c2)
-- PR #289: Bugfix/fuser 0.17 (0dbca14)### CI
+- PR #289: Bugfix/fuser 0.17 (0dbca14)
+- PR #268: chore(deps): bump lru from 0.16.1 to 0.16.3 in the cargo group across 1 directory (01939f3)
+- PR #273: chore(deps): bump time from 0.3.44 to 0.3.47 in the cargo group across 1 directory (d89cea1)
+- Merge branch 'main' into release/0.3.2 (66c53c1)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
 - chore(release): prepare v0.3.1 [skip ci] (0539e13)### Fixes
