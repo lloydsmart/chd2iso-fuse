@@ -297,7 +297,7 @@ impl FsState {
                 Ok(v) => v,
                 Err(e) => {
                     error!("frame read error: {:?}", e);
-                    reply.error(Errno(libc::EIO));
+                    reply.error(Errno::from_i32(libc::EIO));
                     return;
                 }
             };
@@ -572,7 +572,7 @@ impl Filesystem for FsState {
             let attr = file_attr_for(e).unwrap_or_else(|_| default_file_attr(e));
             reply.entry(&TTL, &attr, Generation(0));
         } else {
-            reply.error(Errno(libc::ENOENT));
+            reply.error(Errno::from_i32(libc::ENOENT));
         }
     }
 
@@ -605,10 +605,10 @@ impl Filesystem for FsState {
         if let Some(e) = self.entries.iter().find(|e| e.ino == ino.0) {
             match file_attr_for(e) {
                 Ok(attr) => reply.attr(&TTL, &attr),
-                Err(_) => reply.error(Errno(libc::EIO)),
+                Err(_) => reply.error(Errno::from_i32(libc::EIO)),
             }
         } else {
-            reply.error(Errno(libc::ENOENT));
+            reply.error(Errno::from_i32(libc::ENOENT));
         }
     }
 
@@ -621,7 +621,7 @@ impl Filesystem for FsState {
         mut reply: ReplyDirectory,
     ) {
         if ino.0 != 1 {
-            reply.error(Errno(libc::ENOTDIR));
+            reply.error(Errno::from_i32(libc::ENOTDIR));
             return;
         }
 
@@ -659,12 +659,12 @@ impl Filesystem for FsState {
         let (file_id, chd_path) = if let Some(e) = self.entries.iter().find(|e| e.ino == ino.0) {
             (e.ino, e.chd_path.clone())
         } else {
-            reply.error(Errno(libc::ENOENT));
+            reply.error(Errno::from_i32(libc::ENOENT));
             return;
         };
 
         if File::open(&chd_path).is_err() {
-            reply.error(Errno(libc::EIO));
+            reply.error(Errno::from_i32(libc::EIO));
             return;
         }
 
@@ -710,7 +710,7 @@ impl Filesystem for FsState {
         let ent = match self.entries.iter().find(|e| e.ino == ino.0) {
             Some(e) => e.clone(),
             None => {
-                reply.error(Errno(libc::ENOENT));
+                reply.error(Errno::from_i32(libc::ENOENT));
                 return;
             }
         };
@@ -728,7 +728,7 @@ impl Filesystem for FsState {
         {
             Some(h) => (h.file_id, h.chd_path.clone()),
             None => {
-                reply.error(Errno(libc::EBADF));
+                reply.error(Errno::from_i32(libc::EBADF));
                 return;
             }
         };
@@ -748,7 +748,7 @@ impl Filesystem for FsState {
                 let f = match File::open(&chd_path) {
                     Ok(f) => f,
                     Err(_) => {
-                        reply.error(Errno(libc::EIO));
+                        reply.error(Errno::from_i32(libc::EIO));
                         return;
                     }
                 };
@@ -756,7 +756,7 @@ impl Filesystem for FsState {
                 let mut chd = match Chd::open(BufReader::new(f), None) {
                     Ok(c) => c,
                     Err(_) => {
-                        reply.error(Errno(libc::EIO));
+                        reply.error(Errno::from_i32(libc::EIO));
                         return;
                     }
                 };
@@ -778,13 +778,13 @@ impl Filesystem for FsState {
                     let mut hk = match chd.hunk(hunk_idx) {
                         Ok(h) => h,
                         Err(_) => {
-                            reply.error(Errno(libc::EIO));
+                            reply.error(Errno::from_i32(libc::EIO));
                             return;
                         }
                     };
 
                     if hk.read_hunk_in(&mut cmp, &mut hunk_buf).is_err() {
-                        reply.error(Errno(libc::EIO));
+                        reply.error(Errno::from_i32(libc::EIO));
                         return;
                     }
 
