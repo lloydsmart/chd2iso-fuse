@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export PATH := $(HOME)/.cargo/bin:$(PATH)
 
 %:
 	dh $@
@@ -8,6 +9,10 @@ override_dh_auto_configure:
 	# nothing (use Cargo’s defaults)
 
 override_dh_auto_build:
+	which rustc
+	rustc -V
+	which cargo
+	cargo -V
 	cargo build --release --locked
 
 override_dh_installsystemd:
