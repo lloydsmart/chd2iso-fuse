@@ -34,7 +34,7 @@ jobs:
       lock_hash: ${{ steps.lock.outputs.val }}
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -61,7 +61,7 @@ jobs:
       - name: 🗂️ Detect path changes
         if: steps.mode.outputs.is_pr == 'true'
         id: paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             rust:
@@ -91,7 +91,7 @@ jobs:
 
       - name: 📥 Checkout (full) for merge probe
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -190,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -222,11 +222,11 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with: { fetch-depth: 0 }
 
       - name: ⚡ Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: 🤔 Decide sccache backend (prefer GHAC, fallback FS)
         id: scc
@@ -252,7 +252,7 @@ jobs:
       - name: ♻️ Restore sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
         id: sccache_restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -291,7 +291,7 @@ jobs:
 
       - name: 💾 Save sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -340,7 +340,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl pkg-config
 
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with: { fetch-depth: 0 }
 
       - name: 🔏 Configure git trust
@@ -375,7 +375,7 @@ jobs:
       - name: ♻️ Restore sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
         id: sccache_restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -409,14 +409,14 @@ jobs:
           fi
 
       - name: ⬆️ Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chd2iso-fuse-${{ github.sha }}
           path: artifacts/
 
       - name: 💾 Save sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}

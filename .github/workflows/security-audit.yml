@@ -51,7 +51,7 @@ jobs:
 
       - name: Checkout (for back-merge eval) 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -123,13 +123,13 @@ jobs:
 
     steps:
       - name: Checkout (shallow) 📥
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Detect Rust/package changes 🧩
         id: paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             rust:
@@ -161,7 +161,7 @@ jobs:
         run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
 
       - name: Cache RustSec advisory DB 🧰
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/advisory-db
           key: rustsec-db-${{ runner.os }}-${{ steps.day.outputs.day }}
@@ -205,7 +205,7 @@ jobs:
       # ---- PR comment summary (only on PRs) ----
       - name: Summarize & comment on PR 📝
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -332,7 +332,7 @@ jobs:
 
       - name: Upload security reports 📦
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-reports
           path: reports/*.json

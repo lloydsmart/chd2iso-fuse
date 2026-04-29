@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: 🚀 Open or update release PR (draft + checklist)
         id: script
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           BASE: ${{ inputs.base }}
           HEAD_IN: ${{ inputs.head }}

@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: 📥 Checkout (for diff & change detection)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -115,7 +115,7 @@ jobs:
 
       - name: 🦀📦 Determine if Rust/package files changed
         id: paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           base: ${{ steps.range.outputs.base }}
           ref:  ${{ steps.range.outputs.ref }}
@@ -156,7 +156,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           submodules: recursive
@@ -174,14 +174,14 @@ jobs:
       # ---------------------- PRs (fast) — AUTOBUILD ----------------------
       - name: 🔧 Initialize CodeQL (PR/autobuild)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: rust
           queries: +security-and-quality
 
       - name: 🤖 CodeQL autobuild (Rust)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       # Keep your lockfile guard/fix for same-repo PRs
       - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
@@ -216,7 +216,7 @@ jobs:
       # --------------- Schedule/Dispatch (deep) — EXPLICIT BUILD ----------
       - name: 🔧 Initialize CodeQL (explicit build)
         if: github.event_name != 'pull_request'
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: rust
           queries: +security-and-quality
@@ -257,7 +257,7 @@ jobs:
 
       # ---------------------- Analyze (both paths) ----------------------
       - name: 🔬 Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
 
@@ -265,7 +265,7 @@ jobs:
   tick_release_codeql_box:
     name: ☑️ PR checklist — CodeQL scan completed
     needs: analyze
-    if: ${{ needs.analyze.result == 'success' }}
+    if: ${{ needs.analyze.result == 'success' && ((github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/'))) || (github.event_name != 'pull_request' && (startsWith(github.ref_name, 'release/') || startsWith(github.ref_name, 'hotfix/')))) }}
     uses: ./.github/workflows/_tick-release-pr-box.yml
     with:
       box: codeql

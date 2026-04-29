@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🧽 Delete old artifacts
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           ARTIFACT_DAYS: '14'            # delete artifacts older than X days
           KEEP_NAMES: '[]'               # e.g. '["release-artifacts"]'
@@ -50,7 +50,7 @@ jobs:
             core.info(`Artifacts: kept=${kept} deleted=${deleted}`);
 
       - name: 🗑️ Delete old completed workflow runs
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           RUN_DAYS: '45'                  # delete runs older than X days
         with:
