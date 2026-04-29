@@ -129,7 +129,7 @@ impl FsState {
         let dir = &self.args.source_dir;
         let mut tmp: Vec<IndexEntry> = Vec::new();
 
-        for ent in fs::read_dir(dir).with_context(|| format!("reading {:?}", dir))? {
+        for ent in fs::read_dir(dir).with_context(|| format!("reading {dir:?}"))? {
             let ent = ent?;
             let path = ent.path();
 

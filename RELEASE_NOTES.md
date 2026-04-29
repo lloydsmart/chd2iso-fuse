@@ -32,7 +32,8 @@
 - chore(deps): bump time in the cargo group across 1 directory (970d922)
 - chore(release): prepare v0.3.2 [skip ci] (e85b83b)
 - chore(release): prepare v0.3.4 [skip ci] (216af51)
-- chore(release): prepare v0.3.5 [skip ci] (3088607)### Features
+- chore(release): prepare v0.3.5 [skip ci] (3088607)
+- chore(release): prepare v0.3.6 [skip ci] (4e8014e)### Features
 - feat(fuser): migrate to fuser 0.17 API (f594f3c)### Fixes
 - fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️ (0345618)
 - fix(clippy): use sort_by_key for case-insensitive entry sorting (cc2afbc)
@@ -71,11 +72,19 @@
 - PR #273: chore(deps): bump time from 0.3.44 to 0.3.47 in the cargo group across 1 directory (d89cea1)
 - Merge branch 'main' into release/0.3.2 (66c53c1)
 - PR #290: Release: 0.3.2 (4657047)
+- Back-merge main -> develop (post-release) (332fddb)
 - PR #293: Release: 0.3.3 (abb3404)
+- Back-merge main -> develop (post-release) (ea08984)
 - PR #296: Release: 0.3.4 (e450b96)
+- Back-merge main -> develop (post-release) (4b859ec)
 - build(debian): prefer rustup toolchain during package builds (debf205)
 - PR #299: Release: 0.3.5 (1d34321)
-- build(deps): pin time crate for Debian rustc compatibility (ee53937)### CI
+- Back-merge main -> develop (post-release) (a826524)
+- build(deps): pin time crate for Debian rustc compatibility (ee53937)
+- PR #301: Release: 0.3.6 (f5c75df)
+- Back-merge main -> develop (post-release) (950b174)
+- build: upgrade Rust toolchain to 1.88 and fix clippy issues (a2eb4eb)
+- PR #304: build: upgrade Rust toolchain to 1.88 (e9014d7)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
 - chore(release): prepare v0.3.1 [skip ci] (0539e13)### Fixes
