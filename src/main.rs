@@ -160,7 +160,7 @@ impl FsState {
         }
 
         // stable sort
-        tmp.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        tmp.sort_by_key(|a| a.name.to_lowercase());
         // assign inode numbers deterministically
         for (i, e) in tmp.iter_mut().enumerate() {
             e.ino = (i as u64) + 2; // root=1
