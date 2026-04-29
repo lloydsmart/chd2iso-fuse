@@ -96,6 +96,110 @@ chd2iso-fuse (0.3.7-1) trixie; urgency=medium
   * build(deps): pin time crate for Debian rustc compatibility
   * chore(release): prepare v0.3.6 [skip ci]
   * build: upgrade Rust toolchain to 1.88 and fix clippy issues
+  * chore(release): prepare v0.3.7 [skip ci]
+  * ci(build): use rustup toolchain for Debian packaging
+  * chore(release): prepare v0.3.7 [skip ci]
+
+ -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 29 Apr 2026 18:48:29 +0000
+
+chd2iso-fuse (0.3.7-1) trixie; urgency=medium
+
+  [ lloydsmart ]
+  * ci(release): add idempotent release PR creation workflow
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump github/codeql-action from 3 to 4
+
+  [ dependabot[bot] ]
+  * chore(deps): bump the routine group across 1 directory with 3 updates
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/upload-artifact from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 5 to 6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump clap from 4.5.49 to 4.5.51 in the routine group
+
+  [ Lloyd Smart ]
+  * fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/checkout from 5 to 6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump the routine group across 1 directory with 4 updates
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/cache from 4 to 5
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 6 to 7
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/upload-artifact from 5 to 6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump lru in the cargo group across 1 directory
+
+  [ dependabot[bot] ]
+  * chore(deps): bump the routine group across 1 directory with 4 updates
+
+  [ dependabot[bot] ]
+  * chore(deps): bump time from 0.3.44 to 0.3.45 in the routine group
+
+  [ dependabot[bot] ]
+  * chore(deps): bump the routine group across 1 directory with 2 updates
+
+  [ dependabot[bot] ]
+  * chore(deps): bump time in the cargo group across 1 directory
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/upload-artifact from 6 to 7
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/download-artifact from 7 to 8
+
+  [ dependabot[bot] ]
+  * chore(deps): bump crazy-max/ghaction-import-gpg from 6 to 7
+
+  [ dependabot[bot] ]
+  * chore(deps): bump dorny/paths-filter from 3 to 4
+
+  [ dependabot[bot] ]
+  * chore(deps): bump geekyeggo/delete-artifact from 5 to 6
+
+  [ dependabot[bot] ]
+  * chore(deps): bump actions/github-script from 8 to 9
+
+  [ dependabot[bot] ]
+  * chore(deps): bump mozilla-actions/sccache-action from 0.0.9 to 0.0.10
+
+  [ dependabot[bot] ]
+  * chore(deps): bump the routine group with 6 updates
+
+  [ dependabot[bot] ]
+  * chore(deps): bump lru from 0.16.3 to 0.18.0
+
+  [ dependabot[bot] ]
+  * chore(deps): bump fuser from 0.16.0 to 0.17.0
+  * fix(clippy): use sort_by_key for case-insensitive entry sorting
+  * feat(fuser): migrate to fuser 0.17 API
+  * fix(fuser): update Errno usage for 0.17 API
+  * chore(release): prepare v0.3.2 [skip ci]
+  * chore(release): prepare v0.3.2 [skip ci]
+  * ci(build): install Rust via rustup for Debian builds
+  * ci(build): force rustup toolchain in Debian builds
+  * chore(release): prepare v0.3.4 [skip ci]
+  * build(debian): prefer rustup toolchain during package builds
+  * chore(release): prepare v0.3.5 [skip ci]
+  * build(deps): pin time crate for Debian rustc compatibility
+  * chore(release): prepare v0.3.6 [skip ci]
+  * build: upgrade Rust toolchain to 1.88 and fix clippy issues
   * ci(build): use rustup toolchain for Debian packaging
 
  -- Lloyd Smart <lloydsmart@users.noreply.github.com>  Wed, 29 Apr 2026 18:46:32 +0000
