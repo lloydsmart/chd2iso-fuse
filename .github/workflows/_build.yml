@@ -101,19 +101,30 @@ jobs:
             bats shellcheck \
             sccache || true
 
-          # Debian trixie's rust-all currently provides rustc 1.85.0,
-          # but current locked dependencies require newer Rust.
-          # Install Rust via rustup so CI tracks stable instead.
           curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
+
           export PATH="$HOME/.cargo/bin:$PATH"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+          # Ensure subsequent shell steps and dpkg-buildpackage/debian/rules
+          # use rustup's toolchain rather than Debian's rustc/cargo.
+          ln -sf "$HOME/.cargo/bin/rustc" /usr/local/bin/rustc
+          ln -sf "$HOME/.cargo/bin/cargo" /usr/local/bin/cargo
+          ln -sf "$HOME/.cargo/bin/rustup" /usr/local/bin/rustup
+
+          hash -r
+
+          rustup default stable
+          rustup component add rustfmt clippy
 
           if ! command -v sccache >/dev/null 2>&1; then
             cargo install sccache --locked
             ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
           fi
 
+          which rustc
           rustc -V
+          which cargo
           cargo -V
           sccache --version || true
 

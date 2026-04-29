@@ -1,6 +1,8 @@
 # Changelog
 ### CI
-- ci(release): add idempotent release PR creation workflow (caa9416)### Chore
+- ci(release): add idempotent release PR creation workflow (caa9416)
+- ci(build): install Rust via rustup for Debian builds (9aa9b50)
+- ci(build): force rustup toolchain in Debian builds (f5d61d1)### Chore
 - chore(deps): bump actions/github-script from 7 to 8 (0e97f43)
 - chore(deps): bump actions/download-artifact from 5 to 6 (3e42e7e)
 - chore(deps): bump github/codeql-action from 3 to 4 (58ad71b)
@@ -27,7 +29,8 @@
 - chore(deps): bump fuser from 0.16.0 to 0.17.0 (fdc6cdb)
 - chore(release): prepare v0.3.2 [skip ci] (224006b)
 - chore(deps): bump lru in the cargo group across 1 directory (ff9b4ad)
-- chore(deps): bump time in the cargo group across 1 directory (970d922)### Features
+- chore(deps): bump time in the cargo group across 1 directory (970d922)
+- chore(release): prepare v0.3.2 [skip ci] (e85b83b)### Features
 - feat(fuser): migrate to fuser 0.17 API (f594f3c)### Fixes
 - fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️ (0345618)
 - fix(clippy): use sort_by_key for case-insensitive entry sorting (cc2afbc)
@@ -64,7 +67,9 @@
 - PR #289: Bugfix/fuser 0.17 (0dbca14)
 - PR #268: chore(deps): bump lru from 0.16.1 to 0.16.3 in the cargo group across 1 directory (01939f3)
 - PR #273: chore(deps): bump time from 0.3.44 to 0.3.47 in the cargo group across 1 directory (d89cea1)
-- Merge branch 'main' into release/0.3.2 (66c53c1)### CI
+- Merge branch 'main' into release/0.3.2 (66c53c1)
+- PR #290: Release: 0.3.2 (4657047)
+- PR #293: Release: 0.3.3 (abb3404)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
 - chore(release): prepare v0.3.1 [skip ci] (0539e13)### Fixes
