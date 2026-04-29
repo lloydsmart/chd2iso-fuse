@@ -30,7 +30,8 @@
 - chore(release): prepare v0.3.2 [skip ci] (224006b)
 - chore(deps): bump lru in the cargo group across 1 directory (ff9b4ad)
 - chore(deps): bump time in the cargo group across 1 directory (970d922)
-- chore(release): prepare v0.3.2 [skip ci] (e85b83b)### Features
+- chore(release): prepare v0.3.2 [skip ci] (e85b83b)
+- chore(release): prepare v0.3.4 [skip ci] (216af51)### Features
 - feat(fuser): migrate to fuser 0.17 API (f594f3c)### Fixes
 - fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️ (0345618)
 - fix(clippy): use sort_by_key for case-insensitive entry sorting (cc2afbc)
@@ -69,7 +70,9 @@
 - PR #273: chore(deps): bump time from 0.3.44 to 0.3.47 in the cargo group across 1 directory (d89cea1)
 - Merge branch 'main' into release/0.3.2 (66c53c1)
 - PR #290: Release: 0.3.2 (4657047)
-- PR #293: Release: 0.3.3 (abb3404)### CI
+- PR #293: Release: 0.3.3 (abb3404)
+- PR #296: Release: 0.3.4 (e450b96)
+- build(debian): prefer rustup toolchain during package builds (debf205)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
 - chore(release): prepare v0.3.1 [skip ci] (0539e13)### Fixes
