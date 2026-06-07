@@ -61,6 +61,10 @@ struct Args {
     #[arg(long = "cd-allow-form2", default_value_t = false)]
     cd_allow_form2: bool,
 
+    /// Recurse into subdirectories when scanning for *.chd files
+    #[arg(long = "recursive", default_value_t = false)]
+    recursive: bool,
+
     /// Verbose logging
     #[arg(long = "verbose", default_value_t = false)]
     verbose: bool,
@@ -126,35 +130,46 @@ impl FsState {
     }
 
     fn build_index(&mut self) -> Result<()> {
-        let dir = &self.args.source_dir;
+        let dir = self.args.source_dir.clone();
         let mut tmp: Vec<IndexEntry> = Vec::new();
 
-        for ent in fs::read_dir(dir).with_context(|| format!("reading {dir:?}"))? {
-            let ent = ent?;
-            let path = ent.path();
+        let mut dirs: Vec<PathBuf> = vec![dir.clone()];
+        while let Some(current) = dirs.pop() {
+            for ent in fs::read_dir(&current).with_context(|| format!("reading {current:?}"))? {
+                let ent = ent?;
+                let path = ent.path();
+                let ft = ent.file_type()?;
 
-            if path
-                .extension()
-                .and_then(|s| s.to_str())
-                .map(|s| s.eq_ignore_ascii_case("chd"))
-                != Some(true)
-            {
-                continue;
-            }
-
-            match self.build_index_entry(&path) {
-                Ok(Some((name, kind, size))) => {
-                    tmp.push(IndexEntry {
-                        ino: 0,
-                        name,
-                        chd_path: path.clone(),
-                        kind,
-                        iso_size: size,
-                    });
+                if ft.is_dir() {
+                    if self.args.recursive {
+                        dirs.push(path);
+                    }
+                    continue;
                 }
-                Ok(None) => {}
-                Err(e) => {
-                    error!("Skipping {:?}: {}", path, e);
+
+                if path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("chd"))
+                    != Some(true)
+                {
+                    continue;
+                }
+
+                match self.build_index_entry(&path) {
+                    Ok(Some((name, kind, size))) => {
+                        tmp.push(IndexEntry {
+                            ino: 0,
+                            name,
+                            chd_path: path.clone(),
+                            kind,
+                            iso_size: size,
+                        });
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        error!("Skipping {:?}: {}", path, e);
+                    }
                 }
             }
         }
