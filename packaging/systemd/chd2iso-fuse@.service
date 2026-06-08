@@ -13,6 +13,7 @@ Documentation=man:chd2iso-fuse(1)
 #   CD_ALLOW_FORM2=yes|no
 #   CACHE_HUNKS=#
 #   CACHE_BYTES=#
+#   MAX_OPEN_CHDS=#
 #   VERBOSE=yes|no
 
 [Service]
@@ -31,6 +32,7 @@ ExecStart=/bin/sh -c '\
   [ "${CD_ALLOW_FORM2:-no}" = yes ] && cmd="$$cmd --cd-allow-form2"; \
   [ -n "${CACHE_HUNKS:-}" ] && cmd="$$cmd --cache-hunks $$CACHE_HUNKS"; \
   [ -n "${CACHE_BYTES:-}" ] && cmd="$$cmd --cache-bytes $$CACHE_BYTES"; \
+  [ -n "${MAX_OPEN_CHDS:-}" ] && cmd="$$cmd --max-open-chds $$MAX_OPEN_CHDS"; \
   [ "${VERBOSE:-no}" = yes ] && cmd="$$cmd --verbose"; \
   echo "Starting: $$cmd"; \
   exec $$cmd \
