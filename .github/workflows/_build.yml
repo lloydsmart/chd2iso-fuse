@@ -70,7 +70,7 @@ jobs:
 
       - name: 🗂️ Determine if Rust/package files changed
         id: paths
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}   # avoid warning on tag events
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: dorny/paths-filter@v4
         with:
           filters: |
@@ -82,6 +82,7 @@ jobs:
               - 'build.rs'
               - 'debian/**'
               - 'Makefile'
+              - 'rust-toolchain.toml'
 
       - name: 💤 No-op (non-code PR)
         if: ${{ github.event_name == 'pull_request' && !inputs.release_mode && !startsWith(github.ref, 'refs/tags/') && steps.paths.outputs.rust != 'true' }}
@@ -101,31 +102,19 @@ jobs:
             bats shellcheck \
             sccache || true
 
-          curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
-
-          export PATH="$HOME/.cargo/bin:$PATH"
+          curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
+          . "$HOME/.cargo/env"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-          # Ensure subsequent shell steps and dpkg-buildpackage/debian/rules
-          # use rustup's toolchain rather than Debian's rustc/cargo.
-          ln -sf "$HOME/.cargo/bin/rustc" /usr/local/bin/rustc
-          ln -sf "$HOME/.cargo/bin/cargo" /usr/local/bin/cargo
-          ln -sf "$HOME/.cargo/bin/rustup" /usr/local/bin/rustup
-
-          hash -r
-
-          rustup default stable
-          rustup component add rustfmt clippy
+          rustup show
+          rustc -V
+          cargo -V
 
           if ! command -v sccache >/dev/null 2>&1; then
             cargo install sccache --locked
             ln -sf "$HOME/.cargo/bin/sccache" /usr/local/bin/sccache
           fi
 
-          which rustc
-          rustc -V
-          which cargo
-          cargo -V
           sccache --version || true
 
       - name: 📂 Prepare sccache dir
@@ -147,12 +136,15 @@ jobs:
       - name: 🎯 Rust fmt & clippy
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         run: |
+          . "$HOME/.cargo/env"
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets -- -D warnings
 
       - name: 🧪 Rust tests
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
-        run: cargo test --workspace --locked --all-features
+        run: |
+          . "$HOME/.cargo/env"
+          cargo test --workspace --locked --all-features
 
       - name: 🏗️ Debian build
         if: ${{ steps.paths.outputs.rust == 'true' || github.event_name != 'pull_request' || inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
@@ -162,6 +154,13 @@ jobs:
           SCCACHE_DIR: ${{ env.SCCACHE_DIR }}
         run: |
           set -euo pipefail
+          . "$HOME/.cargo/env"
+
+          which rustc
+          rustc -V
+          which cargo
+          cargo -V
+
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
@@ -188,7 +187,6 @@ jobs:
         if: ${{ inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         uses: taiki-e/install-action@git-cliff
 
-      # Canonical one-time generation of RELEASE_NOTES.md and CHANGELOG.md
       - name: 📝 Generate release notes & CHANGELOG (git-cliff) — canonical
         if: ${{ inputs.release_mode || startsWith(github.ref, 'refs/tags/') }}
         env:
@@ -216,7 +214,6 @@ jobs:
               echo "::error::No commits between ${PREV} and ${TAG}."
               exit 1
             fi
-            # Use positional RANGE for broad git-cliff compatibility
             git-cliff --tag "${TAG}" --output "$NOTES" "${PREV}..${TAG}"
           else
             echo "::warning::No previous tag found; generating for ${TAG} only."
@@ -265,7 +262,7 @@ jobs:
           name: ${{ steps.aname.outputs.val }}
           path: artifacts/
           if-no-files-found: error
-          retention-days: 3 # <- keep short; we also delete after publish
+          retention-days: 3
 
       - name: 🧾 Debug list artifact contents
         if: always()
@@ -273,3 +270,4 @@ jobs:
           set -euo pipefail
           echo "Local artifacts/ contents prior to upload:"
           find artifacts -maxdepth 1 -type f -printf '%P\n' | sort || true
+          
