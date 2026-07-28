@@ -2,7 +2,8 @@
 ### CI
 - ci(release): add idempotent release PR creation workflow (caa9416)
 - ci(build): install Rust via rustup for Debian builds (9aa9b50)
-- ci(build): force rustup toolchain in Debian builds (f5d61d1)### Chore
+- ci(build): force rustup toolchain in Debian builds (f5d61d1)
+- ci(build): use rustup toolchain for Debian packaging (5f9b176)### Chore
 - chore(deps): bump actions/github-script from 7 to 8 (0e97f43)
 - chore(deps): bump actions/download-artifact from 5 to 6 (3e42e7e)
 - chore(deps): bump github/codeql-action from 3 to 4 (58ad71b)
@@ -33,7 +34,9 @@
 - chore(release): prepare v0.3.2 [skip ci] (e85b83b)
 - chore(release): prepare v0.3.4 [skip ci] (216af51)
 - chore(release): prepare v0.3.5 [skip ci] (3088607)
-- chore(release): prepare v0.3.6 [skip ci] (4e8014e)### Features
+- chore(release): prepare v0.3.6 [skip ci] (4e8014e)
+- chore(release): prepare v0.3.7 [skip ci] (28c82af)
+- chore(release): prepare v0.3.7 [skip ci] (2686f6c)### Features
 - feat(fuser): migrate to fuser 0.17 API (f594f3c)### Fixes
 - fix(codeql): prevent release checklist update on non-release/hotfix runs 🛡️ (0345618)
 - fix(clippy): use sort_by_key for case-insensitive entry sorting (cc2afbc)
@@ -84,7 +87,9 @@
 - PR #301: Release: 0.3.6 (f5c75df)
 - Back-merge main -> develop (post-release) (950b174)
 - build: upgrade Rust toolchain to 1.88 and fix clippy issues (a2eb4eb)
-- PR #304: build: upgrade Rust toolchain to 1.88 (e9014d7)### CI
+- PR #304: build: upgrade Rust toolchain to 1.88 (e9014d7)
+- PR #305: Release: 0.3.7 (25ef4ef)
+- Merge branch 'main' into release/0.3.7 (e19f9cc)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
 - chore(release): prepare v0.3.1 [skip ci] (0539e13)### Fixes
