@@ -11,6 +11,7 @@ Documentation=man:chd2iso-fuse(1)
 # Optional:
 #   ALLOW_OTHER=yes|no
 #   CD_ALLOW_FORM2=yes|no
+#   RECURSIVE=yes|no
 #   CACHE_HUNKS=#
 #   CACHE_BYTES=#
 #   VERBOSE=yes|no
@@ -29,6 +30,7 @@ ExecStart=/bin/sh -c '\
   cmd="chd2iso-fuse --source \"$$SOURCE\" --mount \"$$TARGET\""; \
   [ "${ALLOW_OTHER:-no}" = yes ] && cmd="$$cmd --allow-other"; \
   [ "${CD_ALLOW_FORM2:-no}" = yes ] && cmd="$$cmd --cd-allow-form2"; \
+  [ "${RECURSIVE:-no}" = yes ] && cmd="$$cmd --recursive"; \
   [ -n "${CACHE_HUNKS:-}" ] && cmd="$$cmd --cache-hunks $$CACHE_HUNKS"; \
   [ -n "${CACHE_BYTES:-}" ] && cmd="$$cmd --cache-bytes $$CACHE_BYTES"; \
   [ "${VERBOSE:-no}" = yes ] && cmd="$$cmd --verbose"; \
