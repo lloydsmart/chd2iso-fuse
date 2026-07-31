@@ -3,12 +3,23 @@ name: Security checks 🚫🔍 (cargo-deny & cargo-audit)
 on:
   push:
     branches: [ develop, main ]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - '.cargo/audit.toml'
+      - '.github/workflows/security-audit.yml'
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - '.cargo/audit.toml'
+      - '.github/workflows/security-audit.yml'
   schedule:
     - cron: "30 3 * * 1"
   workflow_dispatch:
-
 permissions:
   contents: read
   pull-requests: write
@@ -336,3 +347,4 @@ jobs:
         with:
           name: security-reports
           path: reports/*.json
+          
