@@ -3,12 +3,29 @@ name: CodeQL (Rust) 🦀🔍
 on:
   push:
     branches: [ develop, main ]
+    paths:
+      - 'src/**'
+      - '**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'debian/**'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - 'src/**'
+      - '**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'debian/**'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: "30 3 * * 1"
   workflow_dispatch:
-
 permissions:
   contents: write
   security-events: write
@@ -270,3 +287,4 @@ jobs:
     with:
       box: codeql
     secrets: inherit
+    
