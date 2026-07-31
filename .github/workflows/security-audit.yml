@@ -129,7 +129,7 @@ jobs:
 
     env:
       # Optional comma-separated allowlist for cargo-audit suppressions
-      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
+      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
     steps:
