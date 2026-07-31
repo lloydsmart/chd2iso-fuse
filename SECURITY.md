@@ -10,6 +10,7 @@ We support the latest stable release.
 | <latest | ❌ Not supported   |
 
 ## Reporting a vulnerability
+
 If you believe you’ve found a security issue, please do not open a public issue. Instead, email <lloydsmart@users.noreply.github.com> or use GitHub Security Advisories to contact the maintainers.
 
 ---
