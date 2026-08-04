@@ -956,7 +956,7 @@ fn main() -> Result<()> {
     );
 
     let mountpoint = fs.args.mountpoint.clone();
-    fuser::mount2(fs, &mountpoint, &config).map_err(|e| anyhow!("mount failed: {e}"))
+    fuser::mount(fs, &mountpoint, &config).map_err(|e| anyhow!("mount failed: {e}"))
 }
 
 #[cfg(test)]
