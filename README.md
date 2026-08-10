@@ -307,7 +307,7 @@ PRs welcome! Please include a brief description, test notes, and update docs for
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE.md).
+This project is licensed under the [GNU General Public License v3.0](LICENSE.md).
 
 ## Continuous Integration
 
