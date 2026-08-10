@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 MD029 MD038 MD047 -->
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
