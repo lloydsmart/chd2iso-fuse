@@ -50,6 +50,7 @@ allow = [
 
   # Copyleft (kept allowed so GPL/LGPL crates won’t block CI if introduced)
   "GPL-2.0-or-later",
+  "GPL-3.0-only",
   "GPL-3.0-or-later",
   "LGPL-2.1-or-later",
   "LGPL-3.0-or-later",
