@@ -1,6 +1,6 @@
 # chd2iso-fuse
 
-[![License](https://img.shields.io/github/license/lloydsmart/chd2iso-fuse)](LICENSE.md) [![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg)](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
+[![License](https://img.shields.io/github/license/lloydsmart/chd2iso-fuse)](LICENSE) [![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg)](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
 
 **Mount a folder of CHD images and expose them as read-only `.iso`/`.bin` files via FUSE.**  
 Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space savings but still present ISO-style files to clients. Presents **.chd** images as **.iso** (2048-byte Mode1/Mode2-Form1) or **.bin** (2324-byte Mode2-Form2, optional) on the fly.
@@ -307,7 +307,7 @@ PRs welcome! Please include a brief description, test notes, and update docs for
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](LICENSE.md).
+This project is licensed under the [GNU General Public License v3.0 only](LICENSE).
 
 ## Continuous Integration
 
