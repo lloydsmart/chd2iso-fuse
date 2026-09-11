@@ -28,10 +28,24 @@ jobs:
           set -euo pipefail
           apt-get update
           apt-get install -y --no-install-recommends \
+            curl ca-certificates \
             build-essential pkg-config \
             libfuse3-dev fuse3 \
-            rust-all rust-clippy rustfmt \
             debhelper devscripts dh-cargo dpkg-dev
+
+      - name: 🦀 Install Rust toolchain
+        run: |
+          set -euo pipefail
+
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain none
+
+          . "$HOME/.cargo/env"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+          rustup show
+          rustc -V
+          cargo -V
 
       - name: 📖 Read Cargo.toml version
         id: cargo
@@ -83,7 +97,15 @@ jobs:
           fi
 
       - name: 🏗️ Build release binary (for version check)
-        run: cargo build --release --locked
+        run: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+
+          which rustc
+          rustc -V
+          which cargo
+          cargo -V
+          cargo build --release --locked
 
       - name: 🧪 Verify binary --version matches Cargo.toml
         env:
