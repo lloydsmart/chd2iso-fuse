@@ -1,17 +1,17 @@
 [package]
 name = "chd2iso-fuse"
-version = "0.3.7"
+version = "0.3.2"
 edition = "2021"
 authors = ["Lloyd Smart <lloydsmart@users.noreply.github.com>"]
 description = "FUSE filesystem to mount CHD images as ISO/BIN on the fly"
-license = "MIT"
+license = "GPL-3.0-only"
 repository = "https://github.com/lloydsmart/chd2iso-fuse"
 readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }
-fuser = "0.17"
+fuser = "0.18"
 lru = "0.18"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }

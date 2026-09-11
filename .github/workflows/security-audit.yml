@@ -3,12 +3,23 @@ name: Security checks 🚫🔍 (cargo-deny & cargo-audit)
 on:
   push:
     branches: [ develop, main ]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - '.cargo/audit.toml'
+      - '.github/workflows/security-audit.yml'
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - '.cargo/audit.toml'
+      - '.github/workflows/security-audit.yml'
   schedule:
     - cron: "30 3 * * 1"
   workflow_dispatch:
-
 permissions:
   contents: read
   pull-requests: write
@@ -51,7 +62,7 @@ jobs:
 
       - name: Checkout (for back-merge eval) 📥
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -118,12 +129,12 @@ jobs:
 
     env:
       # Optional comma-separated allowlist for cargo-audit suppressions
-      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || secrets.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
+      ACCEPTED: ${{ vars.RUSTSEC_ACCEPTED_ADVISORIES || '' }}
       CARGO_TERM_COLOR: always
 
     steps:
       - name: Checkout (shallow) 📥
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -161,7 +172,7 @@ jobs:
         run: echo "day=$(date +%Y-%j)" >> "$GITHUB_OUTPUT"
 
       - name: Cache RustSec advisory DB 🧰
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/advisory-db
           key: rustsec-db-${{ runner.os }}-${{ steps.day.outputs.day }}
@@ -336,3 +347,4 @@ jobs:
         with:
           name: security-reports
           path: reports/*.json
+          

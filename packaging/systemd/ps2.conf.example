@@ -5,6 +5,8 @@ TARGET=/mnt/retronas/roms/sony/playstation2/iso
 # Optional toggles
 ALLOW_OTHER=yes
 CD_ALLOW_FORM2=no
+RECURSIVE=no
 CACHE_HUNKS=512
 CACHE_BYTES=536870912
+#MAX_OPEN_CHDS=8
 VERBOSE=yes

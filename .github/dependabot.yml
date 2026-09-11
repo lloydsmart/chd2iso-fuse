@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: weekly
     target-branch: develop
-    labels: [deps, cargo]
+    labels: [dependencies, cargo]
     open-pull-requests-limit: 10
     groups:
       routine:
@@ -18,5 +18,5 @@ updates:
     schedule:
       interval: weekly
     target-branch: develop
-    labels: [deps, ci]
+    labels: [dependencies, ci]
     open-pull-requests-limit: 10

@@ -1,7 +1,6 @@
 # chd2iso-fuse
 
-[![License](https://img.shields.io/github/license/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/blob/master/LICENSE) ![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg?branch=main) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
-
+[![License](https://img.shields.io/github/license/lloydsmart/chd2iso-fuse)](LICENSE) [![CI](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml/badge.svg)](https://github.com/lloydsmart/chd2iso-fuse/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/v/release/lloydsmart/chd2iso-fuse)](https://github.com/lloydsmart/chd2iso-fuse/releases)
 
 **Mount a folder of CHD images and expose them as read-only `.iso`/`.bin` files via FUSE.**  
 Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space savings but still present ISO-style files to clients. Presents **.chd** images as **.iso** (2048-byte Mode1/Mode2-Form1) or **.bin** (2324-byte Mode2-Form2, optional) on the fly.
@@ -23,7 +22,8 @@ Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space sa
 - 🌐 **Network-friendly** — Works over **SMB** and **UDPBD** for PS2 OPL game streaming.
 
 > 💡 Typical layout:
-> ```
+>
+> ```text
 > /mnt/retronas/roms/sony/playstation2/chd   # source CHDs (real files)
 > /mnt/retronas/roms/sony/playstation2/iso   # FUSE mountpoint (exposed files)
 > ```
@@ -40,13 +40,14 @@ Designed for PS2 (OPL over SMB/UDPBD) and NAS setups where you want CHD space sa
 
 ---
 
-# Release & Packaging Flow
+## Release & Packaging Flow
 
 This project uses **tag-driven releases**. The Git tag is the single source of truth for the version. On tagged builds, CI updates all versioned artifacts and publishes a GitHub Release with Debian packages.
 
 ## TL;DR
 
 1. Create a tag:
+
    ```bash
    git switch main
    git pull --rebase
@@ -54,6 +55,7 @@ This project uses **tag-driven releases**. The Git tag is the single source of t
    git tag "v$VER" -m "chd2iso-fuse v$VER"
    git push origin "v$VER"
    ```
+
 2. GitHub Actions will:
    - Set `Cargo.toml` → `version = "$VER"` (no cargo-edit; via `scripts/set-cargo-version.sh`)
    - Update `debian/changelog` → `${VER}-1` (via `gbp dch`/`dch`)
@@ -71,6 +73,7 @@ This project uses **tag-driven releases**. The Git tag is the single source of t
 ## Artifacts
 
 The CI publishes:
+
 - `chd2iso-fuse_*_amd64.deb`
 - `chd2iso-fuse-dbgsym_*_amd64.deb`
 - `*.buildinfo`, `*.changes`
@@ -94,7 +97,7 @@ git-cliff --tag "v$VER" -o CHANGELOG.md
 - Just create a new tag (`vX.Y.Z`) and push — CI takes care of the rest.
 - For pre-releases, tags like `v0.5.0-rc.1` are supported; Debian version becomes `0.5.0-rc.1-1`.
 
-## Troubleshooting
+## Release Troubleshooting
 
 - **Mismatch errors**: CI verifies that `Cargo.toml` and `debian/changelog` match the tag. If it fails, check the CI logs for the “Verify … matches tag” steps.
 - **Missing `Cargo.lock`**: the build fails if `Cargo.lock` isn’t committed.
@@ -110,6 +113,7 @@ git-cliff --tag "v$VER" -o CHANGELOG.md
 make
 sudo make install
 ```
+
 Installs to `/usr/local/bin/chd2iso-fuse` by default. Override PREFIX if needed, e.g. `make PREFIX=/usr make install`.
 
 ### Debian / Ubuntu (preferred)
@@ -118,6 +122,7 @@ Installs to `/usr/local/bin/chd2iso-fuse` by default. Override PREFIX if needed,
 make deb
 sudo apt install ../chd2iso-fuse_*.deb
 ```
+
 The `.deb` also installs a mount helper (`/sbin/mount.chd2iso-fuse`) and optional systemd units.
 
 ---
@@ -137,7 +142,7 @@ ls /path/to/iso
 
 ### Common CLI flags
 
-```
+```text
 --source <DIR>        # CHD source directory
 --mount  <DIR>        # FUSE mountpoint
 --allow-other         # allow other users (requires fuse.conf: user_allow_other)
@@ -157,7 +162,8 @@ You can use either the **instance service template** or classic `.mount/.automou
 
 ### Instance service (simple for multiple mounts)
 
-1) Create a config file at `/etc/chd2iso-fuse/<name>.conf`. Example:
+1. Create a config file at `/etc/chd2iso-fuse/<name>.conf`. Example:
+
 ```bash
 SOURCE=/mnt/retronas/roms/sony/playstation2/chd
 TARGET=/mnt/retronas/roms/sony/playstation2/iso
@@ -167,7 +173,9 @@ CACHE_HUNKS=512
 CACHE_BYTES=536870912
 VERBOSE=yes
 ```
-2) Enable:
+
+1. Enable:
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now chd2iso-fuse@<name>.service
@@ -176,6 +184,7 @@ sudo systemctl enable --now chd2iso-fuse@<name>.service
 ### Classic `.mount/.automount` (lazy on-demand)
 
 `/etc/systemd/system/mnt-retronas-roms-sony-playstation2-iso.mount`
+
 ```ini
 [Unit]
 Description=Mount CHD→ISO PS2
@@ -194,6 +203,7 @@ WantedBy=multi-user.target
 ```
 
 `/etc/systemd/system/mnt-retronas-roms-sony-playstation2-iso.automount`
+
 ```ini
 [Unit]
 Description=Automount CHD→ISO PS2
@@ -206,6 +216,7 @@ WantedBy=multi-user.target
 ```
 
 Enable:
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now mnt-retronas-roms-sony-playstation2-iso.automount
@@ -220,10 +231,13 @@ ls /mnt/retronas/roms/sony/playstation2/iso
 ## fstab (alternative)
 
 With the mount helper installed (`/sbin/mount.chd2iso-fuse`), you can use:
-```
+
+```fstab
 /mnt/retronas/roms/sony/playstation2/chd  /mnt/retronas/roms/sony/playstation2/iso  chd2iso-fuse  allow_other,cache_hunks=512,cache_bytes=536870912,x-systemd.automount,x-systemd.idle-timeout=60s,nofail  0  0
 ```
+
 Then:
+
 ```bash
 sudo systemctl daemon-reload
 sudo mount -a
@@ -234,24 +248,31 @@ sudo mount -a
 ## CHD creation tips (PS2)
 
 - **DVD titles** (most PS2 games): prefer `chdman createdvd` with a raw 2048 ISO:
+
   ```bash
   chdman createdvd -i game.iso -o game.chd
   ```
+
 - **CD titles**: `chdman createcd` from a proper CD dump (`.cue/.bin`):
+
   ```bash
   chdman createcd -i game.cue -o game.chd
   ```
+
 - If your tooling doesn’t have `createdvd`, **fallback**:
+
   ```bash
   chdman createraw -i game.iso -o game.chd
   ```
 
 > Verify a quick slice:
+>
 > ```bash
 > dd if=/path/to/iso/game.iso bs=1M count=16 | md5sum
 > dd if=/path/to/mount/game.iso bs=1M count=16 | md5sum
 > # should match for DVD/2048 (Mode1)
 > ```
+>
 > Form2 `.bin` will NOT match a 2048-byte `.iso` (different payload size).
 
 ---
@@ -286,7 +307,7 @@ PRs welcome! Please include a brief description, test notes, and update docs for
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE.md).
+This project is licensed under the [GNU General Public License v3.0 only](LICENSE).
 
 ## Continuous Integration
 
@@ -309,6 +330,7 @@ match the target distribution (e.g., RetroNAS).
 We publish a `SHA256SUMS` file and a GPG signature `SHA256SUMS.asc` with every release.
 
 1. Import Lloyd’s release key and verify its fingerprint:
+
    ```bash
    # Option A: from a local file
    gpg --import docs/KEYS/lloydsmart-release-public-key.gpg
@@ -322,15 +344,18 @@ We publish a `SHA256SUMS` file and a GPG signature `SHA256SUMS.asc` with every r
    # Check fingerprint
    gpg --fingerprint D91C59CCB2B5AA41
    ```
+
    Expected fingerprint:  
    `28A3 555E 056E 6DFF ED98  84DB D91C 59CC B2B5 AA41`
 
 2. Verify the signature over the checksum file:
+
    ```bash
    gpg --verify SHA256SUMS.asc SHA256SUMS
    ```
 
 3. Verify the files you downloaded:
+
    ```bash
    sha256sum --check SHA256SUMS
    # or on macOS: shasum -a 256 -c SHA256SUMS

@@ -14,7 +14,7 @@ use std::{
     num::NonZeroUsize,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
 use tracing::{error, info};
@@ -57,9 +57,17 @@ struct Args {
     #[arg(long = "cache-bytes", default_value_t = 256 * 1024 * 1024)]
     cache_bytes: usize,
 
+    /// Max number of simultaneously open CHD file handles
+    #[arg(long = "max-open-chds", default_value_t = 8)]
+    max_open_chds: usize,
+
     /// Permit exporting Mode2/Form2 payloads as raw 2324-byte sectors (exposed as "Name (Form2).bin")
     #[arg(long = "cd-allow-form2", default_value_t = false)]
     cd_allow_form2: bool,
+
+    /// Recurse into subdirectories when scanning for *.chd files
+    #[arg(long = "recursive", default_value_t = false)]
+    recursive: bool,
 
     /// Verbose logging
     #[arg(long = "verbose", default_value_t = false)]
@@ -101,11 +109,16 @@ struct Handle {
     chd_path: PathBuf,
 }
 
+type ChdHandle = Arc<Mutex<Chd<BufReader<File>>>>;
+
 struct FsState {
     args: Args,
     entries: Vec<IndexEntry>,
     handles: Mutex<HashMap<u64, Handle>>,
     next_fh: Mutex<u64>,
+    /// Open CHD handles, keyed by file_id (inode). Avoids reopening on every read().
+    /// Capped at 64 entries; LRU eviction closes the file descriptor.
+    open_chds: Mutex<LruCache<u64, ChdHandle>>,
     frame_cache: Mutex<LruCache<(u64, u64), Vec<u8>>>,
     approx_cache_bytes: Mutex<usize>,
 }
@@ -115,46 +128,77 @@ impl FsState {
         let cache_cap =
             NonZeroUsize::new(args.cache_hunks).unwrap_or(NonZeroUsize::new(64).unwrap());
 
+        let open_chds_cap =
+            NonZeroUsize::new(args.max_open_chds).unwrap_or(NonZeroUsize::new(8).unwrap());
+
         Ok(Self {
             entries: Vec::new(),
             handles: Mutex::new(HashMap::new()),
             next_fh: Mutex::new(1),
+            open_chds: Mutex::new(LruCache::new(open_chds_cap)),
             frame_cache: Mutex::new(LruCache::new(cache_cap)),
             approx_cache_bytes: Mutex::new(0),
             args,
         })
     }
 
+    /// Return a cached open CHD handle for the given file_id, opening it if needed.
+    fn get_chd(&self, file_id: u64, path: &Path) -> Result<ChdHandle> {
+        let mut map = self.open_chds.lock().expect("open_chds poisoned");
+        if let Some(h) = map.get(&file_id) {
+            return Ok(Arc::clone(h));
+        }
+        let f = File::open(path)?;
+        let chd = Chd::open(BufReader::new(f), None)?;
+        let handle = Arc::new(Mutex::new(chd));
+        // Arc::clone before insert so the evicted entry (if any) is dropped after we release
+        // the map lock, not while holding it.
+        let ret = Arc::clone(&handle);
+        map.put(file_id, handle);
+        Ok(ret)
+    }
+
     fn build_index(&mut self) -> Result<()> {
-        let dir = &self.args.source_dir;
+        let dir = self.args.source_dir.clone();
         let mut tmp: Vec<IndexEntry> = Vec::new();
 
-        for ent in fs::read_dir(dir).with_context(|| format!("reading {dir:?}"))? {
-            let ent = ent?;
-            let path = ent.path();
+        let mut dirs: Vec<PathBuf> = vec![dir.clone()];
+        while let Some(current) = dirs.pop() {
+            for ent in fs::read_dir(&current).with_context(|| format!("reading {current:?}"))? {
+                let ent = ent?;
+                let path = ent.path();
+                let ft = ent.file_type()?;
 
-            if path
-                .extension()
-                .and_then(|s| s.to_str())
-                .map(|s| s.eq_ignore_ascii_case("chd"))
-                != Some(true)
-            {
-                continue;
-            }
-
-            match self.build_index_entry(&path) {
-                Ok(Some((name, kind, size))) => {
-                    tmp.push(IndexEntry {
-                        ino: 0,
-                        name,
-                        chd_path: path.clone(),
-                        kind,
-                        iso_size: size,
-                    });
+                if ft.is_dir() {
+                    if self.args.recursive {
+                        dirs.push(path);
+                    }
+                    continue;
                 }
-                Ok(None) => {}
-                Err(e) => {
-                    error!("Skipping {:?}: {}", path, e);
+
+                if path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("chd"))
+                    != Some(true)
+                {
+                    continue;
+                }
+
+                match self.build_index_entry(&path) {
+                    Ok(Some((name, kind, size))) => {
+                        tmp.push(IndexEntry {
+                            ino: 0,
+                            name,
+                            chd_path: path.clone(),
+                            kind,
+                            iso_size: size,
+                        });
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        error!("Skipping {:?}: {}", path, e);
+                    }
                 }
             }
         }
@@ -326,8 +370,8 @@ impl FsState {
             }
         }
 
-        let f = File::open(path)?;
-        let mut chd = Chd::open(BufReader::new(f), None)?;
+        let chd_handle = self.get_chd(file_id, path)?;
+        let mut chd = chd_handle.lock().expect("chd handle poisoned");
 
         let hunk_bytes = chd.header().hunk_size() as usize;
         let frames_per_hunk = hunk_bytes / CD_FRAME_2352;
@@ -347,6 +391,8 @@ impl FsState {
 
         let frame_off = frame_in_hunk * CD_FRAME_2352;
         let owned = hunk_buf[frame_off..frame_off + CD_FRAME_2352].to_vec();
+
+        drop(chd); // release lock before acquiring frame_cache lock
 
         {
             let mut cache = self.frame_cache.lock().expect("frame_cache mutex poisoned");
@@ -745,21 +791,14 @@ impl Filesystem for FsState {
                 let end = start.saturating_add(size as u64).min(ent.iso_size);
                 let to_read = (end - start) as usize;
 
-                let f = match File::open(&chd_path) {
-                    Ok(f) => f,
+                let chd_handle = match self.get_chd(file_id, &chd_path) {
+                    Ok(h) => h,
                     Err(_) => {
                         reply.error(Errno::from_i32(libc::EIO));
                         return;
                     }
                 };
-
-                let mut chd = match Chd::open(BufReader::new(f), None) {
-                    Ok(c) => c,
-                    Err(_) => {
-                        reply.error(Errno::from_i32(libc::EIO));
-                        return;
-                    }
-                };
+                let mut chd = chd_handle.lock().expect("chd handle poisoned");
 
                 let hunk_size = chd.header().hunk_size() as u64;
                 let mut buf = vec![0u8; to_read];
@@ -917,7 +956,7 @@ fn main() -> Result<()> {
     );
 
     let mountpoint = fs.args.mountpoint.clone();
-    fuser::mount2(fs, &mountpoint, &config).map_err(|e| anyhow!("mount failed: {e}"))
+    fuser::mount(fs, &mountpoint, &config).map_err(|e| anyhow!("mount failed: {e}"))
 }
 
 #[cfg(test)]

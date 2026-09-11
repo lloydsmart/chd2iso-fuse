@@ -18,14 +18,18 @@ The pipeline is powered by GitHub Actions workflows in `.github/workflows`.
 ## Release steps
 
 ### 1. Prepare release branch
+
 - Create a branch from `develop`:
+
   ```bash
   git flow release start x.y.z
   ```
+
 - Update version references (Cargo, Debian changelog) via `autobump.yml` workflow.
 - Push the branch, open a PR into `main`.
 
 ### 2. Merge release branch
+
 - Merge the release PR into `main` (via squash/merge).
 - The `merge.yml` workflow will:
   - Verify version consistency (`_verify-release.yml`)
@@ -34,6 +38,7 @@ The pipeline is powered by GitHub Actions workflows in `.github/workflows`.
   - Open a back-merge PR `main -> develop` (auto-merged if clean)
 
 ### 3. Automated release pipeline
+
 - The `release.yml` workflow will:
   - Validate the tag points to `main`
   - Invoke `_build.yml` in release mode to produce:
@@ -45,6 +50,7 @@ The pipeline is powered by GitHub Actions workflows in `.github/workflows`.
   - Invoke `_release.yml` for optional APT publishing
 
 ### 4. Back-merge
+
 - The `merge.yml` workflow ensures `develop` is kept in sync with `main`:
   - Auto-merges a back-merge PR if it is conflict-free and CI passes
   - Otherwise opens a PR for manual resolution
@@ -54,6 +60,7 @@ The pipeline is powered by GitHub Actions workflows in `.github/workflows`.
 ## Outputs
 
 Each tagged release (`vX.Y.Z`) produces:
+
 - A GitHub Release with:
   - `.deb` package(s)
   - `SHA256SUMS` and detached signature

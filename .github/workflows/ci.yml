@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: stable
+  RUST_TOOLCHAIN: "1.88.0"
 
 jobs:
   gate:
@@ -34,7 +34,7 @@ jobs:
       lock_hash: ${{ steps.lock.outputs.val }}
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -91,7 +91,7 @@ jobs:
 
       - name: 📥 Checkout (full) for merge probe
         if: steps.mode.outputs.is_pr == 'true' && steps.bm.outputs.is_backmerge == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -190,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout (shallow)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -222,11 +222,11 @@ jobs:
       RUSTC_WRAPPER: sccache
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with: { fetch-depth: 0 }
 
       - name: ⚡ Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: 🤔 Decide sccache backend (prefer GHAC, fallback FS)
         id: scc
@@ -252,7 +252,7 @@ jobs:
       - name: ♻️ Restore sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
         id: sccache_restore
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -291,7 +291,7 @@ jobs:
 
       - name: 💾 Save sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/sccache
           key: sccache-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -331,7 +331,6 @@ jobs:
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
       CARGO_TERM_COLOR: always
-      RUST_TOOLCHAIN: stable
       RUSTC_WRAPPER: sccache
     steps:
       - name: 🧰 Install git for checkout
@@ -340,7 +339,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git ca-certificates curl pkg-config
 
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with: { fetch-depth: 0 }
 
       - name: 🔏 Configure git trust
@@ -375,7 +374,7 @@ jobs:
       - name: ♻️ Restore sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
         id: sccache_restore
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}
@@ -388,13 +387,35 @@ jobs:
           apt-get install -y --no-install-recommends \
             build-essential \
             libfuse3-dev fuse3 \
-            debhelper devscripts dh-cargo lintian \
-            rust-all
+            debhelper devscripts dh-cargo lintian
+      
+      - name: 🦀 Install Rust toolchain
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal
+
+          . "$HOME/.cargo/env"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+          rustup toolchain install 1.88.0 --profile minimal
+          rustup default 1.88.0
+
+          rustc -V
+          cargo -V
 
       - name: 🏗️ Build .deb (nocheck)
         env:
           DEB_BUILD_OPTIONS: nocheck
         run: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+
+          which rustc
+          rustc -V
+          which cargo
+          cargo -V
+
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
@@ -416,7 +437,7 @@ jobs:
 
       - name: 💾 Save sccache (FS only)
         if: steps.scc.outputs.backend == 'filesystem'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: /root/.cache/sccache
           key: sccache-deb-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ needs.gate.outputs.lock_hash }}

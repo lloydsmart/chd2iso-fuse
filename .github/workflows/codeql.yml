@@ -3,12 +3,29 @@ name: CodeQL (Rust) 🦀🔍
 on:
   push:
     branches: [ develop, main ]
+    paths:
+      - 'src/**'
+      - '**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'debian/**'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ develop, main ]
+    paths:
+      - 'src/**'
+      - '**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'debian/**'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: "30 3 * * 1"
   workflow_dispatch:
-
 permissions:
   contents: write
   security-events: write
@@ -53,7 +70,7 @@ jobs:
           fi
 
       - name: 📥 Checkout (for diff & change detection)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -156,7 +173,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
@@ -174,14 +191,14 @@ jobs:
       # ---------------------- PRs (fast) — AUTOBUILD ----------------------
       - name: 🔧 Initialize CodeQL (PR/autobuild)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v4.37.9
         with:
           languages: rust
           queries: +security-and-quality
 
       - name: 🤖 CodeQL autobuild (Rust)
         if: github.event_name == 'pull_request'
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@v4.37.9
 
       # Keep your lockfile guard/fix for same-repo PRs
       - name: 🔒✨ Autofix Cargo.lock (same-repo PRs)
@@ -216,7 +233,7 @@ jobs:
       # --------------- Schedule/Dispatch (deep) — EXPLICIT BUILD ----------
       - name: 🔧 Initialize CodeQL (explicit build)
         if: github.event_name != 'pull_request'
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v4.37.9
         with:
           languages: rust
           queries: +security-and-quality
@@ -257,7 +274,7 @@ jobs:
 
       # ---------------------- Analyze (both paths) ----------------------
       - name: 🔬 Analyze
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v4.37.9
         with:
           category: "/language:rust;variant=${{ matrix.variant }}"
 
@@ -270,3 +287,4 @@ jobs:
     with:
       box: codeql
     secrets: inherit
+    
