@@ -62,7 +62,8 @@
 - chore(deps): bump github/codeql-action from 4.37.7 to 4.37.8 (16fc19d)
 - chore(deps): bump github/codeql-action from 4.37.8 to 4.37.9 (195138f)
 - chore(deps): bump lru from 0.18.2 to 0.18.3 in the routine group (afd62de)
-- chore(deps): bump lru from 0.18.3 to 0.18.4 in the routine group (32b197e)### Docs
+- chore(deps): bump lru from 0.18.3 to 0.18.4 in the routine group (32b197e)
+- chore(release): prepare v0.3.2 [skip ci] (72b4e2d)### Docs
 - docs: update contributing guide for develop workflow (4d0e6c0)
 - docs(readme): fix branch-independent status links (1a09118)
 - docs: fix markdownlint issues (830f7a9)### Features
@@ -75,7 +76,8 @@
 - fix: satisfy markdown lint (612fa41)
 - fix: allow GPL-3.0-only license (8eed8fe)
 - fix: use existing dependencies label for Dependabot (5caa2b4)
-- fix(release): reset Debian changelog to last published version (44f687d)### Other
+- fix(release): reset Debian changelog to last published version (44f687d)
+- fix(ci): use Rust 1.88 for Debian package builds (ae4250d)### Other
 - PR #248: ci(release): add idempotent release PR creation workflow (40f30bd)
 - Merge branch 'develop' into main (3b3d908)
 - Back-merge main -> develop (post-release) (b2bdcf6)
