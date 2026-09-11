@@ -63,7 +63,8 @@
 - chore(deps): bump github/codeql-action from 4.37.8 to 4.37.9 (195138f)
 - chore(deps): bump lru from 0.18.2 to 0.18.3 in the routine group (afd62de)
 - chore(deps): bump lru from 0.18.3 to 0.18.4 in the routine group (32b197e)
-- chore(release): prepare v0.3.2 [skip ci] (72b4e2d)### Docs
+- chore(release): prepare v0.3.2 [skip ci] (72b4e2d)
+- chore(release): prepare v0.3.2 [skip ci] (711ee07)### Docs
 - docs: update contributing guide for develop workflow (4d0e6c0)
 - docs(readme): fix branch-independent status links (1a09118)
 - docs: fix markdownlint issues (830f7a9)### Features
@@ -77,7 +78,8 @@
 - fix: allow GPL-3.0-only license (8eed8fe)
 - fix: use existing dependencies label for Dependabot (5caa2b4)
 - fix(release): reset Debian changelog to last published version (44f687d)
-- fix(ci): use Rust 1.88 for Debian package builds (ae4250d)### Other
+- fix(ci): use Rust 1.88 for Debian package builds (ae4250d)
+- fix: convert CRLF to LF in systemd packaging files (9e929df)### Other
 - PR #248: ci(release): add idempotent release PR creation workflow (40f30bd)
 - Merge branch 'develop' into main (3b3d908)
 - Back-merge main -> develop (post-release) (b2bdcf6)
@@ -161,7 +163,9 @@
 - PR #339: chore(deps): bump github/codeql-action from 4.37.7 to 4.37.8 (ecc279c)
 - PR #341: chore(deps): bump github/codeql-action from 4.37.8 to 4.37.9 (a75eb1d)
 - PR #340: chore(deps): bump lru from 0.18.2 to 0.18.3 in the routine group (388d12a)
-- PR #342: chore(deps): bump lru from 0.18.3 to 0.18.4 in the routine group (efa1e8b)### Performance
+- PR #342: chore(deps): bump lru from 0.18.3 to 0.18.4 in the routine group (efa1e8b)
+- PR #309: fix: convert CRLF to LF in systemd packaging files (207570b)
+- Merge branch 'main' into release/0.3.2 (e0954b9)### Performance
 - perf: cache open CHD handles in a bounded LRU to avoid per-read reopen (4e9c932)### CI
 - ci(release): add idempotent release PR creation workflow (508e822)### Chore
 - chore(release): prepare v0.3.1 [skip ci] (3e0cc5f)
