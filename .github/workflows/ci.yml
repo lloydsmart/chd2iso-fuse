@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: stable
+  RUST_TOOLCHAIN: "1.88.0"
 
 jobs:
   gate:
@@ -331,7 +331,6 @@ jobs:
       DEBFULLNAME: "Lloyd Smart"
       DEBEMAIL: "lloydsmart@users.noreply.github.com"
       CARGO_TERM_COLOR: always
-      RUST_TOOLCHAIN: stable
       RUSTC_WRAPPER: sccache
     steps:
       - name: 🧰 Install git for checkout
@@ -388,13 +387,35 @@ jobs:
           apt-get install -y --no-install-recommends \
             build-essential \
             libfuse3-dev fuse3 \
-            debhelper devscripts dh-cargo lintian \
-            rust-all
+            debhelper devscripts dh-cargo lintian
+      
+      - name: 🦀 Install Rust toolchain
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal
+
+          . "$HOME/.cargo/env"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+          rustup toolchain install 1.88.0 --profile minimal
+          rustup default 1.88.0
+
+          rustc -V
+          cargo -V
 
       - name: 🏗️ Build .deb (nocheck)
         env:
           DEB_BUILD_OPTIONS: nocheck
         run: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+
+          which rustc
+          rustc -V
+          which cargo
+          cargo -V
+
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../*.deb ../*.buildinfo ../*.changes artifacts/ || true
