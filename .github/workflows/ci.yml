@@ -9,6 +9,7 @@ on:
       - "src/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "rust-toolchain.toml"
       - "build.rs"
       - "debian/**"
       - ".github/workflows/ci.yml"
@@ -23,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: "1.88.0"
+  RUST_TOOLCHAIN: "1.89.0"
 
 jobs:
   gate:
@@ -69,6 +70,7 @@ jobs:
               - '**/*.rs'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'rust-toolchain.toml'
               - 'build.rs'
             ci:
               - '.github/workflows/ci.yml'
@@ -398,8 +400,8 @@ jobs:
           . "$HOME/.cargo/env"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-          rustup toolchain install 1.88.0 --profile minimal
-          rustup default 1.88.0
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
 
           rustc -V
           cargo -V
