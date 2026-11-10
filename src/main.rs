@@ -428,7 +428,7 @@ fn parse_cd_toc_from_metadata<R: Read + Seek>(
 
     let it = chd.metadata_refs();
     for mref in it {
-        let md: Metadata = mref.read(file)?;
+        let md: Metadata = mref?.read(file)?;
         let tag = md.metatag;
 
         if tag != KnownMetadata::CdRomTrack.metatag() && tag != KnownMetadata::CdRomTrack2.metatag()
@@ -962,6 +962,181 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Cursor, Write};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // Small uncompressed CHD v5 fixtures exercise the on-disk header, map and metadata
+    // APIs without external tools or copyrighted disc images. Codec tests require
+    // compressed fixtures separately.
+    fn fixture_bytes(unit_bytes: usize, data: &[u8], track: Option<&str>) -> Vec<u8> {
+        let hunk_bytes = unit_bytes * 2;
+        let hunk_count = data.len().div_ceil(hunk_bytes);
+        let mut image = vec![0; hunk_bytes * (hunk_count + 1)];
+        image[..8].copy_from_slice(b"MComprHD");
+        image[8..12].copy_from_slice(&124u32.to_be_bytes());
+        image[12..16].copy_from_slice(&5u32.to_be_bytes());
+        image[32..40].copy_from_slice(&(data.len() as u64).to_be_bytes());
+        image[40..48].copy_from_slice(&124u64.to_be_bytes());
+        image[56..60].copy_from_slice(&(hunk_bytes as u32).to_be_bytes());
+        image[60..64].copy_from_slice(&(unit_bytes as u32).to_be_bytes());
+        for hunk in 0..hunk_count {
+            let offset = 124 + hunk * 4;
+            image[offset..offset + 4].copy_from_slice(&((hunk + 1) as u32).to_be_bytes());
+        }
+        if let Some(track) = track {
+            let offset = 124 + hunk_count * 4;
+            assert!(offset + 16 + track.len() < hunk_bytes);
+            image[48..56].copy_from_slice(&(offset as u64).to_be_bytes());
+            image[offset..offset + 4].copy_from_slice(b"CHT2");
+            image[offset + 4..offset + 8].copy_from_slice(&(track.len() as u32).to_be_bytes());
+            image[offset + 16..offset + 16 + track.len()].copy_from_slice(track.as_bytes());
+        }
+        image[hunk_bytes..hunk_bytes + data.len()].copy_from_slice(data);
+        image
+    }
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new(bytes: &[u8]) -> Self {
+            static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+            let path = std::env::temp_dir().join(format!(
+                "chd2iso-fuse-{}-{}.chd",
+                std::process::id(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+                .unwrap();
+            file.write_all(bytes).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
+    fn fixture_state() -> FsState {
+        FsState::new(Args::parse_from([
+            "chd2iso-fuse",
+            "--source",
+            ".",
+            "--mount",
+            ".",
+            "--cache-hunks",
+            "2",
+            "--cd-allow-form2",
+        ]))
+        .unwrap()
+    }
+
+    #[test]
+    fn dvd_chd_index_and_hunks_preserve_data() {
+        let data: Vec<u8> = (0..5 * 2048).map(|i| (i * 17 + i / 2048) as u8).collect();
+        let fixture = Fixture::new(&fixture_bytes(2048, &data, None));
+        let state = fixture_state();
+        let (_, kind, size) = state.build_index_entry(&fixture.0).unwrap().unwrap();
+        assert!(matches!(kind, BackingKind::Dvd2048));
+        assert_eq!(size, data.len() as u64);
+
+        let handle = state.get_chd(2, &fixture.0).unwrap();
+        let mut chd = handle.lock().unwrap();
+        let mut hunk = chd.get_hunksized_buffer();
+        let mut compressed = Vec::new();
+        for index in [2, 0, 1, 2] {
+            chd.hunk(index)
+                .unwrap()
+                .read_hunk_in(&mut compressed, &mut hunk)
+                .unwrap();
+            let start = index as usize * hunk.len();
+            let end = (start + hunk.len()).min(data.len());
+            assert_eq!(&hunk[..end - start], &data[start..end]);
+        }
+    }
+
+    #[test]
+    fn cd_chd_metadata_and_frames_survive_hunk_boundaries() {
+        for (track_type, payload_kind, payload_bytes) in [
+            ("MODE1", CdPayloadKind::Mode1_2048, 2048),
+            ("MODE2/2048", CdPayloadKind::Mode2Form1_2048, 2048),
+            ("MODE2/2324", CdPayloadKind::Mode2Form2_2324, 2324),
+        ] {
+            let data: Vec<u8> = (0..6 * CD_FRAME_2352)
+                .map(|i| (i * 13 + i / CD_FRAME_2352) as u8)
+                .collect();
+            let track = format!("TRACK:1 TYPE:{track_type} FRAMES:4 PREGAP:2 POSTGAP:0");
+            let fixture = Fixture::new(&fixture_bytes(CD_FRAME_2352, &data, Some(&track)));
+            let state = fixture_state();
+            let (name, kind, size) = state.build_index_entry(&fixture.0).unwrap().unwrap();
+            match kind {
+                BackingKind::Cd2352 {
+                    first_data_lba,
+                    payload_kind: actual,
+                    track_frames,
+                } => {
+                    assert_eq!(first_data_lba, 2);
+                    assert_eq!(actual, payload_kind);
+                    assert_eq!(track_frames, Some(4));
+                }
+                _ => panic!("expected CD backing"),
+            }
+            assert_eq!(size, 4 * payload_bytes);
+            assert!(name.ends_with(if payload_bytes == 2324 {
+                " (Form2).bin"
+            } else {
+                ".iso"
+            }));
+            // Repeat and revisit frames with a two-frame cache, including both sides
+            // of a hunk boundary and a frame that has been evicted.
+            for frame in [1, 2, 2, 5, 0, 1] {
+                let actual = state.get_cd_frame(2, &fixture.0, frame).unwrap();
+                let start = frame as usize * CD_FRAME_2352;
+                assert_eq!(actual, data[start..start + CD_FRAME_2352]);
+            }
+        }
+    }
+
+    #[test]
+    fn cd_scan_finds_data_after_first_hunk() {
+        for (mode, allow_form2, expected) in [
+            (1, false, CdPayloadKind::Mode1_2048),
+            (2, false, CdPayloadKind::Mode2Form1_2048),
+            (2, true, CdPayloadKind::Mode2Form2_2324),
+        ] {
+            let mut data = vec![0; 4 * CD_FRAME_2352];
+            data[2 * CD_FRAME_2352 + 15] = mode;
+            let bytes = fixture_bytes(CD_FRAME_2352, &data, None);
+            let mut chd = Chd::open(Cursor::new(bytes), None).unwrap();
+            assert_eq!(
+                quick_scan_first_data(&mut chd, 4, allow_form2).unwrap(),
+                (2, expected)
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_cd_metadata_returns_an_error() {
+        let data = vec![0; 2 * CD_FRAME_2352];
+        let bytes = fixture_bytes(
+            CD_FRAME_2352,
+            &data,
+            Some("TRACK:1 TYPE:MODE1 FRAMES:2 PREGAP:0 POSTGAP:0"),
+        );
+        let metadata_offset = u64::from_be_bytes(bytes[48..56].try_into().unwrap());
+        for next in [metadata_offset, bytes.len() as u64 + 1] {
+            let mut malformed = bytes.clone();
+            let offset = metadata_offset as usize;
+            malformed[offset + 8..offset + 16].copy_from_slice(&next.to_be_bytes());
+            let mut file = Cursor::new(malformed.clone());
+            let mut chd = Chd::open(Cursor::new(malformed), None).unwrap();
+            assert!(parse_cd_toc_from_metadata(&mut chd, &mut file, false).is_err());
+        }
+    }
 
     #[test]
     fn parse_mode1_track_line() {
