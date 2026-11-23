@@ -7,9 +7,7 @@
 [advisories]
 db-urls = ["https://github.com/RustSec/advisory-db"]
 
-ignore = [
-  { id = "RUSTSEC-2021-0154", reason = "fuser has no fixed release; project does not process untrusted inputs" },
-]
+ignore = []
 
 # Scope/levels for other advisory classes
 unmaintained = "workspace"  # one of: all | workspace | transitive | none
