@@ -701,7 +701,14 @@ impl Filesystem for FsState {
         reply.ok();
     }
 
-    fn open(&self, _req: &Request, ino: INodeNo, _flags: OpenFlags, reply: fuser::ReplyOpen) {
+    fn open(
+        &self,
+        _req: &Request,
+        ino: INodeNo,
+        _flags: OpenFlags,
+        _kill_suid_gid: bool,
+        reply: fuser::ReplyOpen,
+    ) {
         let (file_id, chd_path) = if let Some(e) = self.entries.iter().find(|e| e.ino == ino.0) {
             (e.ino, e.chd_path.clone())
         } else {
